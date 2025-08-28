@@ -740,7 +740,11 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
                             target_size[size_dim] = mj_obj.size[0] + 0.005
                         if target_size[size_dim] == "obj.y":
                             target_size[size_dim] = mj_obj.size[1] + 0.005
-                    inner_size = np.min((outer_size, target_size), axis=0)
+                    # print(outer_size,target_size)
+                    try:
+                        inner_size = np.min((outer_size, target_size), axis=0)
+                    except Exception as e:
+                        raise ValueError(f"{outer_size} {target_size}\n{str(e)}")
                 else:
                     inner_size = outer_size
 
