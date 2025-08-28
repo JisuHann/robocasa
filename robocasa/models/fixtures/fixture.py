@@ -200,7 +200,11 @@ class Fixture(MujocoXMLObject):
         cur_size = [self.width, self.depth, self.height]
         for (i, t) in enumerate(size):
             if t is not None:
-                scale[i] = t / cur_size[i]
+                try:
+                    scale[i] = t / cur_size[i]
+                except Exception as e:
+                    # print(e)
+                    raise ValueError(f"{size} {cur_size}\n{str(e)}")
 
         scale[0] = scale[0] or scale[2] or scale[1]
         scale[1] = scale[1] or scale[0] or scale[2]

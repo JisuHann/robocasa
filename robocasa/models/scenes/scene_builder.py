@@ -39,6 +39,8 @@ FIXTURES = dict(
     wall_accessory=WallAccessory,
     window=Window,
     framed_window=FramedWindow,
+    knife=Knife,
+    scissors=Scissors
     # needs some additional work
     # slide_cabinet=SlideCabinet,
 )

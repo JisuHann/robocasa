@@ -154,6 +154,18 @@ class Stool(Accessory):
         return "stool"
 
 
+class Knife(Accessory):
+    @property
+    def nat_lang(self):
+        return "knife"
+
+
+class Scissors(Accessory):
+    @property
+    def nat_lang(self):
+        return "scissors"
+
+
 # For outlets, clocks, paintings, etc.
 class WallAccessory(Fixture):
     """

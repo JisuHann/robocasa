@@ -253,6 +253,10 @@ from robocasa.environments.kitchen.single_stage.kitchen_coffee import (
     CoffeeServeMug,
     CoffeeSetupMug,
 )
+from robocasa.environments.kitchen.single_stage.kitchen_coffee_test import (
+    CoffeeServeMug_test,
+    CoffeeSetupMug_test,
+)
 from robocasa.environments.kitchen.single_stage.kitchen_doors import (
     CloseDoor,
     CloseDoubleDoor,
