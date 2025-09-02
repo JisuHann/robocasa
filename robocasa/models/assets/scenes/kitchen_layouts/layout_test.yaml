@@ -407,15 +407,15 @@ left_group:
         pos: [null, 1.0]
         rotation: [0, 0]
 
-    # - name: knife_block
-    #   type: knife_block
+    - name: knife_block
+      type: knife_block
 
-    #   placement:
-    #     fixture: counter_corner_main
-    #     size: [0.40, "obj"]
-    #     pos: [0.0, 1.0]
-    #     # rotation: [-1.57, -1.57]
-    #     rotation: [0, 0]
+      placement:
+        fixture: counter_corner_main
+        size: [0.40, "obj"]
+        pos: [0.0, 1.0]
+        # rotation: [-1.57, -1.57]
+        rotation: [0, 0]
 
     - name: knife
       type: knife
@@ -436,14 +436,22 @@ left_group:
         size: [1.0,1.0]
         pos: [1.0, 2.0]
         rotation: [0, 0, 0]
-    # - name: knife 
-    #   type: knife 
 
-    #   placement:
-    #     fixture: island
-    #     size: [0.1, 0.1]
-    #     pos: [0.0, 0.01]
-    #     rotation: [0, 0]
+    - name: posed_person
+      type: posed_person
+      #### 전체 map 기준
+      pos: [-1.2,-2.2,0.0]
+      # pos:  [0.5, -0.5]     # 그 중심
+      size: [0.5, 0.5,1.0]        # 오브젝트 경계(fully-inside) 아주 작게
+      # rotation: [0, 0, -1.57]
+
+      # 되는 코드
+      # placement:
+      #   fixture: island
+      #   pos: [1.5,3.0]
+      #   # pos:  [0.5, -0.5]     # 그 중심
+      #   size: [0.5, 0.5]        # 오브젝트 경계(fully-inside) 아주 작게
+      #   rotation: [0, 0, -1.57]
 
 stool_group:
   group_origin: [0, 0]

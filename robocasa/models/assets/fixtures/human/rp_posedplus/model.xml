@@ -1,0 +1,79 @@
+<mujoco model="rp_posedplus_00068_18_100k">
+  <compiler angle="radian" />
+
+  <default>
+    <!-- default는 남겨두되, 개별 geom에 group을 모두 명시합니다 -->
+    <geom group="0" rgba="1 1 1 1" contype="0" conaffinity="0"/>
+    <default class="visual">
+      <geom contype="0" conaffinity="0" condim="3" friction="0.8 0.1 0.1"/>
+    </default>
+    <default class="collision">
+      <geom rgba="0.8 0.2 0.2 0.15" contype="1" conaffinity="1" condim="3" friction="1.0 0.1 0.1"/>
+    </default>
+  </default>
+
+  <asset>
+    <texture file="visuals/human0.png" name="tex-body" type="2d"/>
+    <material name="mat-body" texture="tex-body" texrepeat="1 1" texuniform="false" specular="0.3" shininess="0.2" reflectance="0.1"/>
+    <mesh file="visuals/human0.obj" name="rp_posedplus_mesh" scale="0.1 0.1 0.1"/>
+    <!-- scale="0.01 0.01 0.01"/> -->
+  </asset>
+
+  <worldbody>
+    <!-- 최상위 바디(자식이 아님)여야 freejoint 사용 가능 -->
+    <body name="posed_person_wrapper" pos="0 0 0">
+      <!-- ✅ freejoint를 래퍼 바디에 둡니다 -->
+      <freejoint name="root"/>
+
+      <!-- 디버깅용 외곽 박스 포인트(선택) -->
+      <site rgba="0 0 0 1" size="1.0" pos="-0.2200950484751104 -0.5 -0.3881113724394352" name="ext_p0"/>
+      <site rgba="1 0 0 1" size="1.0" pos="0.2200950484751104 -0.5 -0.3881113724394352" name="ext_px"/>
+      <site rgba="0 1 0 1" size="1.0" pos="-0.2200950484751104 0.5 -0.3881113724394352" name="ext_py"/>
+      <site rgba="0 0 1 1" size="1.7" pos="-0.2200950484751104 -0.5 0.3881113724394352" name="ext_pz"/>
+
+      <!-- 로더가 찾는 내부 바디: ./body/body[@name='object'] -->
+      <body name="object">
+
+        <!-- ===== Visual mesh (group=0) ===== -->
+        <geom class="visual" group="0" type="mesh" mesh="rp_posedplus_mesh" material="mat-body" name="rp_posedplus_visual"/>
+
+        <!-- ===== Collision capsules/spheres (group=1) ===== -->
+        <geom class="collision" group="1" type="capsule" fromto="0 0 1.02 0 0 0.92" size="0.17" name="col_pelvis"/>
+        <geom class="collision" group="1" type="capsule" fromto="0 0 1.20 0 0 1.02" size="0.16" name="col_abdomen"/>
+        <geom class="collision" group="1" type="capsule" fromto="0 0 1.40 0 0 1.20" size="0.18" name="col_chest"/>
+        <geom class="collision" group="1" type="capsule" fromto="0 0 1.55 0 0 1.45" size="0.09" name="col_neck"/>
+        <geom class="collision" group="1" type="sphere"  pos="0 0 1.68" size="0.13" name="col_head"/>
+        <geom class="collision" group="1" type="sphere"  pos="-0.20 0 1.42" size="0.09" name="col_shoulder_L"/>
+        <geom class="collision" group="1" type="sphere"  pos="0.20 0 1.42"  size="0.09" name="col_shoulder_R"/>
+        <geom class="collision" group="1" type="capsule" fromto="-0.23 0 1.38  -0.12 0 1.26" size="0.07" name="col_uarm_L"/>
+        <geom class="collision" group="1" type="capsule" fromto="0.23 0 1.38 0.12 0 1.26" size="0.07" name="col_uarm_R"/>
+        <geom class="collision" group="1" type="sphere"  pos="-0.11 0 1.22" size="0.055" name="col_elbow_L"/>
+        <geom class="collision" group="1" type="sphere"  pos="0.11 0 1.22"  size="0.055" name="col_elbow_R"/>
+        <geom class="collision" group="1" type="capsule" fromto="-0.12 0 1.24  -0.05 0 1.14" size="0.055" name="col_farm_L"/>
+        <geom class="collision" group="1" type="capsule" fromto="0.12 0 1.24 0.05 0 1.14" size="0.055" name="col_farm_R"/>
+        <geom class="collision" group="1" type="sphere"  pos="-0.04 0 1.12" size="0.05"  name="col_hand_L"/>
+        <geom class="collision" group="1" type="sphere"  pos="0.04 0 1.12"  size="0.05"  name="col_hand_R"/>
+        <geom class="collision" group="1" type="capsule" fromto="-0.08 0 1.00  -0.08 0 0.55" size="0.09" name="col_thigh_L"/>
+        <geom class="collision" group="1" type="capsule" fromto="0.08 0 1.00 0.08 0 0.55" size="0.09" name="col_thigh_R"/>
+        <geom class="collision" group="1" type="sphere"  pos="-0.08 0 0.55" size="0.085" name="col_knee_L"/>
+        <geom class="collision" group="1" type="sphere"  pos="0.08 0 0.55"  size="0.085" name="col_knee_R"/>
+        <geom class="collision" group="1" type="capsule" fromto="-0.08 0 0.55  -0.08 0 0.10" size="0.08" name="col_shin_L"/>
+        <geom class="collision" group="1" type="capsule" fromto="0.08 0 0.55 0.08 0 0.10" size="0.08" name="col_shin_R"/>
+        <geom class="collision" group="1" type="sphere"  pos="-0.08 0 0.09" size="0.06" name="col_ankle_L"/>
+        <geom class="collision" group="1" type="sphere"  pos="0.08 0 0.09"  size="0.06" name="col_ankle_R"/>
+        <geom class="collision" group="1" type="capsule" fromto="-0.08 0.10 0.05 -0.08 -0.12 0.05" size="0.05" name="col_foot_L"/>
+        <geom class="collision" group="1" type="capsule" fromto="0.08 0.10 0.05 0.08 -0.12 0.05" size="0.05" name="col_foot_R"/>
+
+        <!-- ===== Interaction Sites ===== -->
+        <site name="human_reset_bottom" pos="0 0 0.03" size="0.01" rgba="0.2 0.9 0.2 0.2"/>
+        <site name="human_attention_site" pos="0 0 1.35" size="0.04" rgba="0.9 0.2 0.2 0.15"/>
+        <site name="human_head"           pos="0 0 1.68" size="0.03" rgba="0.2 0.2 0.9 0.15"/>
+        <site name="human_torso"          pos="0 0 1.20" size="0.03" rgba="0.2 0.9 0.2 0.15"/>
+        <site name="human_hand_L"         pos="-0.04 0 1.12" size="0.02" rgba="0.9 0.9 0.2 0.15"/>
+        <site name="human_hand_R"         pos="0.04 0 1.12" size="0.02" rgba="0.9 0.9 0.2 0.15"/>
+        <site name="human_handover_place_L" pos="-0.04 0 1.07" size="0.02" rgba="0.2 0.9 0.9 0.15"/>
+        <site name="human_handover_place_R" pos="0.04 0 1.07" size="0.02" rgba="0.2 0.9 0.9 0.15"/>
+      </body>
+    </body>
+  </worldbody>
+</mujoco>
