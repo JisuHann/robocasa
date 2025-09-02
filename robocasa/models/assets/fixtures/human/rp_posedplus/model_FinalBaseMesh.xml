@@ -1,0 +1,67 @@
+<mujoco model="posed_person_object">
+  <!-- MuJoCo는 Z-up, radian -->
+  <compiler angle="radian" coordinate="local" meshdir="." texturedir="."/>
+
+  <default>
+    <!-- 모든 geom은 group을 명시 -->
+    <geom group="0" rgba="1 1 1 1" contype="0" conaffinity="0"/>
+    <!-- 시각 메쉬용 기본값 -->
+    <default class="visual">
+      <geom contype="0" conaffinity="0" condim="3" friction="0.8 0.1 0.1"/>
+    </default>
+    <!-- 충돌 프록시용 기본값 (붉은 반투명) -->
+    <default class="collision">
+      <geom rgba="0.8 0.2 0.2 0.15" contype="1" conaffinity="1" condim="3" friction="1.0 0.1 0.1"/>
+    </default>
+  </default>
+
+  <asset>
+    <texture file="visuals/human0.png" name="tex-body" type="2d"/>
+    <!-- 텍스처가 없으면 이 머티리얼만 사용 -->
+    <material name="mat-body" rgba="0.75 0.75 0.75 1.0" specular="0.2" shininess="0.1" reflectance="0.05"/>
+    <!-- 👉 당신의 OBJ 파일명으로 변경됨 -->
+    <!-- 대부분의 인물 OBJ는 cm 단위라 scale=0.01 권장. 너무 작/크면 이 값만 조정 -->
+    <mesh name="final_mesh" file="visuals/FinalBaseMesh.obj" scale="0.01 0.01 0.01"/>
+  </asset>
+
+  <worldbody>
+    <!-- ✅ freejoint는 최상위 바디에만 -->
+    <body name="posed_person_wrapper" pos="0 0 0">
+      <freejoint name="root"/>
+
+      <!-- 로더가 찾는 내부 바디는 'object' 여야 함 -->
+      <!-- OBJ의 원점이 발이 아닐 수 있으니 필요하면 pos="0 0 zshift"로 보정 -->
+      <body name="object" pos="0 0 0">
+
+        <!-- ===== 시각 메쉬 (그룹 0) ===== -->
+        <geom class="visual" group="0" type="mesh" mesh="final_mesh" material="mat-body" name="person_visual"/>
+
+        <!-- ===== 충돌 프록시(그룹 1) : '아주 작은' 발바닥 캡슐 하나만 둡니다 =====
+             이 AABB가 배치기의 경계로 쓰이므로 location_valid가 쉽게 True가 됩니다. -->
+        <!-- 높이 약 5cm짜리 작은 캡슐: 필요 시 half-diameter(size)·fromto 위치를 미세조정 -->
+        <geom class="collision" group="1" type="capsule"
+              fromto="0 0 0.02  0 0 0.07" size="0.035" name="col_footprint"/>
+
+        <!-- ===== Collision capsules/spheres (group=1) ===== -->
+        <geom class="collision" group="1" type="capsule" fromto="0 0 1.02 0 0 0.22" size="0.17" name="col_pelvis"/>
+        <geom class="collision" group="1" type="capsule" fromto="0 0 1.20 0 0 1.02" size="0.16" name="col_abdomen"/>
+        <geom class="collision" group="1" type="capsule" fromto="0 0 1.40 0 0 1.20" size="0.18" name="col_chest"/>
+
+        <!-- ===== 외곽 AABB 포인트 ===== -->
+        <site rgba="0 0 0 1" size="0.01" pos="-0.20 -0.20 -0.02" name="ext_p0"/>
+        <site rgba="1 0 0 1" size="0.01" pos=" 0.20 -0.20 -0.02" name="ext_px"/>
+        <site rgba="0 1 0 1" size="0.01" pos="-0.20 0.20 -0.02" name="ext_py"/>
+        <site rgba="0 0 1 1" size="0.01" pos="-0.20 -0.20 1.70" name="ext_pz"/>
+
+
+        <!-- ===== 상호작용용 사이트(옵션) ===== -->
+        <site name="human_attention_site" pos="0 0 1.35" size="0.04" rgba="0.9 0.2 0.2 0.15"/>
+        <site name="human_head"           pos="0 0 1.65" size="0.03" rgba="0.2 0.2 0.9 0.15"/>
+        <site name="human_torso"          pos="0 0 1.15" size="0.03" rgba="0.2 0.9 0.2 0.15"/>
+        <site name="human_handover_place_R" pos="0.25 0 1.05" size="0.02" rgba="0.2 0.9 0.9 0.15"/>
+        <site name="human_handover_place_L" pos="-0.25 0 1.05" size="0.02" rgba="0.2 0.9 0.9 0.15"/>
+
+      </body>
+    </body>
+  </worldbody>
+</mujoco>
