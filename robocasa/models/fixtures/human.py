@@ -1,8 +1,11 @@
 from robocasa.models.fixtures.accessories import Accessory
+from robocasa.models.fixtures.fixture import Fixture, FixtureType
 import numpy as np
+import robosuite.utils.transform_utils as T
+from robosuite.utils.mjcf_utils import string_to_array as s2a
 
 
-class PosedPerson(Accessory):
+class PosedPerson(Fixture):
     """
     Standing human (posed mesh) as an interactive accessory.
     - Attending state toggles ON the first time the gripper touches the chest "attention_site"
@@ -20,7 +23,7 @@ class PosedPerson(Accessory):
         # resolve sites (any missing ones are simply ignored gracefully)
         def _find_site(name):
             return self.worldbody.find(
-                f"./body/body/site[@name='{self.naming_prefix}{name}']"
+                f"./body/site[@name='{self.naming_prefix}{name}']"
             )
 
         self._site = {
@@ -32,7 +35,28 @@ class PosedPerson(Accessory):
             "handover_L": _find_site("handover_place_L"),
             "handover_R": _find_site("handover_place_R"),
         }
-
+        # orientation
+        # self.set_orientation([0, 0, 0, 0])
+    
+    def set_orientation(self, rot):
+        """
+        Set the global orientation of the human (euler)
+        """
+        # Clear any existing orientation attributes to avoid MuJoCo XML conflicts
+        for attr in ['euler', 'axisangle', 'xyaxes', 'zaxis']:
+            if attr in self._obj.attrib:
+                del self._obj.attrib[attr]
+        
+        # Convert euler angles to quaternion via rotation matrix and set it on the XML element
+        if len(rot) == 3:  # If 3D euler angles, convert to quaternion
+            rot_mat = T.euler2mat(rot)
+            quat = T.mat2quat(rot_mat)
+            self._obj.set("quat", " ".join(map(str, quat)))
+        elif len(rot) == 4:  # If already quaternion, use directly
+            self._obj.set("quat", " ".join(map(str, rot)))
+        else:
+            raise ValueError(f"rot must be 3D euler angles or 4D quaternion, got shape {len(rot)}")
+        # print(f"Set human orientation to {rot} (quat: {self._obj.get('quat')})")
     # ---------- State I/O ----------
     def get_state(self):
         return dict(attending=self._attending)
@@ -49,10 +73,10 @@ class PosedPerson(Accessory):
                 f"{self.naming_prefix}attention_site"  # site-name-based
             )
             # fallback: if there's a geom called attention_button, try that first
-            att_button = f"{self.naming_prefix}attention_button"
+            # att_button = f"{self.naming_prefix}attention_button"
             pressed = False
             try:
-                pressed = env.check_contact(env.robots[0].gripper["right"], att_button)
+                pressed = env.check_contact(attention_geom_name)
             except Exception:
                 # proximity check to the attention site
                 site_id = env.sim.model.site_name2id(
@@ -97,7 +121,7 @@ class PosedPerson(Accessory):
         Check if the object lies under the selected hand's handover site.
         """
         obj_pos = np.array(env.sim.data.body_xpos[env.obj_body_id[obj_name]])
-        site_name = f"{self.naming_prefix}{'handover_place_R' if use_right else 'handover_place_L'}"
+        site_name = f"{self.naming_prefix}{'handover_R' if use_right else 'handover_L'}"
         if site_name not in env.sim.model.site_names:
             return False
         sid = env.sim.model.site_name2id(site_name)
@@ -127,7 +151,11 @@ class PosedPerson(Accessory):
         torso_pos = env.sim.data.site_xpos[sid]
         gpos = env.sim.data.site_xpos[env.robots[0].eef_site_id["right"]]
         return np.linalg.norm(gpos - torso_pos) > th
-
+    def handover_success(self,env, obj_name, use_right=True, xy_thresh=0.05, z_thresh=0.08):
+        """
+        Check if the object is successfully handed over to the person.
+        """
+        return self.check_handover_ready(env, obj_name, use_right, xy_thresh, z_thresh)
     @property
     def nat_lang(self):
         return "person"

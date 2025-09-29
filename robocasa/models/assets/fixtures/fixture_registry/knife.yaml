@@ -1,7 +1,0 @@
-default:
-  name: knife
-  size: [0.5, 0.5, 0.5]
-  xml: fixtures/accessories/knife/knife_0
-
-knife_1:
-  xml: fixtures/accessories/knife/knife_1

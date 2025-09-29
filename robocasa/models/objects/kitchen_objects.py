@@ -742,7 +742,7 @@ OBJ_CATEGORIES = dict(
     ),
     knife=dict(
         types=("utensil"),
-        graspable=False,
+        graspable=True,
         washable=True,
         microwavable=True,
         cookable=True,
@@ -999,7 +999,7 @@ OBJ_CATEGORIES = dict(
     ),
     scissors=dict(
         types=("tool"),
-        graspable=False,
+        graspable=True,
         washable=True,
         microwavable=False,
         cookable=False,

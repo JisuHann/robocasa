@@ -456,8 +456,11 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
             ref_fixture=ref_fixture
         )
         robot_model = self.robots[0].robot_model
+        
         robot_model.set_base_xpos(robot_base_pos)
         robot_model.set_base_ori(robot_base_ori)
+        # print("Robot base pos: ", robot_base_pos)
+        # print("Robot base ori (xyzw): ", robot_base_ori)
 
         # create and place objects
         self._create_objects()
@@ -747,7 +750,8 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
                         raise ValueError(f"{outer_size} {target_size}\n{str(e)}")
                 else:
                     inner_size = outer_size
-
+                # if cfg["name"] == "knife" or cfg["name"] == "scissors":
+                #     print(cfg["name"], outer_size, target_size, inner_size)
                 inner_xpos, inner_ypos = placement.get("pos", (None, None))
                 offset = placement.get("offset", (0.0, 0.0))
 
@@ -780,7 +784,6 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
                 # center surface point of entire region
                 ref_pos = fixture.pos + [0, 0, reset_region["offset"][2]]
                 ref_rot = fixture.rot
-
                 # x, y, and rotational ranges for randomization
                 x_range = (
                     np.array([-inner_size[0] / 2, inner_size[0] / 2])
@@ -877,6 +880,8 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
                 ),
                 sample_args=placement.get("sample_args", None),
             )
+            # if cfg["name"] == "knife" or cfg["name"] == "scissors":
+            #     print(cfg["name"],placement_initializer)
 
         return placement_initializer
 
@@ -1519,7 +1524,7 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
                     for name in matches
                     if self._is_fxtr_valid(self.fixtures[name], size)
                 ]
-            assert len(matches) > 0
+            assert len(matches) > 0, f"no fixtures found for id {id} (ref={ref})"
             # sample random key
             key = self.rng.choice(matches)
             return self.fixtures[key]

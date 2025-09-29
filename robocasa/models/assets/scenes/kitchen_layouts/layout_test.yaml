@@ -417,41 +417,20 @@ left_group:
         # rotation: [-1.57, -1.57]
         rotation: [0, 0]
 
-    - name: knife
-      type: knife
-
-      placement:
-        fixture: island
-        # size: [1.0, 0.25]
-        size: [1.0,1.0]
-        pos: [1.2, 2.0]
-        rotation: [0, 0]
-
-    - name: scissors
-      type: scissors
-
-      placement:
-        fixture: island
-        # size: [1.0, 0.25]
-        size: [1.0,1.0]
-        pos: [1.0, 2.0]
-        rotation: [0, 0, 0]
 
     - name: posed_person
       type: posed_person
-      #### 전체 map 기준
-      pos: [-1.2,-2.2,0.0]
-      # pos:  [0.5, -0.5]     # 그 중심
-      size: [0.5, 0.5,1.0]        # 오브젝트 경계(fully-inside) 아주 작게
-      # rotation: [0, 0, -1.57]
-
-      # 되는 코드
+      # pos : [2.8, -2.0, 1.04] 
+      # size: [0.5, 0.5, 1.0]      
+      pos : [3.0, -4.5, 0.832]      
+      size: [0.5, 0.5, 0.8]        
       # placement:
-      #   fixture: island
-      #   pos: [1.5,3.0]
-      #   # pos:  [0.5, -0.5]     # 그 중심
-      #   size: [0.5, 0.5]        # 오브젝트 경계(fully-inside) 아주 작게
-      #   rotation: [0, 0, -1.57]
+      #   # ref : island
+      # #   pos : [null, null]
+      #   pos : [2.8, -2.0, 0.832] 
+      #   size : [1.0, 1.0, 1.0]
+      #   rotation : [0, -1.57]
+      # rotation: [0, 1.57, 0.0]
 
 stool_group:
   group_origin: [0, 0]

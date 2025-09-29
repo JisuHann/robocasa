@@ -1,79 +1,29 @@
-<mujoco model="rp_posedplus_00068_18_100k">
-  <compiler angle="radian" />
-
-  <default>
-    <!-- default는 남겨두되, 개별 geom에 group을 모두 명시합니다 -->
-    <geom group="0" rgba="1 1 1 1" contype="0" conaffinity="0"/>
-    <default class="visual">
-      <geom contype="0" conaffinity="0" condim="3" friction="0.8 0.1 0.1"/>
-    </default>
-    <default class="collision">
-      <geom rgba="0.8 0.2 0.2 0.15" contype="1" conaffinity="1" condim="3" friction="1.0 0.1 0.1"/>
-    </default>
-  </default>
-
+<mujoco model="human0">
   <asset>
-    <texture file="visuals/human0.png" name="tex-body" type="2d"/>
-    <material name="mat-body" texture="tex-body" texrepeat="1 1" texuniform="false" specular="0.3" shininess="0.2" reflectance="0.1"/>
-    <mesh file="visuals/human0.obj" name="rp_posedplus_mesh" scale="0.1 0.1 0.1"/>
-    <!-- scale="0.01 0.01 0.01"/> -->
-  </asset>
-
+  <texture file="visual/ceramic.png" name="tex-human0" type="2d" />
+  <material name="human0" reflectance="0.5" texrepeat="1 1" texture="tex-human0" texuniform="false" />
+  <mesh file="visual/model_normalized_0.obj" name="model_normalized_0_vis" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_22.obj" name="model_normalized_collision_22._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_23.obj" name="model_normalized_collision_23._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_21.obj" name="model_normalized_collision_21._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_20.obj" name="model_normalized_collision_20._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_24.obj" name="model_normalized_collision_24._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_30.obj" name="model_normalized_collision_30._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_18.obj" name="model_normalized_collision_18._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_19.obj" name="model_normalized_collision_19._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_31.obj" name="model_normalized_collision_31._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_25.obj" name="model_normalized_collision_25._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_27.obj" name="model_normalized_collision_27._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_26.obj" name="model_normalized_collision_26._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_9.obj" name="model_normalized_collision_9._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_8.obj" name="model_normalized_collision_8._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_6.obj" name="model_normalized_collision_6._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_7.obj" name="model_normalized_collision_7._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_5.obj" name="model_normalized_collision_5._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_4.obj" name="model_normalized_collision_4._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_0.obj" name="model_normalized_collision_0._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_1.obj" name="model_normalized_collision_1._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_3.obj" name="model_normalized_collision_3._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_2.obj" name="model_normalized_collision_2._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_17.obj" name="model_normalized_collision_17._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_16.obj" name="model_normalized_collision_16._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_28.obj" name="model_normalized_collision_28._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_14.obj" name="model_normalized_collision_14._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_15.obj" name="model_normalized_collision_15._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_29.obj" name="model_normalized_collision_29._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_11.obj" name="model_normalized_collision_11._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_10.obj" name="model_normalized_collision_10._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_12.obj" name="model_normalized_collision_12._coll" scale="1.5 1.5 2.0" /><mesh file="collision/model_normalized_collision_13.obj" name="model_normalized_collision_13._coll" scale="1.5 1.5 2.0" /><texture type="2d" name="material_0" file="visual/material_0.png" /><material name="material_0" texture="material_0" specular="0.4000000000000001" shininess="0.001" /></asset>
   <worldbody>
-    <!-- 최상위 바디(자식이 아님)여야 freejoint 사용 가능 -->
-    <body name="posed_person_wrapper" pos="0 0 0">
-      <!-- ✅ freejoint를 래퍼 바디에 둡니다 -->
-      <freejoint name="root"/>
-
-      <!-- 디버깅용 외곽 박스 포인트(선택) -->
-      <site rgba="0 0 0 1" size="1.0" pos="-0.2200950484751104 -0.5 -0.3881113724394352" name="ext_p0"/>
-      <site rgba="1 0 0 1" size="1.0" pos="0.2200950484751104 -0.5 -0.3881113724394352" name="ext_px"/>
-      <site rgba="0 1 0 1" size="1.0" pos="-0.2200950484751104 0.5 -0.3881113724394352" name="ext_py"/>
-      <site rgba="0 0 1 1" size="1.7" pos="-0.2200950484751104 -0.5 0.3881113724394352" name="ext_pz"/>
-
-      <!-- 로더가 찾는 내부 바디: ./body/body[@name='object'] -->
+    <body pos="0 0 0">
+      <site name="ext_p0" pos="-0.2 -0.2 -0.5" size="0.001" rgba="0 0 0 1"/>
+      <site name="ext_px" pos=" 0.2 -0.2 -0.5" size="0.001" rgba="1 0 0 1"/>
+      <site name="ext_py" pos="-0.2 0.2 -0.5" size="0.001" rgba="0 1 0 1"/>
+      <site name="ext_pz" pos="-0.2 -0.2 0.45" size="0.001" rgba="0 0 1 1"/>
       <body name="object">
-
-        <!-- ===== Visual mesh (group=0) ===== -->
-        <geom class="visual" group="0" type="mesh" mesh="rp_posedplus_mesh" material="mat-body" name="rp_posedplus_visual"/>
-
-        <!-- ===== Collision capsules/spheres (group=1) ===== -->
-        <geom class="collision" group="1" type="capsule" fromto="0 0 1.02 0 0 0.92" size="0.17" name="col_pelvis"/>
-        <geom class="collision" group="1" type="capsule" fromto="0 0 1.20 0 0 1.02" size="0.16" name="col_abdomen"/>
-        <geom class="collision" group="1" type="capsule" fromto="0 0 1.40 0 0 1.20" size="0.18" name="col_chest"/>
-        <geom class="collision" group="1" type="capsule" fromto="0 0 1.55 0 0 1.45" size="0.09" name="col_neck"/>
-        <geom class="collision" group="1" type="sphere"  pos="0 0 1.68" size="0.13" name="col_head"/>
-        <geom class="collision" group="1" type="sphere"  pos="-0.20 0 1.42" size="0.09" name="col_shoulder_L"/>
-        <geom class="collision" group="1" type="sphere"  pos="0.20 0 1.42"  size="0.09" name="col_shoulder_R"/>
-        <geom class="collision" group="1" type="capsule" fromto="-0.23 0 1.38  -0.12 0 1.26" size="0.07" name="col_uarm_L"/>
-        <geom class="collision" group="1" type="capsule" fromto="0.23 0 1.38 0.12 0 1.26" size="0.07" name="col_uarm_R"/>
-        <geom class="collision" group="1" type="sphere"  pos="-0.11 0 1.22" size="0.055" name="col_elbow_L"/>
-        <geom class="collision" group="1" type="sphere"  pos="0.11 0 1.22"  size="0.055" name="col_elbow_R"/>
-        <geom class="collision" group="1" type="capsule" fromto="-0.12 0 1.24  -0.05 0 1.14" size="0.055" name="col_farm_L"/>
-        <geom class="collision" group="1" type="capsule" fromto="0.12 0 1.24 0.05 0 1.14" size="0.055" name="col_farm_R"/>
-        <geom class="collision" group="1" type="sphere"  pos="-0.04 0 1.12" size="0.05"  name="col_hand_L"/>
-        <geom class="collision" group="1" type="sphere"  pos="0.04 0 1.12"  size="0.05"  name="col_hand_R"/>
-        <geom class="collision" group="1" type="capsule" fromto="-0.08 0 1.00  -0.08 0 0.55" size="0.09" name="col_thigh_L"/>
-        <geom class="collision" group="1" type="capsule" fromto="0.08 0 1.00 0.08 0 0.55" size="0.09" name="col_thigh_R"/>
-        <geom class="collision" group="1" type="sphere"  pos="-0.08 0 0.55" size="0.085" name="col_knee_L"/>
-        <geom class="collision" group="1" type="sphere"  pos="0.08 0 0.55"  size="0.085" name="col_knee_R"/>
-        <geom class="collision" group="1" type="capsule" fromto="-0.08 0 0.55  -0.08 0 0.10" size="0.08" name="col_shin_L"/>
-        <geom class="collision" group="1" type="capsule" fromto="0.08 0 0.55 0.08 0 0.10" size="0.08" name="col_shin_R"/>
-        <geom class="collision" group="1" type="sphere"  pos="-0.08 0 0.09" size="0.06" name="col_ankle_L"/>
-        <geom class="collision" group="1" type="sphere"  pos="0.08 0 0.09"  size="0.06" name="col_ankle_R"/>
-        <geom class="collision" group="1" type="capsule" fromto="-0.08 0.10 0.05 -0.08 -0.12 0.05" size="0.05" name="col_foot_L"/>
-        <geom class="collision" group="1" type="capsule" fromto="0.08 0.10 0.05 0.08 -0.12 0.05" size="0.05" name="col_foot_R"/>
-
-        <!-- ===== Interaction Sites ===== -->
-        <site name="human_reset_bottom" pos="0 0 0.03" size="0.01" rgba="0.2 0.9 0.2 0.2"/>
-        <site name="human_attention_site" pos="0 0 1.35" size="0.04" rgba="0.9 0.2 0.2 0.15"/>
-        <site name="human_head"           pos="0 0 1.68" size="0.03" rgba="0.2 0.2 0.9 0.15"/>
-        <site name="human_torso"          pos="0 0 1.20" size="0.03" rgba="0.2 0.9 0.2 0.15"/>
-        <site name="human_hand_L"         pos="-0.04 0 1.12" size="0.02" rgba="0.9 0.9 0.2 0.15"/>
-        <site name="human_hand_R"         pos="0.04 0 1.12" size="0.02" rgba="0.9 0.9 0.2 0.15"/>
-        <site name="human_handover_place_L" pos="-0.04 0 1.07" size="0.02" rgba="0.2 0.9 0.9 0.15"/>
-        <site name="human_handover_place_R" pos="0.04 0 1.07" size="0.02" rgba="0.2 0.9 0.9 0.15"/>
-      </body>
+      <geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_0_vis" conaffinity="0" contype="0" group="1" material="material_0" />
+      <geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_22._coll" group="0" rgba="0.8 0.8 0.8 0.0" />
+      <geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_23._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_21._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_20._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_24._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_30._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_18._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_19._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_31._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_25._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_27._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_26._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_9._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_8._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_6._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_7._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_5._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_4._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_0._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_1._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_3._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_2._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_17._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_16._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_28._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_14._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_15._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_29._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_11._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_10._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_12._coll" group="0" rgba="0.8 0.8 0.8 0.0" /><geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_13._coll" group="0" rgba="0.8 0.8 0.8 0.0" /></body>
+      <site rgba="0 0 0 0" size="0.005" pos="-0.001327093469164653 -0.0014711269500746887 -0.5075757572625752" name="bottom_site" />
+      <site rgba="0 0 0 0" size="0.005" pos="-0.001327093469164653 -0.0014711269500746887 0.5075757448605585" name="top_site" />
+      <site rgba="0 0 0 0" size="0.005" pos="0.14261229835848616 0.15761977999329901 -6.201008428963206e-09" name="horizontal_radius_site" />
+      <!-- PosedPerson required sites - corrected for scaled model -->
+      <site name='attention_site' pos='0.05 0 1.2' size='0.05' rgba='0 1 0 0.3'/>
+      <site name='head' pos='0 0 1.7' size='0.05' rgba='1 1 0 0.3'/>
+      <site name='torso' pos='0 0 1.0' size='0.05' rgba='0.5 0.5 0.5 0.3'/>
+      <site name='hand_L' pos='-0.15 0.20 1.0' size='0.03' rgba='0 0 1 0.5'/>
+      <site name='hand_R' pos='-0.15 -0.20 1.0' size='0.03' rgba='1 0 0 0.5'/>
+      <site name='handover_place_L' pos='0.0 0.25 0.8' size='0.05' rgba='0 0 1 0.3'/>
+      <site name='handover_place_R' pos='0.0 -0.25 0.8' size='0.05' rgba='1 0 0 0.3'/>
     </body>
   </worldbody>
 </mujoco>
