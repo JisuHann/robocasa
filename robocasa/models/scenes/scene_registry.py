@@ -30,8 +30,8 @@ class LayoutType(IntEnum):
 
 LAYOUT_GROUPS_TO_IDS = {
     -1: list(range(11)),  # all
-    -2: [0, 2, 4, 5, 7, 10],  # no island
-    -3: [1, 3, 6, 8, 9],  # island
+    -2: [0, 2, 4, 5, 7],  # no island
+    -3: [1, 3, 6, 8, 9, 10],  # island
     -4: [1, 3, 6, 7, 8, 9],  # dining
 }
 
