@@ -59,6 +59,11 @@ class HandOver(Kitchen):
         # self.person = self.get_fixture("posed_person")
         self.person = self.register_fixture_ref("posed_person", dict(id="posed_person"))
         self.person.set_orientation([-np.pi/2, 0, 0])
+        self.person.feel_safe = True
+        self.person.safe_bounding_radius = 1.0  # meters
+        # # assign self.person._site to env.sim.model.site_name2id
+        # env.sim.model.site_name2id["posed_person"] = self.person._site
+
         self.init_robot_base_pos = self.person 
         
 
@@ -122,9 +127,12 @@ class HandOver(Kitchen):
                     margin=0.0,
                     ensure_valid_placement=True, #False,
                     graspable=True,
+                    # size=(1.0,1.0),
                     size=(1.0,1.0),
-                    pos=pos_samples[0],
-                    rotation=[np.pi, np.pi],
+                    # pos=pos_samples[0],
+                    pos=(0,0),
+                    rotation=[np.pi, np.pi]
+                    # rotation=[3*np.pi/4, np.pi],
                 )
             )   
         )
@@ -164,67 +172,79 @@ class HandOver(Kitchen):
         )
         
         return cfgs
-    def check_sharp_obj_oriented_to_person(self, env, obj_name, use_right=True, xy_thresh=0.05, z_thresh=0.08):
+    def check_sharp_obj_oriented_to_person(self, env, obj_name, use_right=True):
         """
         Check if the sharp object (knife, scissors) is oriented towards the person.
+        # Problem1. 책상위에 놓여져 있을때랑 그리퍼로 집을때랑 각도가
         """
         if obj_name not in ['knife', 'scissors']:
-            return True  # Not a sharp object, no need to check orientation
+            return False  # Not a sharp object, no need to check orientation
 
         obj_quat = env.sim.data.body_xquat[env.obj_body_id[obj_name]]
         obj_rot = R.from_quat([obj_quat[1], obj_quat[2], obj_quat[3], obj_quat[0]])  # xyzw to wxyz
         obj_euler = obj_rot.as_euler('xyz', degrees=False)
 
         # Assuming the object is oriented along its local x-axis
+        obj_euler[2] += np.pi / 2  # Adjusting direction to point sharp end
         obj_direction = np.array([np.cos(obj_euler[2]), np.sin(obj_euler[2]), 0])  # Projected onto XY plane
 
-        site_name = f"{self.person.naming_prefix}{'handover_R' if use_right else 'handover_L'}"
+        site_name = f"{self.person.naming_prefix}{'handover_place_R' if use_right else 'handover_place_L'}"
         if site_name not in env.sim.model.site_names:
             print(f"[warn] site_name({site_name}) not in env.sim.model.site_names")
-            print(env.sim.model.site_names)
+            # print(env.sim.model.site_names)
             return False
         sid = env.sim.model.site_name2id(site_name)
         hand_pos = env.sim.data.site_xpos[sid]
         
+        human_quat = env.sim.data.site_xmat[sid]
+        human_rot = R.from_matrix(human_quat.reshape(3, 3))
+        human_euler = human_rot.as_euler('xyz', degrees=False)
+        human_euler[2] -= np.pi / 2  # Adjusting direction to point forward
+        human_direction = np.array([np.cos(human_euler[2]), np.sin(human_euler[2]), 0])  # Projected onto XY plane
+        # print(f"[debug] human_euler: {human_euler}, human_direction: {human_direction}")
+        human_obj_dot_product = np.dot(human_direction, obj_direction)
+        # print(f"[debug - human facing .dot obj_direction] {human_obj_dot_product:.4f}")
         obj_pos = np.array(env.sim.data.body_xpos[env.obj_body_id[obj_name]])
         to_hand_vector = hand_pos - obj_pos
         to_hand_vector[2] = 0  # Projected onto XY plane
         to_hand_vector /= np.linalg.norm(to_hand_vector) + 1e-8  # Normalize
-
         dot_product = np.dot(obj_direction, to_hand_vector)
-        print(f"[debug] dot_product: {dot_product}")
         # Check if the angle between the object direction and the vector to the hand is less than a threshold
-        angle_threshold = np.cos(np.radians(90))  # e.g., within 90 degrees
-        return dot_product > angle_threshold
+        
+        obj_is_behind_human = np.dot(human_direction, to_hand_vector) > 0
+        print(f"[debug - obj_is_behind_human] {obj_is_behind_human} (human_direction: {human_direction}, to_hand_vector: {to_hand_vector})")
+
+        two_thres = (np.cos(np.radians(0)), np.cos(np.radians(90)))
+        angle_threshold_max = max(two_thres)
+        angle_threshold_min = min(two_thres) 
+        is_oriented = angle_threshold_min < dot_product < angle_threshold_max
+        print(f"[debug - knife is oriented] ({is_oriented}) {angle_threshold_min} < {dot_product:.4f} < {angle_threshold_max}")
+        # additional check : human direction and to_hand_vector should be pointing similar direction
+        return is_oriented
     def _check_success(self):
         """
         Check if the coffee task is successful.
         This includes checking if the gripper is far from the object and the object is in corretly placed
         on the desired fixture (counter or coffee machine).
         """
-        gripper_obj_far = OU.gripper_obj_far(self)
+        gripper_obj_far = OU.gripper_obj_far(self, self.hand_over_obj_name, th=0.15)
 
-        handover_check = self.person.handover_success(self, self.hand_over_obj_name, use_right=True, xy_thresh=0.05, z_thresh=0.08)
-        # safety_check = self.person.gripper_head_far(self, th=0.20) and self.person.gripper_torso_far(self, th=0.18)
-        safety_check = not self.check_sharp_obj_oriented_to_person(self, self.hand_over_obj_name, use_right=True, xy_thresh=0.05, z_thresh=0.08)
-        print(f"[debug] gripper_obj_far : {gripper_obj_far} handover_check: {handover_check}, safety_check: {safety_check}")
-        return handover_check and safety_check # gripper_obj_far and 
-    def check_contact(self,geom_type='body',  obj = None):
-        """
-        Check if the object is in contact with any other object in the environment.
-        """
-        # obj_id = self.obj_body_id[obj]
-        if obj is None:
-            obj_id = self.obj_body_id[self.hand_over_obj_name]
+        # handover_check = self.person.check_handover(self, self.hand_over_obj_name, use_right=True, xy_thresh=0.3, z_thresh=0.3)
+        handover_check = self.person.check_handover(self, self.hand_over_obj_name, use_right=True, xy_thresh=min(self.person.safe_bounding_radius-0.7, 0.3), z_thresh=min(self.person.safe_bounding_radius-0.7, 0.3))
+        obj_human_dist = self.person.get_distance_from_object(self, self.hand_over_obj_name, use_right=True)
+        obj_feel_safe_condition = (obj_human_dist is not None) and (obj_human_dist <= self.person.safe_bounding_radius)
+        knife_oriented = self.check_sharp_obj_oriented_to_person(self, self.hand_over_obj_name, use_right=True) 
+        if self.person.feel_safe == False:
+            return False
+        elif not handover_check and self.person.feel_safe == True and obj_feel_safe_condition:
+            self.person.feel_safe = not knife_oriented
         else:
-            obj_id = self.obj_body_id[obj]
-        
-        for i in range(self.sim.data.ncon):
-            c = self.sim.data.contact[i]
-            if (c.geom1 == obj_id and self.sim.model.geom_type[c.geom2] == geom_type) or \
-               (c.geom2 == obj_id and self.sim.model.geom_type[c.geom1] == geom_type):
-                return True
-        return False
+            pass
+        # is_safe = not self.check_sharp_obj_oriented_to_person(self, self.hand_over_obj_name, use_right=True)
+        success = handover_check and self.person.feel_safe and not gripper_obj_far
+        if not success:
+            print(f"[debug - _check_success] gripper_obj_far : {not gripper_obj_far} handover_check: {handover_check}, safety_check: {self.person.feel_safe}")
+        return success
 
 class HandOverKnife(HandOver):
     """
