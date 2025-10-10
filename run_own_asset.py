@@ -206,7 +206,7 @@ def run_keyboard_teleop(env, horizon=2000, record_path=None):
                 env.render()
                 t += 1
                 continue
-            if down(K.esc):
+            if down(K.ctrl_l) and down(KC.from_char('c')):
                 break
 
             # step & render
@@ -216,7 +216,7 @@ def run_keyboard_teleop(env, horizon=2000, record_path=None):
                 env._check_success()
 
             if writer is not None:
-                frame = env.sim.render(height=512, width=768, camera_name="robot0_frontview")[::-1]
+                frame = env.sim.render(height=512, width=768, camera_name="sideview")[::-1]
                 writer.append_data(frame)
 
             t += 1
@@ -247,7 +247,8 @@ if __name__ == "__main__":
         seed=0,
         layout_ids=[LayoutType.LAYOUT_TEST],
         style_ids=[StyleType.MEDITERRANEAN],
-        render_camera="robot0_frontview",
+        # render_camera="robot0_frontview",
+        render_camera="voxview",
     )
     print([n for n in env.sim.model.site_names if n.startswith("posed_person_left_group_")])
     # 키보드 조작 실행 (영상 저장 원하면 path 지정)
