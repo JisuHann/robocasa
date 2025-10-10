@@ -410,9 +410,11 @@ def sample_kitchen_object_helper(
         except Exception as e :
             print([len(choices[reg]) for reg in obj_registries])
             chosen_reg = None
-            raise ValueError(str(e))
+            raise ValueError(f"{cat}, {reg} - " + str(e))
 
         mjcf_path = rng.choice(choices[chosen_reg])
+        # if cat == 'knife' :
+        #     print("Sampled a knife object: ", mjcf_path)
         mjcf_kwargs = OBJ_CATEGORIES[cat][chosen_reg].get_mjcf_kwargs()
         mjcf_kwargs["mjcf_path"] = mjcf_path
 

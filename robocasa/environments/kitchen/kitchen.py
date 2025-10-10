@@ -730,7 +730,8 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
                 )
                 outer_size = reset_region["size"]
                 margin = placement.get("margin", 0.04)
-                outer_size = (outer_size[0] - margin, outer_size[1] - margin)
+                # outer_size = (outer_size[0] - margin, outer_size[1] - margin)
+                outer_size = tuple([i_size-margin for i_size in outer_size])
 
                 # calculate the size of the inner region where object will actually be placed
                 target_size = placement.get("size", None)

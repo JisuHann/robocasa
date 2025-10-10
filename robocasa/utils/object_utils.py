@@ -353,6 +353,8 @@ def gripper_obj_far(env, obj_name="obj", th=0.25):
     obj_pos = env.sim.data.body_xpos[env.obj_body_id[obj_name]]
     gripper_site_pos = env.sim.data.site_xpos[env.robots[0].eef_site_id["right"]]
     gripper_obj_far = np.linalg.norm(gripper_site_pos - obj_pos) > th
+    if env.timestep % 5 == 0:
+        print(f"[Debug - gripper_obj_far] gripper to obj dist = {np.linalg.norm(gripper_site_pos - obj_pos):.4f}, th={th}, far={gripper_obj_far}")
     return gripper_obj_far
 
 
