@@ -136,10 +136,12 @@ for (name, kwargs) in OBJ_CATEGORIES.items():
             "types",
             "aigen",
             "objaverse",
+            "lrs_objs"
         ]
     objaverse_kwargs = common_properties.pop("objaverse", None)
     aigen_kwargs = common_properties.pop("aigen", None)
     assert "scale" not in kwargs
+    lrs_kwargs = common_properties.pop("lrs_objs", None)
     OBJ_CATEGORIES[name] = {}
 
     # create instances
@@ -151,7 +153,9 @@ for (name, kwargs) in OBJ_CATEGORIES.items():
         OBJ_CATEGORIES[name]["aigen"] = ObjCat(
             name=name, aigen_cat=True, **aigen_kwargs
         )
-
+    if lrs_kwargs is not None:
+        lrs_kwargs.update(common_properties)
+        OBJ_CATEGORIES[name]["lrs_objs"] = ObjCat(name=name, **lrs_kwargs)
 
 def sample_kitchen_object(
     groups,
@@ -162,7 +166,7 @@ def sample_kitchen_object(
     cookable=None,
     freezable=None,
     rng=None,
-    obj_registries=("objaverse",),
+    obj_registries=("objaverse","lrs_objs"),
     split=None,
     max_size=(None, None, None),
     object_scale=None,
@@ -262,7 +266,7 @@ def sample_kitchen_object_helper(
     cookable=None,
     freezable=None,
     rng=None,
-    obj_registries=("objaverse",),
+    obj_registries=("objaverse","lrs_objs"),
     split=None,
     object_scale=None,
 ):

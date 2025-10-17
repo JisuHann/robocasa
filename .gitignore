@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# 3D object files
+*.glb
+
 # C extensions
 *.so
 
@@ -137,7 +140,7 @@ robocasa/models/assets/fixtures/**/*.blend1
 robocasa/models/assets/fixtures/**/*.mp4
 robocasa/models/assets/fixtures/**/*.png
 robocasa/models/assets/fixtures/**/*.jpeg
-
+robocasa/models/assets/objects/lrs_objs/*_towel
 # default textures
 robocasa/models/assets/textures
 

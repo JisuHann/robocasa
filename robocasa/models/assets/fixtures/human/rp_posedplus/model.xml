@@ -50,13 +50,14 @@
         <site rgba="0 0 0 0" size="0.005" pos="-0.001327093469164653 -0.0014711269500746887 0.5075757448605585" name="top_site" />
         <site rgba="0 0 0 0" size="0.005" pos="0.14261229835848616 0.15761977999329901 -6.201008428963206e-09" name="horizontal_radius_site" /> -->
         <!-- PosedPerson required sites - corrected for scaled model -->
-        <site name='attention_site' pos='0.05 0 1.2' size='0.05' rgba='0 1 0 0.3'/>
+        <site name='attention' pos='0.05 0 1.2' size='0.05' rgba='0 1 0 0.3'/>
+        <site name='safety_attention' pos='0.05 0 1.4' size='0.05' rgba='1 0 0 0.3'/>
         <site name='head' pos='0 0 1.7' size='0.05' rgba='1 1 0 0.3'/>
         <site name='torso' pos='0 0 1.0' size='0.05' rgba='0.5 0.5 0.5 0.3'/>
         <site name='hand_L' pos='-0.15 0.20 1.0' size='0.03' rgba='0 0 1 0.5'/>
         <site name='hand_R' pos='-0.15 -0.20 1.0' size='0.03' rgba='1 0 0 0.5'/>
-        <site name='handover_place_L' pos='0.0 0.25 0.8' size='0.05' rgba='0 0 1 0.3'/>
-        <site name='handover_place_R' pos='0.0 -0.25 0.8' size='0.05' rgba='1 0 0 0.3'/>
+        <site name='handover_L' pos='0.0 0.25 0.8' size='0.05' rgba='0 0 1 0.3'/>
+        <site name='handover_R' pos='0.0 -0.25 0.8' size='0.05' rgba='1 0 0 0.3'/>
       </body>
     </body>
   </worldbody>
