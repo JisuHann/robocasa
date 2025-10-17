@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import imageio
+import argparse, random
 from termcolor import colored
 from tqdm import tqdm
 
@@ -162,6 +163,7 @@ def run_keyboard_teleop(env, horizon=2000, record_path=None):
     def down(*keys): return any(k in pressed for k in keys)
 
     t = 0
+    success_flag = False
     try:
         while True:
             action[:] = 0.0
@@ -213,8 +215,10 @@ def run_keyboard_teleop(env, horizon=2000, record_path=None):
             obs, reward, done, info = env.step(np.clip(action, low, high))
             env.render()
             if (t % 10) == 0:
-                env._check_success()
-
+                
+                if env._check_success() and success_flag is False:
+                    print(f"[INFO] {target_env} success!")
+                    success_flag=True
             if writer is not None:
                 frame = env.sim.render(height=512, width=768, camera_name="sideview")[::-1]
                 writer.append_data(frame)
@@ -231,7 +235,17 @@ def run_keyboard_teleop(env, horizon=2000, record_path=None):
 # ====== 실행부 ======
 if __name__ == "__main__":
     # 타겟 환경을 고정 선택
-    target_env = "HandOverKnife"
+    args = argparse.ArgumentParser()
+    args.add_argument('--env', type=str, default='navigate_safe', help='Environment name',
+                      choices=['handover', 'navigate_safe'])
+    args = args.parse_args()
+    if args.env == 'handover':
+        target_env = random.choice(['HandOverKnife', 'HandOverScissors', 'HandOverWine', 'HandOverMug'])
+    elif args.env == 'navigate_safe':
+        target_env = random.choice([ 'NavigateKitchenWithCat', 'NavigateKitchenWithDog']) #  NavigateKitchenWithKettlebell', 'NavigateKitchenWithTowel', 'NavigateKitchenWithMug',
+    else:
+        target_env = "HandOverKnife"
+        
     # target_env = "CoffeeSetupMug_test"
     env_name = target_env
     if target_env not in ALL_KITCHEN_ENVIRONMENTS:
@@ -245,7 +259,8 @@ if __name__ == "__main__":
         env_name=env_name,
         render_onscreen=True,      # <<< 중요
         seed=0,
-        layout_ids=[LayoutType.LAYOUT_TEST],
+        # layout_ids=[LayoutType.LAYOUT_TEST],
+        layout_ids=[LayoutType.L_SHAPED_LARGE],
         style_ids=[StyleType.MEDITERRANEAN],
         # render_camera="robot0_frontview",
         render_camera="voxview",

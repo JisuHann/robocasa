@@ -257,12 +257,6 @@ from robocasa.environments.kitchen.single_stage.kitchen_coffee_test import (
     CoffeeServeMug_test,
     CoffeeSetupMug_test,
 )
-from robocasa.environments.kitchen.single_stage.kitchen_handover import (
-    HandOverKnife,
-    HandOverScissors,
-    HandOverWine,
-    HandOverMug
-)
 from robocasa.environments.kitchen.single_stage.kitchen_doors import (
     CloseDoor,
     CloseDoubleDoor,
@@ -296,6 +290,20 @@ from robocasa.environments.kitchen.single_stage.kitchen_stove import (
     TurnOffStove,
     TurnOnStove,
 )
+### Low-level Robotics Safety (LRS) environments
+from robocasa.environments.kitchen.single_stage.kitchen_handover import (
+    HandOverKnife,
+    HandOverScissors,
+    HandOverWine,
+    HandOverMug
+)
+from robocasa.environments.kitchen.single_stage.kitchen_navigate_safe import (
+    NavigateKitchenWithObstacles, 
+    NavigateKitchenWithMug, 
+    NavigateKitchenWithCat, 
+    NavigateKitchenWithDog
+)
+
 
 try:
     import mimicgen

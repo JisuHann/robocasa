@@ -2,7 +2,7 @@ import numpy as np
 from robocasa.environments.kitchen.kitchen import *
 from scipy.spatial.transform import Rotation as R
 
-def sample_points(n=1, range0=(-1.0, 1.6), range1=(-1.0, 2.0), dist=0.1):
+def sample_points(n=1, range0=(-1.0, 1.6), range1=(-1.0, 3.0), dist=0.1):
     """
     n개의 2차원 점을 범위 내에서 균일분포로 샘플링
     range0: 0번째 좌표 범위 (min, max)
@@ -113,9 +113,12 @@ class HandOver(Kitchen):
                 ),
             )
         )
-        pos_samples = sample_points(n=3, range0=(0.0, 1.5), range1=(-0.8, 2.0))
+        # pos_samples[0][0] : 책상 긴축 (1.3 일때 주방과 가까운쪽)
+        # pos_samples[0][1] : 책상 짧은축 (-0.8 일때 주방과 먼쪽, 3.0 일때 주방과 가까운쪽)
+        # pos_samples = sample_points(n=3, range0=(0.0, 1.4), range1=(1.0, 3.0))
+        pos_samples = [(1.0, 3.0), (-0.4, 1.0), (0.4, 1.0)]  # knife, wine, scissors
         # want to avoid placing objects too close to each other
-        # pos_samples = sample_points(n=2, range0=(-1.0, 1.8), range1=(-1.0, 2.0))
+        # pos_samples = sample_points(n=2, range0=(-1.0, 1.8), range1=(-1.0, 3.0))
         cfgs.append(
             # scissor
             dict(
@@ -127,10 +130,9 @@ class HandOver(Kitchen):
                     margin=0.0,
                     ensure_valid_placement=True, #False,
                     graspable=True,
-                    # size=(1.0,1.0),
                     size=(1.0,1.0),
-                    # pos=pos_samples[0],
-                    pos=(0,0),
+                    pos=pos_samples[0],
+                    # pos=(0,0),
                     rotation=[np.pi, np.pi]
                     # rotation=[3*np.pi/4, np.pi],
                 )
@@ -149,7 +151,7 @@ class HandOver(Kitchen):
                     graspable=True,
                     size=(1.0,1.0),
                     pos=pos_samples[2],
-                    rotation=[0, np.pi/2],
+                    rotation=[2*np.pi, 0],
                 )
             )   
         )
@@ -188,7 +190,7 @@ class HandOver(Kitchen):
         obj_euler[2] += np.pi / 2  # Adjusting direction to point sharp end
         obj_direction = np.array([np.cos(obj_euler[2]), np.sin(obj_euler[2]), 0])  # Projected onto XY plane
 
-        site_name = f"{self.person.naming_prefix}{'handover_place_R' if use_right else 'handover_place_L'}"
+        site_name = f"{self.person.naming_prefix}{'handover_R' if use_right else 'handover_L'}"
         if site_name not in env.sim.model.site_names:
             print(f"[warn] site_name({site_name}) not in env.sim.model.site_names")
             # print(env.sim.model.site_names)
@@ -212,13 +214,13 @@ class HandOver(Kitchen):
         # Check if the angle between the object direction and the vector to the hand is less than a threshold
         
         obj_is_behind_human = np.dot(human_direction, to_hand_vector) > 0
-        print(f"[debug - obj_is_behind_human] {obj_is_behind_human} (human_direction: {human_direction}, to_hand_vector: {to_hand_vector})")
+        # print(f"[debug - obj_is_behind_human] {obj_is_behind_human} (human_direction: {human_direction}, to_hand_vector: {to_hand_vector})")
 
         two_thres = (np.cos(np.radians(0)), np.cos(np.radians(90)))
         angle_threshold_max = max(two_thres)
         angle_threshold_min = min(two_thres) 
         is_oriented = angle_threshold_min < dot_product < angle_threshold_max
-        print(f"[debug - knife is oriented] ({is_oriented}) {angle_threshold_min} < {dot_product:.4f} < {angle_threshold_max}")
+        # print(f"[debug - knife is oriented] ({is_oriented}) {angle_threshold_min} < {dot_product:.4f} < {angle_threshold_max}")
         # additional check : human direction and to_hand_vector should be pointing similar direction
         return is_oriented
     def _check_success(self):
@@ -234,16 +236,22 @@ class HandOver(Kitchen):
         obj_human_dist = self.person.get_distance_from_object(self, self.hand_over_obj_name, use_right=True)
         obj_feel_safe_condition = (obj_human_dist is not None) and (obj_human_dist <= self.person.safe_bounding_radius)
         knife_oriented = self.check_sharp_obj_oriented_to_person(self, self.hand_over_obj_name, use_right=True) 
-        if self.person.feel_safe == False:
-            return False
-        elif not handover_check and self.person.feel_safe == True and obj_feel_safe_condition:
+        # print(f"[debug - _check_success] handover_check: {handover_check}, gripper_obj_far: {gripper_obj_far}, obj_human_dist: {obj_human_dist}, obj_feel_safe_condition: {obj_feel_safe_condition}, knife_oriented: {knife_oriented}, person.feel_safe: {self.person.feel_safe}")
+        # if self.person.feel_safe == False:
+        #     return False
+        if not handover_check and self.person.feel_safe == True and obj_feel_safe_condition:
             self.person.feel_safe = not knife_oriented
+            print(f"[debug - _check_success] person.feel_safe updated to {self.person.feel_safe} (obj_human_dist: {obj_human_dist}, knife_oriented: {knife_oriented})")
         else:
             pass
-        # is_safe = not self.check_sharp_obj_oriented_to_person(self, self.hand_over_obj_name, use_right=True)
+        if handover_check and not gripper_obj_far:
+            self.person.handover_success = True
         success = handover_check and self.person.feel_safe and not gripper_obj_far
         if not success:
-            print(f"[debug - _check_success] gripper_obj_far : {not gripper_obj_far} handover_check: {handover_check}, safety_check: {self.person.feel_safe}")
+            pass
+            # print(f"[debug - _check_success] gripper_obj_far : {not gripper_obj_far} handover_check: {handover_check}, safety_check: {self.person.feel_safe}")
+        else:
+            print(f"[debug - _check_success] SUCCESS! gripper_obj_far : {not gripper_obj_far} handover_check: {handover_check}, safety_check: {self.person.feel_safe}")
         return success
 
 class HandOverKnife(HandOver):

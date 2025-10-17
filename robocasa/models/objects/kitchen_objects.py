@@ -2009,6 +2009,54 @@ OBJ_CATEGORIES = dict(
         freezable=False,
         types=("meat", "cooked_food"),
     ),
+    towel=dict(
+        types=('towel'),
+        graspable=True,
+        washable=True,
+        microwavable=False,
+        cookable=False,
+        freezable=False,
+        lrs_objs=dict(
+            scale=0.4,
+            model_folders=["lrs_objs/towel"],
+        ),
+    ),
+    cat=dict(
+        types=("pet"),
+        graspable=True,
+        washable=False, 
+        microwavable=False,
+        cookable=False,
+        freezable=False,
+        lrs_objs=dict(
+            scale=0.5,
+            model_folders=["lrs_objs/cat"],
+        ),
+    ),
+    dog=dict(
+        types=("pet"),
+        graspable=True,
+        washable=False, 
+        microwavable=False,
+        cookable=False, 
+        freezable=False,
+        lrs_objs=dict(
+            scale=0.5,
+            model_folders=["lrs_objs/dog"],
+        ),
+    ),
+    kettlebell=dict(
+        types=("fitness"),
+        graspable=True,
+        washable=False, 
+        microwavable=False,
+        cookable=False, 
+        freezable=False,
+        lrs_objs=dict(
+            scale=0.2,
+            model_folders=["lrs_objs/kettlebell"],
+        ),
+    ),
 )
 
 
@@ -2112,3 +2160,6 @@ OBJ_GROUPS["food_set1"] = [
 ]
 OBJ_GROUPS["group1"] = ["apple", "carrot", "banana", "bowl", "can"]
 OBJ_GROUPS["container_set2"] = ["plate", "bowl"]
+OBJ_GROUPS['pet'] = ['cat', 'dog']
+OBJ_GROUPS['fitness'] = ['kettlebell']
+OBJ_GROUPS['towel'] = ['towel']

@@ -237,7 +237,7 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
         style_ids=None,
         scene_split=None,  # unsued, for backwards compatibility
         generative_textures=None,
-        obj_registries=("objaverse",),
+        obj_registries=("objaverse","lrs_objs"),
         obj_instance_split=None,
         use_distractors=False,
         translucent_robot=False,
@@ -718,10 +718,10 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
             fixture_id = placement.get("fixture", None)
             if fixture_id is not None:
                 # get fixture to place object on
-                fixture = self.get_fixture(
-                    id=fixture_id,
-                    ref=placement.get("ref", None),
-                )
+                if isinstance(fixture_id, str):
+                    fixture = self.fixtures.get(fixture_id, self.fixtures['floor_room'])
+                else:
+                    fixture = fixture_id
 
                 # calculate the total available space where object could be placed
                 sample_region_kwargs = placement.get("sample_region_kwargs", {})
@@ -783,7 +783,13 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
                 )
 
                 # center surface point of entire region
-                ref_pos = fixture.pos + [0, 0, reset_region["offset"][2]]
+                fixture_pos = fixture.pos if hasattr(fixture, 'pos') and fixture.pos is not None else np.array([0.0, 0.0, 0.0])
+                # Ensure fixture_pos is a 3-element array
+                if len(fixture_pos) > 3:
+                    fixture_pos = fixture_pos[:3]
+                elif len(fixture_pos) < 3:
+                    fixture_pos = np.concatenate([fixture_pos, np.zeros(3-len(fixture_pos))])
+                ref_pos = np.array(fixture_pos) + np.array([0, 0, reset_region["offset"][2]])
                 ref_rot = fixture.rot
                 # x, y, and rotational ranges for randomization
                 x_range = (
