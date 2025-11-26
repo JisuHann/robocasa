@@ -63,6 +63,7 @@ class FixtureType(IntEnum):
     ISLAND = 21
     COUNTER_NON_CORNER = 22
     POSED_PERSON = 23
+    FRIDGE = 24
 
 
 class Fixture(MujocoXMLObject):

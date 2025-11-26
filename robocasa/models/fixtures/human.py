@@ -18,7 +18,7 @@ _site_aliases = {
     "head": ["head_site", "head_center"],
     "torso": ["torso_site", "torso_center", "chest_torso"],
 }
-def get_object_position( env, obj_name):
+def get_object_position(env, obj_name):
     try:
         obj_pos = np.array(env.sim.data.body_xpos[env.obj_body_id[obj_name]])
     except Exception:
@@ -175,7 +175,14 @@ class PosedPerson(Fixture):
         dz  = abs(obj_pos[2] - spos[2])
         # print(f"[Debug - check_handover] PosedPerson: handover check dxy={dxy:.4f}, dz={dz:.4f}, thresh=({xy_thresh},{z_thresh})")
         return (dxy <= xy_thresh) and (dz <= z_thresh)
-
+    def collision_with_robot(self, env):
+        # check if any robot does not touch with the human
+        for hand_key in ["hand_L", "hand_R"]:
+            distance = self.get_distance_from_object(env, "robot", use_right=(hand_key=="hand_R"))
+            if distance is not None and distance < 0.03:
+                print(f"[Debug - collision_with_robot] collision detected with {hand_key}, distance: {distance}")
+                return True
+        return False
     def gripper_head_far(self, env, th=0.20):
         # hpos = self._site_pos(env, "head")
         if hpos is None:

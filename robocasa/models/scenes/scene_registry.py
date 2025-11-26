@@ -3,12 +3,11 @@ from enum import IntEnum
 from robosuite.utils.mjcf_utils import xml_path_completion
 import robocasa
 
-
 class LayoutType(IntEnum):
     """
     Enum for available layouts in RoboCasa environment
     """
-
+    EMPTY_ROOM = 999
     ONE_WALL_SMALL = 0
     ONE_WALL_LARGE = 1
     L_SHAPED_SMALL = 2
@@ -20,7 +19,6 @@ class LayoutType(IntEnum):
     G_SHAPED_LARGE = 8
     WRAPAROUND = 9
     LAYOUT_TEST = 10
-
     # negative values correspond to groups (see LAYOUT_GROUPS_TO_IDS)
     ALL = -1
     NO_ISLAND = -2

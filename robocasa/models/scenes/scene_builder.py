@@ -41,7 +41,9 @@ FIXTURES = dict(
     framed_window=FramedWindow,
     knife=Knife,
     scissors=Scissors,
-    posed_person=PosedPerson
+    posed_person=PosedPerson,
+    # dog=Dog,
+    # cat=Cat,
     # needs some additional work
     # slide_cabinet=SlideCabinet,
 )

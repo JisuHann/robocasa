@@ -271,9 +271,10 @@ class Floor(Wall):
     ):
         # swap x, y axes due to rotation
         size = [size[1], size[0], size[2]]
-
+        
         texture = xml_path_completion(texture, root=robocasa.models.assets_root)
-
+        self.size = size
+        self.rot = 0
         # everything is the same except the plane is rotated to be horizontal
         super().__init__(
             name,
@@ -285,3 +286,15 @@ class Floor(Wall):
             *args,
             **kwargs
         )
+        self.pos = np.array(self.pos)
+    def get_reset_regions(self, *args, **kwargs):
+        return {
+            "bottom" : {
+                "offset" : (0,0,0),
+                "size" : (self.size[0], self.size[1])
+            },
+        }
+    
+    def sample_reset_region(self, *args, **kwargs):
+        regions = self.get_reset_regions(*args, **kwargs)
+        return self.rng.choice(list(regions.values()))
