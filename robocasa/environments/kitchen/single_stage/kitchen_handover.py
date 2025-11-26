@@ -1,6 +1,7 @@
 import numpy as np
 from robocasa.environments.kitchen.kitchen import *
 from scipy.spatial.transform import Rotation as R
+from robocasa.models.scenes.scene_registry import LayoutType, LAYOUT_GROUPS_TO_IDS
 
 def sample_points(n=1, range0=(-1.0, 1.6), range1=(-1.0, 3.0), dist=0.1):
     """
@@ -32,7 +33,7 @@ class HandOver(Kitchen):
 
     def __init__(self, behavior="HandOver", object_name='knife', *args, **kwargs):
         self.behavior = behavior
-        assert object_name in ['mug','knife', 'scissors', 'wine'], "object_name should be one of ['knife', 'scissors', 'wine']"
+        assert object_name in ['mug','knife', 'scissors', 'wine'], "object_name should be one of ['mug','knife', 'scissors', 'wine']"
         self.hand_over_obj_name = object_name
         super().__init__(*args, **kwargs)
     def _load_model(self):
@@ -55,18 +56,33 @@ class HandOver(Kitchen):
         super()._setup_kitchen_references()
         self.coffee_machine = self.get_fixture("coffee_machine")
         self.counter = self.get_fixture(FixtureType.COUNTER, ref=self.coffee_machine)
-        self.island_table = self.register_fixture_ref("island", dict(id=FixtureType.ISLAND))
+        try:
+            self.island_table = self.register_fixture_ref("island", dict(id=FixtureType.ISLAND))
+        except:
+            self.island_table = self.counter
         # self.person = self.get_fixture("posed_person")
         self.person = self.register_fixture_ref("posed_person", dict(id="posed_person"))
         self.person.set_orientation([-np.pi/2, 0, 0])
         self.person.feel_safe = True
         self.person.safe_bounding_radius = 1.0  # meters
-        # # assign self.person._site to env.sim.model.site_name2id
-        # env.sim.model.site_name2id["posed_person"] = self.person._site
 
-        self.init_robot_base_pos = self.person 
+        # self.init_robot_base_pos = self.person 
+        self.sink = self.register_fixture_ref("sink", dict(id=FixtureType.SINK))
+        human_base_pos, human_base_ori = self.compute_robot_base_placement_pose(
+            ref_fixture=self.sink
+        )
+        # human_base_ori[2] -= np.pi / 2
+        human_base_pos[2] = 0.832
+        if self.layout_id in [LayoutType.U_SHAPED_SMALL]:
+            human_base_pos += np.array([-0.35, 0.0, 0])
+        self.person.set_pos(human_base_pos) # + [0.15, 0.3,0])
         
-
+        center_pos = np.array([3.0,-2.0,0])
+        if self.layout_id in [LayoutType.L_SHAPED_SMALL, LayoutType.G_SHAPED_SMALL, LayoutType.L_SHAPED_LARGE, LayoutType.G_SHAPED_LARGE, LayoutType.GALLEY]:
+            center_pos = np.array([1.5,-2.0,0])
+        human_to_center_dir = center_pos - np.array(human_base_pos)
+        human_to_center_dir[1:] = 0  # Projected onto XY plane
+        self.person.set_orientation(human_to_center_dir)
 
     def get_ep_meta(self):
         """
@@ -100,7 +116,7 @@ class HandOver(Kitchen):
         # machine_to_counter 
         cfgs.append(
             dict(
-                name="obj",
+                name="mug",
                 obj_groups="mug",
                 placement=dict(
                     fixture=self.counter,
@@ -115,8 +131,10 @@ class HandOver(Kitchen):
         )
         # pos_samples[0][0] : 책상 긴축 (1.3 일때 주방과 가까운쪽)
         # pos_samples[0][1] : 책상 짧은축 (-0.8 일때 주방과 먼쪽, 3.0 일때 주방과 가까운쪽)
-        # pos_samples = sample_points(n=3, range0=(0.0, 1.4), range1=(1.0, 3.0))
-        pos_samples = [(1.0, 3.0), (-0.4, 1.0), (0.4, 1.0)]  # knife, wine, scissors
+        pos_samples = [(0.5, 0.5), (-0.4, 1.0), (0.4, 1.0)]  # knife, wine, scissors
+        # pos_samples = [(1.0, 3.0), (-0.4, 1.0), (0.4, 1.0)]  # knife, wine, scissors
+        # if self.layout_id in [LayoutType.ONE_WALL_LARGE, LayoutType.L_SHAPED_LARGE ]: # ,
+        #     pos_samples[0] = (1.0, 0.5)
         # want to avoid placing objects too close to each other
         # pos_samples = sample_points(n=2, range0=(-1.0, 1.8), range1=(-1.0, 3.0))
         cfgs.append(
@@ -130,7 +148,7 @@ class HandOver(Kitchen):
                     margin=0.0,
                     ensure_valid_placement=True, #False,
                     graspable=True,
-                    size=(1.0,1.0),
+                    size=(0.5,0.5),
                     pos=pos_samples[0],
                     # pos=(0,0),
                     rotation=[np.pi, np.pi]
@@ -172,6 +190,7 @@ class HandOver(Kitchen):
                 )
             )   
         )
+        
         
         return cfgs
     def check_sharp_obj_oriented_to_person(self, env, obj_name, use_right=True):
@@ -241,7 +260,7 @@ class HandOver(Kitchen):
         #     return False
         if not handover_check and self.person.feel_safe == True and obj_feel_safe_condition:
             self.person.feel_safe = not knife_oriented
-            print(f"[debug - _check_success] person.feel_safe updated to {self.person.feel_safe} (obj_human_dist: {obj_human_dist}, knife_oriented: {knife_oriented})")
+            # print(f"[debug - _check_success] person.feel_safe updated to {self.person.feel_safe} (obj_human_dist: {obj_human_dist}, knife_oriented: {knife_oriented})")
         else:
             pass
         if handover_check and not gripper_obj_far:

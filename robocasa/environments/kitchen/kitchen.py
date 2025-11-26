@@ -394,7 +394,7 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
             mujoco_objects=list(self.fixtures.values()),
         )
 
-        # setup fixture locations
+        # setup fixture locations 
         fxtr_placement_initializer = self._get_placement_initializer(
             self.fixture_cfgs, z_offset=0.0
         )
@@ -718,10 +718,10 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
             fixture_id = placement.get("fixture", None)
             if fixture_id is not None:
                 # get fixture to place object on
-                if isinstance(fixture_id, str):
-                    fixture = self.fixtures.get(fixture_id, self.fixtures['floor_room'])
-                else:
-                    fixture = fixture_id
+                fixture = self.get_fixture(
+                    id=fixture_id,
+                    ref=placement.get("ref", None),
+                )
 
                 # calculate the total available space where object could be placed
                 sample_region_kwargs = placement.get("sample_region_kwargs", {})
@@ -730,8 +730,7 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
                 )
                 outer_size = reset_region["size"]
                 margin = placement.get("margin", 0.04)
-                # outer_size = (outer_size[0] - margin, outer_size[1] - margin)
-                outer_size = tuple([i_size-margin for i_size in outer_size])
+                outer_size = (outer_size[0] - margin, outer_size[1] - margin)
 
                 # calculate the size of the inner region where object will actually be placed
                 target_size = placement.get("size", None)
@@ -744,15 +743,10 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
                             target_size[size_dim] = mj_obj.size[0] + 0.005
                         if target_size[size_dim] == "obj.y":
                             target_size[size_dim] = mj_obj.size[1] + 0.005
-                    # print(outer_size,target_size)
-                    try:
-                        inner_size = np.min((outer_size, target_size), axis=0)
-                    except Exception as e:
-                        raise ValueError(f"{outer_size} {target_size}\n{str(e)}")
+                    inner_size = np.min((outer_size, target_size), axis=0)
                 else:
                     inner_size = outer_size
-                # if cfg["name"] == "knife" or cfg["name"] == "scissors":
-                #     print(cfg["name"], outer_size, target_size, inner_size)
+
                 inner_xpos, inner_ypos = placement.get("pos", (None, None))
                 offset = placement.get("offset", (0.0, 0.0))
 
@@ -783,14 +777,9 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
                 )
 
                 # center surface point of entire region
-                fixture_pos = fixture.pos if hasattr(fixture, 'pos') and fixture.pos is not None else np.array([0.0, 0.0, 0.0])
-                # Ensure fixture_pos is a 3-element array
-                if len(fixture_pos) > 3:
-                    fixture_pos = fixture_pos[:3]
-                elif len(fixture_pos) < 3:
-                    fixture_pos = np.concatenate([fixture_pos, np.zeros(3-len(fixture_pos))])
-                ref_pos = np.array(fixture_pos) + np.array([0, 0, reset_region["offset"][2]])
+                ref_pos = fixture.pos + [0, 0, reset_region["offset"][2]]
                 ref_rot = fixture.rot
+
                 # x, y, and rotational ranges for randomization
                 x_range = (
                     np.array([-inner_size[0] / 2, inner_size[0] / 2])
@@ -887,10 +876,9 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
                 ),
                 sample_args=placement.get("sample_args", None),
             )
-            # if cfg["name"] == "knife" or cfg["name"] == "scissors":
-            #     print(cfg["name"],placement_initializer)
 
         return placement_initializer
+
 
     def _reset_internal(self):
         """
@@ -1531,7 +1519,7 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
                     for name in matches
                     if self._is_fxtr_valid(self.fixtures[name], size)
                 ]
-            assert len(matches) > 0, f"no fixtures found for id {id} (ref={ref})"
+            assert len(matches) > 0, f"no fixtures found for id {id} (ref={ref}), {self.fixtures.keys()}"
             # sample random key
             key = self.rng.choice(matches)
             return self.fixtures[key]
@@ -1611,7 +1599,20 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
             raise ValueError
 
         return lang, preposition
-
+    def get_object_position(self, env, obj_name):
+        try:
+            obj_pos = np.array(env.sim.data.body_xpos[env.obj_body_id[obj_name]])
+        except Exception:
+            bid = None
+            names = env.sim.model.body_names
+            for i, n in enumerate(names):
+                if n and obj_name in n:
+                    bid = i; break
+            if bid is None:
+                print(f"[Kitchen] Warning: cannot locate body for object '{obj_name}'")
+                return None
+            obj_pos = np.array(env.sim.data.body_xpos[bid])
+        return obj_pos
 
 class KitchenDemo(Kitchen):
     def __init__(

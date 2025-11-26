@@ -1,6 +1,7 @@
 import collections
 import random
 from copy import copy
+from tqdm import tqdm
 
 import numpy as np
 from robosuite.models.objects import MujocoObject
@@ -219,6 +220,7 @@ class UniformRandomSampler(ObjectPositionSampler):
             float: sampled x position
         """
         minimum, maximum = self.x_range
+        assert minimum <= maximum, "Invalid x_range specified: {}".format(self.x_range)
         return self.rng.uniform(high=maximum, low=minimum)
 
     def _sample_y(self):
@@ -229,6 +231,7 @@ class UniformRandomSampler(ObjectPositionSampler):
             float: sampled y position
         """
         minimum, maximum = self.y_range
+        assert minimum <= maximum, "Invalid y_range specified: {}".format(self.y_range)
         return self.rng.uniform(high=maximum, low=minimum)
 
     def _sample_quat(self):
@@ -342,8 +345,11 @@ class UniformRandomSampler(ObjectPositionSampler):
                     region_points[i][0:2], rot=self.reference_rot
                 )
             region_points += base_offset
-
-            for i in range(5000):  # 5000 retries
+            pbar = None
+            max_iter = 5000
+            for i in range(max_iter):  # 5000 retries
+                if i == 1000:
+                    pbar = tqdm(total=max_iter - 1000, desc=f"Running...{obj.name} {location_valid}", initial=0)
                 # sample object coordinates
                 relative_x = self._sample_x()
                 relative_y = self._sample_y()
@@ -406,7 +412,11 @@ class UniformRandomSampler(ObjectPositionSampler):
                     placed_objects[obj.name] = (pos, quat, obj)
                     success = True
                     break
-
+                
+                if pbar is not None:
+                    pbar.update(1)
+            if pbar is not None:
+                pbar.close()
             if not success:
                 raise RandomizationError("Cannot place all objects ):")
 
