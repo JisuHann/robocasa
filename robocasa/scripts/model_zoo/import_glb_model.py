@@ -91,6 +91,10 @@ if __name__ == "__main__":
     glb_mesh.export(os.path.join(output_path, "raw", "model_normalized.obj"))
 
     coll_path = os.path.join(output_path, "collision")
+    # print(os.path.join(output_path, "raw/model_normalized.obj"))
+    # print(Path(coll_path).exists(), Path(os.path.join(output_path, "raw/model_normalized.obj")).exists())
+    print(colored(f"Generating collision meshes for {model_name}...", color="green"))
+    print(Path(os.path.join(output_path, "raw/model_normalized.obj")))
     if not Path(coll_path).exists() or args.no_cached_coll:
         MJCFGenUtils.decompose_convex(
             Path(os.path.join(output_path, "raw/model_normalized.obj")),

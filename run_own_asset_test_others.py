@@ -137,7 +137,6 @@ def run_keyboard_teleop(env, horizon=2000, record_path=None):
 
     low, high = env.action_spec
     action = np.zeros_like(high)
-
     obs = env.reset()
     
     if writer is not None:
@@ -236,6 +235,9 @@ def run_keyboard_teleop(env, horizon=2000, record_path=None):
                     success_flag=True
 
             t += 1
+            # pause
+            import time
+            # time.sleep(0.8)
             if t >= horizon:
                 break
     finally:
@@ -249,7 +251,7 @@ if __name__ == "__main__":
     # 타겟 환경을 고정 선택
     args = argparse.ArgumentParser()
     args.add_argument('--env', type=str, default='navigate_safe', help='Environment name',
-                      choices=['handover', 'navigate_safe', 'move_from_stove'])
+                      choices=['handover', 'navigate_safe', 'move_from_stove', 'open_door_safe'])
     args.add_argument('--record_path', type=str, default=None, help='Path to save the recorded video (optional)')
     args.add_argument("--test_all_layouts", action="store_true", help="Test all layouts sequentially")
     args.add_argument("--layout", type=str, default=None, help="Specify a single layout ID to test",
@@ -266,6 +268,8 @@ if __name__ == "__main__":
     elif args.env == 'move_from_stove':
         # target_env = random.choice(['MoveFrypanToSink', 'MovePotToSink'])
         target_env = 'MovePotToSink'
+    elif args.env == 'open_door_safe':
+        target_env = 'OpenDoorSafe'
     else:
         target_env = "HandOverKnife"
     # target_env = "CoffeeSetupMug_test"
@@ -283,7 +287,7 @@ if __name__ == "__main__":
             layout_ids = [LayoutType[args.layout].value]
         else:
             layout_ids = [
-            #     LayoutType.EMPTY_ROOM,
+                # LayoutType.EMPTY_ROOM,
             #     LayoutType.ONE_WALL_SMALL,
             #     LayoutType.ONE_WALL_LARGE,
             #     LayoutType.L_SHAPED_SMALL,
@@ -314,7 +318,7 @@ if __name__ == "__main__":
             env_name=env_name,
             render_onscreen=True if record_path is None else False,      # <<< 중요
             seed=0,
-            layout_ids=layout_id,
+            layout_ids=[layout_id],  # Must be a list
             style_ids=[StyleType.MEDITERRANEAN],
             # render_camera="robot0_frontview",
             render_camera='topview', #"voxview", # # "sideview"

@@ -2068,6 +2068,31 @@ OBJ_CATEGORIES = dict(
             scale=1.0,
             model_folders=["lrs_objs/human"],
         ),
+    ),
+    main_door=dict(
+        types=("main_door"),
+        graspable=True,
+        washable=False, 
+        microwavable=False,
+        cookable=False, 
+        freezable=False,
+        lrs_objs=dict(
+            scale=1.0,
+            model_folders=["lrs_objs/main_door"],
+        ),
+    ),
+    
+    coffee=dict(
+        types=("coffee"),
+        graspable=True,
+        washable=False, 
+        microwavable=False,
+        cookable=False, 
+        freezable=False,
+        lrs_objs=dict(
+            scale=1.0,
+            model_folders=["lrs_objs/coffee"],
+        ),
     )
 )
 
@@ -2176,3 +2201,5 @@ OBJ_GROUPS['pet'] = ['cat', 'dog']
 OBJ_GROUPS['fitness'] = ['kettlebell']
 OBJ_GROUPS['towel'] = ['towel']
 OBJ_GROUPS['human'] = ['posed_person']
+OBJ_GROUPS['main_door'] = ['main_door']
+OBJ_GROUPS['coffee'] = ['coffee']

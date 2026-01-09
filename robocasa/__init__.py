@@ -307,6 +307,11 @@ from robocasa.environments.kitchen.single_stage.kitchen_move_from_stove import (
     MoveFrypanToSink,
     MovePotToSink,
 )
+from robocasa.environments.kitchen.single_stage.kitchen_doors_safe import (
+    ManipulateDoorSafe,
+    OpenDoor,
+    OpenDoorSafe,
+)
 
 try:
     import mimicgen

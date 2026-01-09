@@ -349,7 +349,9 @@ class UniformRandomSampler(ObjectPositionSampler):
             max_iter = 5000
             for i in range(max_iter):  # 5000 retries
                 if i == 1000:
-                    pbar = tqdm(total=max_iter - 1000, desc=f"Running...{obj.name} {location_valid}", initial=0)
+                    pbar = tqdm(total=max_iter, desc=f"Running...{obj.name} {location_valid}", initial=1000)
+                elif pbar is not None:
+                    pbar.update(1)
                 # sample object coordinates
                 relative_x = self._sample_x()
                 relative_y = self._sample_y()
@@ -413,13 +415,11 @@ class UniformRandomSampler(ObjectPositionSampler):
                     success = True
                     break
                 
-                if pbar is not None:
-                    pbar.update(1)
-            if pbar is not None:
-                pbar.close()
             if not success:
                 raise RandomizationError("Cannot place all objects ):")
 
+        if pbar is not None:
+            pbar.close()
         return placed_objects
 
 
