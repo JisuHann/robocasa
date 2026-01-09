@@ -48,8 +48,12 @@ def _resolve_site_name(canonical: str, all_sites, naming_prefix="posed_person_")
     return None
 
 class PosedPerson(Fixture):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, rot=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        
+        if rot is not None:
+            # adjust rotation if provided
+            self.set_rotation(rot) 
         all_sites = [s.get("name") for s in self.worldbody.findall(".//site") if s.get("name")]
         self._site_name_map = {}
         for c in _canonical_sites:

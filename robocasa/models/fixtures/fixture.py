@@ -373,7 +373,16 @@ class Fixture(MujocoXMLObject):
             sites = [get_pos_after_rel_offset(self, offset) for offset in sites]
 
         return sites
+    def set_rotation(self, rot):
+        """
+        Set the rotation of the fixture to a specified value
 
+        Args:
+            rot (float): new rotation of the fixture around the vertical axis (in radians)
+        """
+        position = self._obj.get("pos")
+        self._obj.set("pos", position)  # to force update
+        self._obj.set("euler", f"0 0 {rot}")
     def get_int_sites(self, all_points=False, relative=True):
         """
         Get the interior bounding box points of the object

@@ -42,6 +42,7 @@ FIXTURES = dict(
     knife=Knife,
     scissors=Scissors,
     posed_person=PosedPerson,
+    main_door=MainDoor,
     # dog=Dog,
     # cat=Cat,
     # needs some additional work
