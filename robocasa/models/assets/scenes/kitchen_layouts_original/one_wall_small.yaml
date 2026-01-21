@@ -19,46 +19,46 @@ room:
       type: wall
 
       wall_side: left
-      size: [3.0, 1.5, 0.02]
-      pos: [0, -3.0, 1.5]
+      size: [1.5, 1.5, 0.02]
+      pos: [0, -1.5, 1.5]
 
     - name: wall_left_backing
       type: wall
 
       wall_side: left
       backing: true
-      size: [3.0, 1.5, 0.1]
-      pos: [0, -3.0, 1.5]
+      size: [1.5, 1.5, 0.1]
+      pos: [0, -1.5, 1.5]
 
     - name: wall_right
       type: wall
 
       wall_side: right
-      size: [3.0, 1.5, 0.02]
-      pos: [5.5, -3.0, 1.5]
+      size: [1.5, 1.5, 0.02]
+      pos: [5.5, -1.5, 1.5]
 
     - name: wall_right_backing
       type: wall
 
       wall_side: right
       backing: true
-      size: [3.0, 1.5, 0.1]
-      pos: [5.5, -3.0, 1.5]
+      size: [1.5, 1.5, 0.1]
+      pos: [5.5, -1.5, 1.5]
 
   floor:
     - name: floor
       type: floor
 
       # position such that the top left corner is (0, 0)
-      size: [2.75, 3.0, 0.02]
-      pos: [2.75, -3.0, 0]
+      size: [2.75, 1.50, 0.02]
+      pos: [2.75, -1.50, 0]
 
     - name: floor_backing
       type: floor
 
       backing: true
-      size: [2.75, 3.0, 0.1]
-      pos: [2.75, -3.0, 0]
+      size: [2.75, 1.50, 0.1]
+      pos: [2.75, -1.50, 0]
 
   # Wall accessories (e.g. outlets, clocks, paintings)
   wall_accessories:
@@ -143,59 +143,59 @@ main_group:
   
   # Top row (cabinets and microwave)
   top_row:
-    # - name: cab_1
-    #   type: single_cabinet
-    #   orientation: left
-    #   default_config_name: cab_top
+    - name: cab_1
+      type: single_cabinet
+      orientation: left
+      default_config_name: cab_top
 
-    #   size: [0.5, 0.40, 0.92]
-    #   pos: [0.5, -0.20, 1.85]
+      size: [0.5, 0.40, 0.92]
+      pos: [0.5, -0.20, 1.85]
 
-    # - name: cab_2
-    #   type: hinge_cabinet
-    #   default_config_name: cab_top
+    - name: cab_2
+      type: hinge_cabinet
+      default_config_name: cab_top
 
-    #   size: [1, 0.40, 0.92]
-    #   align_to: cab_1
-    #   side: right
+      size: [1, 0.40, 0.92]
+      align_to: cab_1
+      side: right
 
-    # - name: cab_main
-    #   type: hinge_cabinet
-    #   default_config_name: cab_top
+    - name: cab_main
+      type: hinge_cabinet
+      default_config_name: cab_top
       
-    #   size: [1, 0.40, 0.92]
-    #   align_to: cab_2
-    #   side: right
+      size: [1, 0.40, 0.92]
+      align_to: cab_2
+      side: right
 
-    # - name: microwave
-    #   type: microwave
-    #   size: [stove, 0.45, null]
+    - name: microwave
+      type: microwave
+      size: [stove, 0.45, null]
 
-    #   align_to: cab_main
-    #   alignment: back_bottom
-    #   side: right
+      align_to: cab_main
+      alignment: back_bottom
+      side: right
 
-    # - name: cab_micro
-    #   type: hinge_cabinet
-    #   handle_type: knob
-    #   default_config_name: cab_top_small
+    - name: cab_micro
+      type: hinge_cabinet
+      handle_type: knob
+      default_config_name: cab_top_small
 
-    #   size: [microwave, 0.40, null]
-    #   align_to: microwave
-    #   side: top
-    #   alignment: back
-    #   stack_height: 0.92
-    #   stack_fixtures: ["microwave"]
+      size: [microwave, 0.40, null]
+      align_to: microwave
+      side: top
+      alignment: back
+      stack_height: 0.92
+      stack_fixtures: ["microwave"]
 
-    # - name: cab_3
-    #   type: open_cabinet
-    #   default_config_name: shelves
-    #   num_shelves: 3
+    - name: cab_3
+      type: open_cabinet
+      default_config_name: shelves
+      num_shelves: 3
       
-    #   size: [0.7, 0.40, 0.92]
-    #   align_to: microwave
-    #   side: right
-    #   alignment: bottom_back
+      size: [0.7, 0.40, 0.92]
+      align_to: microwave
+      side: right
+      alignment: bottom_back
     
     - name: cab_4
       type: hinge_cabinet
@@ -267,7 +267,7 @@ main_group:
       placement:
         fixture: counter_main
         sample_region_kwargs:
-          ref: cab_4
+          ref: cab_1
         size: [1.0, 0.52]
         pos: [null, 1.0]
         rotation: [0, 0]
@@ -282,35 +282,24 @@ main_group:
         pos: [null, 1.0]
         rotation: [0, 0]
 
-    # - name: knife_block
-    #   type: knife_block
+    - name: knife_block
+      type: knife_block
 
-    #   placement:
-    #     fixture: counter_main
-    #     sample_region_kwargs:
-    #       ref: cab_main
-    #     size: [1.0, obj]
-    #     pos: [null, 1.0]
-    #     rotation: [0, 0]
+      placement:
+        fixture: counter_main
+        sample_region_kwargs:
+          ref: cab_main
+        size: [1.0, obj]
+        pos: [null, 1.0]
+        rotation: [0, 0]
 
-    # - name: paper_towel
-    #   type: paper_towel
+    - name: paper_towel
+      type: paper_towel
 
-    #   placement:
-    #     fixture: counter_main
-    #     sample_region_kwargs:
-    #       ref: cab_main
-    #     size: [1.0, 0.25]
-    #     pos: [null, 1.0]
-    #     rotation: [0, 0]
-    - name: posed_person
-      type: posed_person
-      pos : [1.5, -3.0, 0.832]
-      size: [0.5, 0.5, 0.8]
-      rot : 1.57
-
-    - name: main_door
-      type: main_door
-      pos: [1.5, -4.0, 1.0]
-      size: [1.2, 0.3, 2.0]
-      rot: 0
+      placement:
+        fixture: counter_main
+        sample_region_kwargs:
+          ref: cab_main
+        size: [1.0, 0.25]
+        pos: [null, 1.0]
+        rotation: [0, 0]

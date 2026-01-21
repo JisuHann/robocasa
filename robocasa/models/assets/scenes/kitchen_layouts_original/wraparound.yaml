@@ -51,31 +51,31 @@ room:
       type: wall
 
       wall_side: left
-      size: [2.025, 1.5, 0.02]
-      pos: [2.075, -5.475, 1.5]
+      size: [0.525, 1.5, 0.02]
+      pos: [2.075, -3.975, 1.5]
 
     - name: wall_2_left_backing
       type: wall
       
       backing: true
       wall_side: left
-      size: [2.025, 1.5, 0.1]
-      pos: [2.075, -5.475, 1.5]
+      size: [0.525, 1.5, 0.1]
+      pos: [2.075, -3.975, 1.5]
 
     - name: wall_right
       type: wall
 
       wall_side: right
-      size: [3.75, 1.5, 0.02]
-      pos: [5.9, -3.75, 1.5]
+      size: [2.25, 1.5, 0.02]
+      pos: [5.9, -2.25, 1.5]
 
     - name: wall_right_backing
       type: wall
       
       backing: true
       wall_side: right
-      size: [3.75, 1.5, 0.1]
-      pos: [5.9, -3.75, 1.5]
+      size: [2.25, 1.5, 0.1]
+      pos: [5.9, -2.25, 1.5]
 
   wall_accessories:    
     - name: utensil_rack
@@ -130,14 +130,14 @@ room:
       type: floor
 
       # position such that the top left corner is (0, 0)
-      size: [1.9125, 3.7875, 0.02]
+      size: [1.9125, 0.7875, 0.02]
       pos: [3.9875, -3.7125, 0]
 
     - name: floor_front_backing
       type: floor
 
       backing: true
-      size: [1.9125, 3.7875, 0.1]
+      size: [1.9125, 0.7875, 0.1]
       pos: [3.9875, -3.7125, 0]
 
 # fixtures on the main wall
@@ -317,18 +317,6 @@ main_group:
         size: [1.0, 0.40]
         pos: [null, 1.0]
         rotation: [0, 0]
-    - name: posed_person
-      type: posed_person
-      pos : [5.0, -5.0, 0.832]
-      size: [0.5, 0.5, 0.8]
-      rot : -1.57
-
-    - name: main_door
-      type: main_door
-      pos: [5.0, -6.0, 1.0]
-      size: [1.2, 0.3, 2.0]
-      rot: 0
-
 # fixtures on the left wall
 left_group:
   # rotation and displacement of the group

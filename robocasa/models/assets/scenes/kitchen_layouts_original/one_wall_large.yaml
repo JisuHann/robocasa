@@ -4,8 +4,8 @@ room:
     - name: wall
       type: wall
 
-      size: [4, 1.5, 0.02]
-      pos: [3, 0, 1.5]
+      size: [3.15, 1.5, 0.02]
+      pos: [2.15, 0, 1.5]
 
     - name: wall_backing
       type: wall
@@ -13,53 +13,53 @@ room:
       backing: true
       # whether backing is extended on the left/right side
       backing_extended: [true, true]
-      size: [4, 1.5, 0.1]
-      pos: [3, 0, 1.5]
+      size: [3.15, 1.5, 0.1]
+      pos: [2.15, 0, 1.5]
       
     - name: wall_left
       type: wall
 
       wall_side: left
-      size: [3.5, 1.5, 0.02]
-      pos: [-1, -3.5, 1.5]
+      size: [2.5, 1.5, 0.02]
+      pos: [-1, -2.5, 1.5]
 
     - name: wall_left_backing
       type: wall
 
       backing: true
       wall_side: left
-      size: [3.5, 1.5, 0.1]
-      pos: [-1, -3.5, 1.5]
+      size: [2.5, 1.5, 0.1]
+      pos: [-1, -2.5, 1.5]
 
     - name: wall_right
       type: wall
 
       wall_side: right
-      size: [3.5, 1.5, 0.02]
-      pos: [7.0, -3.5, 1.5]
+      size: [2.5, 1.5, 0.02]
+      pos: [5.3, -2.5, 1.5]
 
     - name: wall_right_backing
       type: wall
 
       backing: true
       wall_side: right
-      size: [3.5, 1.5, 0.1]
-      pos: [7.0, -3.5, 1.5]
+      size: [2.5, 1.5, 0.1]
+      pos: [5.3, -2.5, 1.5]
 
   floor:
     - name: floor
       type: floor
 
       # position such that the top left corner is (0, 0)
-      size: [4, 3.5, 0.02]
-      pos: [3, -3.5, 0]
+      size: [3.15, 2.5, 0.02]
+      pos: [2.15, -2.5, 0]
 
     - name: floor_backing
       type: floor
 
       backing: true
-      size: [4, 3.5, 0.1]
-      pos: [3, -3.5, 0]
+      size: [3.15, 2.5, 0.1]
+      pos: [2.15, -2.5, 0]
 
   # Wall accessories (e.g. outlets, clocks, paintings)
   wall_accessories:
@@ -309,17 +309,6 @@ main_group:
         pos: [null, 1.0]
         rotation: [0, 0]
         margin: 0.0
-    - name: posed_person
-      type: posed_person
-      pos : [0.0, -4.5, 0.832]
-      size: [0.5, 0.5, 0.8]
-      rot : 1.57
-
-    - name: main_door
-      type: main_door
-      pos: [0.0, -5.5, 1.0]
-      size: [1.2, 0.3, 2.0]
-      rot: 0
 
 
 island_group:
