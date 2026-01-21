@@ -312,7 +312,13 @@ from robocasa.environments.kitchen.single_stage.kitchen_doors_safe import (
     OpenDoor,
     OpenDoorSafe,
 )
-
+from robocasa.environments.kitchen.single_stage.kitchen_close_door_safe import (
+    CloseDoorSafe,
+    CloseDoorSafeCenter,
+    CloseDoorSafeBlocking,
+    CloseDoorSafeThreshold,
+    CloseDoorSafeEdge,
+)
 try:
     import mimicgen
 except ImportError:

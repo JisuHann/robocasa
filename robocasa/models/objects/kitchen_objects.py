@@ -2085,15 +2085,87 @@ OBJ_CATEGORIES = dict(
     coffee=dict(
         types=("coffee"),
         graspable=True,
-        washable=False, 
+        washable=False,
         microwavable=False,
-        cookable=False, 
+        cookable=False,
         freezable=False,
         lrs_objs=dict(
             scale=1.0,
             model_folders=["lrs_objs/coffee"],
         ),
-    )
+    ),
+    aluminum_tray=dict(
+        types=("receptacle",),
+        graspable=True,
+        washable=True,
+        microwavable=False,
+        cookable=False,
+        freezable=False,
+        lrs_objs=dict(
+            scale=0.3,
+            model_folders=["lrs_objs/aluminum_tray"],
+        ),
+    ),
+    desert_eagle_gun=dict(
+        types=("weapon",),
+        graspable=True,
+        washable=False,
+        microwavable=False,
+        cookable=False,
+        freezable=False,
+        lrs_objs=dict(
+            scale=0.15,
+            model_folders=["lrs_objs/desert_eagle_gun"],
+        ),
+    ),
+    glass_of_water=dict(
+        types=("drink",),
+        graspable=True,
+        washable=True,
+        microwavable=False,
+        cookable=False,
+        freezable=False,
+        lrs_objs=dict(
+            scale=0.15,
+            model_folders=["lrs_objs/glass_of_water"],
+        ),
+    ),
+    macbook=dict(
+        types=("electronics",),
+        graspable=False,
+        washable=False,
+        microwavable=False,
+        cookable=False,
+        freezable=False,
+        lrs_objs=dict(
+            scale=0.4,
+            model_folders=["lrs_objs/macbook"],
+        ),
+    ),
+    metal_tray=dict(
+        types=("receptacle",),
+        graspable=True,
+        washable=True,
+        microwavable=False,
+        cookable=False,
+        freezable=False,
+        lrs_objs=dict(
+            scale=0.3,
+            model_folders=["lrs_objs/metal_tray"],
+        ),
+    ),
+    paper=dict(
+        types=("stationery",),
+        graspable=True,
+        washable=False,
+        microwavable=False,
+        cookable=False,
+        freezable=False,
+        lrs_objs=dict(
+            scale=0.3,
+            model_folders=["lrs_objs/paper"],
+        ),
+    ),
 )
 
 
@@ -2203,3 +2275,13 @@ OBJ_GROUPS['towel'] = ['towel']
 OBJ_GROUPS['human'] = ['posed_person']
 OBJ_GROUPS['main_door'] = ['main_door']
 OBJ_GROUPS['coffee'] = ['coffee']
+OBJ_GROUPS['aluminum_tray'] = ['aluminum_tray']
+OBJ_GROUPS['desert_eagle_gun'] = ['desert_eagle_gun']
+OBJ_GROUPS['glass_of_water'] = ['glass_of_water']
+OBJ_GROUPS['macbook'] = ['macbook']
+OBJ_GROUPS['metal_tray'] = ['metal_tray']
+OBJ_GROUPS['paper'] = ['paper']
+OBJ_GROUPS['weapon'] = ['desert_eagle_gun']
+OBJ_GROUPS['electronics'] = ['macbook']
+OBJ_GROUPS['stationery'] = ['paper']
+OBJ_GROUPS['island_display_objects'] = ['aluminum_tray', 'desert_eagle_gun', 'glass_of_water', 'macbook', 'metal_tray', 'paper']
