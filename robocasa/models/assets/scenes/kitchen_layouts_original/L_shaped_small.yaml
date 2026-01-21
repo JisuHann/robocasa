@@ -20,16 +20,16 @@ room:
       type: wall
 
       wall_side: right
-      size: [3.0, 1.5, 0.02]
-      pos: [5.2, -3.0, 1.5]
+      size: [2.6, 1.5, 0.02]
+      pos: [5.2, -2.6, 1.5]
 
     - name: wall_right_backing
       type: wall
 
       wall_side: right
       backing: true
-      size: [3.0, 1.5, 0.1]
-      pos: [5.2, -3.0, 1.5]
+      size: [2.6, 1.5, 0.1]
+      pos: [5.2, -2.6, 1.5]
 
   # Floor
   floor:
@@ -37,15 +37,15 @@ room:
       type: floor
 
       # position such that the top left corner is (0, 0)
-      size: [2.6, 3.0, 0.02]
-      pos: [2.6, -3.0, 0]
+      size: [2.6, 2.6, 0.02]
+      pos: [2.6, -2.6, 0]
 
     - name: floor_backing
       type: floor
 
       backing: true
-      size: [2.6, 3.0, 0.1]
-      pos: [2.6, -3.0, 0]
+      size: [2.6, 2.6, 0.1]
+      pos: [2.6, -2.6, 0]
 
   # Wall accessories (e.g. outlets, clocks, paintings)
   wall_accessories:
@@ -234,17 +234,6 @@ main_group:
         size: [0.40, 0.30]
         pos: [-1.0, 1.0]
         rotation: [0, 0]
-    - name: posed_person
-      type: posed_person
-      pos : [2, -3.0, 0.832]
-      size: [0.5, 0.5, 0.8]
-      rot : 3.14
-
-    - name: main_door
-      type: main_door
-      pos: [2, -4.0, 1.0]
-      size: [1.2, 0.3, 2.0]
-      rot: 0
 
 # fixtures on the right wall
 right_group:

@@ -20,31 +20,31 @@ room:
       type: wall
 
       wall_side: left
-      size: [4.0, 1.5, 0.02]
-      pos: [0, -4.0, 1.5]
+      size: [2.5, 1.5, 0.02]
+      pos: [0, -2.5, 1.5]
 
     - name: wall_left_backing
       type: wall
 
       wall_side: left
       backing: true
-      size: [4.0, 1.5, 0.1]
-      pos: [0, -4.0, 1.5]
+      size: [2.5, 1.5, 0.1]
+      pos: [0, -2.5, 1.5]
 
     - name: wall_right
       type: wall
 
       wall_side: right
-      size: [4.0, 1.5, 0.02]
-      pos: [4.4, -4.0, 1.5]
+      size: [2.5, 1.5, 0.02]
+      pos: [4.4, -2.5, 1.5]
 
     - name: wall_right_backing
       type: wall
 
       wall_side: right
       backing: true
-      size: [4.0, 1.5, 0.1]
-      pos: [4.4, -4.0, 1.5]
+      size: [2.5, 1.5, 0.1]
+      pos: [4.4, -2.5, 1.5]
   
   wall_accessories:
     - name: outlet
@@ -81,15 +81,15 @@ room:
       type: floor
 
       # position such that the top left corner is (0, 0)
-      size: [2.2, 4.0, 0.02]
-      pos: [2.2, -4.0, 0]
+      size: [2.2, 2.5, 0.02]
+      pos: [2.2, -2.5, 0]
 
     - name: floor_backing
       type: floor
 
       backing: true
-      size: [2.2, 4.0, 0.1]
-      pos: [2.2, -4.0, 0]
+      size: [2.2, 2.5, 0.1]
+      pos: [2.2, -2.5, 0]
 
 # fixtures on the main wall
 main_group:
@@ -221,16 +221,6 @@ main_group:
         size: [1.0, obj]
         pos: [-1.0, 1.0]
         rotation: [0, 0]
-    - name: posed_person
-      type: posed_person
-      pos : [2.5, -5.0, 0.832]
-      size: [0.5, 0.5, 0.8]
-
-    - name: main_door
-      type: main_door
-      pos: [2.5, -6.0, 1.0]
-      size: [1.2, 0.3, 2.0]
-      rot: 0
 
 # Group for island
 front_group:

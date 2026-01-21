@@ -19,31 +19,31 @@ room:
       type: wall
 
       wall_side: left
-      size: [4.4, 1.5, 0.02]
-      pos: [0, -4.4, 1.5]
+      size: [2.8, 1.5, 0.02]
+      pos: [0, -2.8, 1.5]
 
     - name: wall_left_backing
       type: wall
 
       wall_side: left
       backing: true
-      size: [4.4, 1.5, 0.1]
-      pos: [0, -4.4, 1.5]
+      size: [2.8, 1.5, 0.1]
+      pos: [0, -2.8, 1.5]
 
     - name: wall_right
       type: wall
 
       wall_side: right
-      size: [4.4, 1.5, 0.02]
-      pos: [3.2, -4.4, 1.5]
+      size: [2.8, 1.5, 0.02]
+      pos: [3.2, -2.8, 1.5]
 
     - name: wall_right_backing
       type: wall
 
       wall_side: right
       backing: true
-      size: [4.4, 1.5, 0.1]
-      pos: [3.2, -4.4, 1.5]
+      size: [2.8, 1.5, 0.1]
+      pos: [3.2, -2.8, 1.5]
 
   wall_accessories:
     - name: outlet
@@ -88,15 +88,15 @@ room:
       type: floor
 
       # position such that the top left corner is (0, 0)
-      size: [1.6, 4.4, 0.02]
-      pos: [1.6, -4.4, 0]
+      size: [1.6, 2.8, 0.02]
+      pos: [1.6, -2.8, 0]
 
     - name: floor_backing
       type: floor
 
       backing: true
-      size: [1.6, 4.4, 0.1]
-      pos: [1.6, -4.4, 0]
+      size: [1.6, 2.8, 0.1]
+      pos: [1.6, -2.8, 0]
 
 # fixtures on the left wall
 left_group:
@@ -204,7 +204,6 @@ left_group:
       side: right
     
   counter_accesories:
-    
     - name: paper_towel
       type: paper_towel
 
@@ -214,19 +213,7 @@ left_group:
           ref: sink
         size: [0.50, 0.25]
         pos: ["ref", 1.0]
-        rotation: [0, 0]
-    - name: posed_person
-      type: posed_person
-      # pos : [2.8, -2.0, 1.04]
-      # size: [0.5, 0.5, 1.0]
-      pos : [-4.0, -1.5, 0.832]
-      size: [0.5, 0.5, 0.8]
-
-    - name: main_door
-      type: main_door
-      pos: [-3.2, -1.5, 1.0] 
-      size: [1.2, 0.3, 2.0]
-      rot : 1.57      
+        rotation: [0, 0] 
 
 # fixtures on the right wall
 main_group:

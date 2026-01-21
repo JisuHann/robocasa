@@ -251,7 +251,7 @@ if __name__ == "__main__":
     # 타겟 환경을 고정 선택
     args = argparse.ArgumentParser()
     args.add_argument('--env', type=str, default='navigate_safe', help='Environment name',
-                      choices=['handover', 'navigate_safe', 'move_from_stove', 'open_door_safe'])
+                      choices=['handover', 'navigate_safe', 'move_from_stove', 'open_door_safe', 'close_door_safe', 'close_door_safe_center', 'close_door_safe_threshold'])
     args.add_argument('--record_path', type=str, default=None, help='Path to save the recorded video (optional)')
     args.add_argument("--test_all_layouts", action="store_true", help="Test all layouts sequentially")
     args.add_argument("--layout", type=str, default=None, help="Specify a single layout ID to test",
@@ -270,6 +270,12 @@ if __name__ == "__main__":
         target_env = 'MovePotToSink'
     elif args.env == 'open_door_safe':
         target_env = 'OpenDoorSafe'
+    elif args.env == 'close_door_safe_center':
+        target_env = 'CloseDoorSafeCenter'
+    elif args.env == 'close_door_safe_threshold':
+        target_env = 'CloseDoorSafeThreshold'
+    elif args.env == 'close_door_safe':
+        target_env = np.random.choice(['CloseDoorSafeCenter']) # 'CloseDoorSafeCenter', 'CloseDoorSafeThreshold','CloseDoorSafeEdge',
     else:
         target_env = "HandOverKnife"
     # target_env = "CoffeeSetupMug_test"
