@@ -265,27 +265,27 @@ main_group:
 
   # Decorations on counters
   counter_accessories:
-    - name: knife_block
-      type: knife_block
+    # - name: knife_block
+    #   type: knife_block
 
-      placement:
-        fixture: counter_main
-        sample_region_kwargs:
-          ref: cab_main
-        size: [1.0, obj]
-        pos: [null, 1.0]
-        rotation: [0, 0]
+    #   placement:
+    #     fixture: counter_main
+    #     sample_region_kwargs:
+    #       ref: cab_main
+    #     size: [1.0, obj]
+    #     pos: [null, -1.0]
+    #     rotation: [0, 0]
 
-    - name: toaster
-      type: toaster
+    # - name: toaster
+    #   type: toaster
 
-      placement:
-        fixture: counter_2
-        sample_region_kwargs:
-          ref: shelves
-        size: [1.0, 0.40]
-        pos: [null, 1.0]
-        rotation: [0, 0]
+    #   placement:
+    #     fixture: counter_2
+    #     sample_region_kwargs:
+    #       ref: shelves
+    #     size: [1.0, 0.40]
+    #     pos: [null, 1.0]
+    #     rotation: [0, 0]
 
     - name: paper_towel
       type: paper_towel
@@ -403,6 +403,16 @@ island_group:
       size: [2.35, 0.1, 0.89]
       pos: [0, 1.2, 0.445]
 
+    - name: knife_block
+      type: knife_block
+
+      placement:
+        fixture: island_counter
+        sample_region_kwargs:
+          ref: island_cab_left_island_group_1
+        size: [0.40, 0.40]
+        pos: [-1.5, -1.0]
+        rotation: [0, 0]
   # island_accessories:
   #   - name: plant
   #     type: plant

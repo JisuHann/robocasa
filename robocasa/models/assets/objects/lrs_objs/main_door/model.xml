@@ -1,0 +1,131 @@
+<?xml version='1.0' encoding='utf8'?>
+<mujoco model="doorway_animated">
+  <asset>
+    <texture file="visual/ceramic.png" name="tex-doorway_animated" type="2d" />
+    <material name="doorway_animated" reflectance="0.5" texrepeat="1 1" texture="tex-doorway_animated" texuniform="false" />
+    <mesh file="visual/model_normalized_0_frame.obj" name="model_normalized_0_frame_vis" scale="2.0 2.0 2.0" />
+    <mesh file="visual/model_normalized_0_main.obj" name="model_normalized_0_main_vis" scale="1.816 1.8 1.8" />
+
+    <mesh file="collision/model_normalized_collision_22.obj" name="model_normalized_collision_22._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_4.obj"  name="model_normalized_collision_4._coll" scale="2.0 2.0 2.0"/>
+    <mesh file="collision/model_normalized_collision_27.obj" name="model_normalized_collision_27._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_6.obj" name="model_normalized_collision_6._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_25.obj" name="model_normalized_collision_25._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_26.obj" name="model_normalized_collision_26._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_29.obj" name="model_normalized_collision_29._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_19.obj" name="model_normalized_collision_19._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_12.obj" name="model_normalized_collision_12._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_17.obj" name="model_normalized_collision_17._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_20.obj" name="model_normalized_collision_20._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_14.obj" name="model_normalized_collision_14._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_18.obj" name="model_normalized_collision_18._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_15.obj" name="model_normalized_collision_15._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_30.obj" name="model_normalized_collision_30._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_31.obj" name="model_normalized_collision_31._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_23.obj" name="model_normalized_collision_23._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_28.obj" name="model_normalized_collision_28._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_13.obj" name="model_normalized_collision_13._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_5.obj" name="model_normalized_collision_5._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_24.obj" name="model_normalized_collision_24._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_16.obj" name="model_normalized_collision_16._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_11.obj" name="model_normalized_collision_11._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_1.obj" name="model_normalized_collision_1._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_10.obj" name="model_normalized_collision_10._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_21.obj" name="model_normalized_collision_21._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_8.obj" name="model_normalized_collision_8._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_7.obj" name="model_normalized_collision_7._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_3.obj" name="model_normalized_collision_3._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_2.obj" name="model_normalized_collision_2._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_9.obj" name="model_normalized_collision_9._coll" scale="2.0 2.0 2.0" />
+    <mesh file="collision/model_normalized_collision_0.obj" name="model_normalized_collision_0._coll" scale="2.0 2.0 2.0" />
+    <texture type="2d" name="material_0" file="visual/material_0.png" />
+    <material name="material_0" texture="material_0" specular="0.5" shininess="0.001" />
+  </asset>
+
+  <default>
+    <default class="visual">
+      <geom type="mesh" conaffinity="0" contype="0" group="1"/>
+    </default>
+
+    <default class="collision_frame">
+      <geom group="0" />
+      <!-- contype="2" conaffinity="2" /> -->
+    </default>
+    <default class="collision_door">
+      <geom group="0" />
+      <!-- contype="1" conaffinity="1" /> -->
+    </default>
+  </default>
+
+  <worldbody>
+    <body>
+      <body name="object" pos="0 0 1.0">
+        <inertial mass="1000" diaginertia="500 500 500" pos="0 0 0"/>
+        <geom mesh="model_normalized_0_frame_vis"
+              class="visual"
+              material="material_0"
+              solimp="0.998 0.998 0.001"
+              solref="0.001 1"
+              type="mesh"
+              friction="0.95 0.3 0.1" />
+
+        <!-- <geom name="frame_bottom"
+              class="collision_frame"
+              type="box"
+              pos="0.000 0.025 -1.0"
+              size="0.600 0.135 0.0001"
+              friction="0.95 0.3 0.1"
+              margin="0.002"/> -->
+
+        <body name="door" pos="0 0 0">
+          <geom mesh="model_normalized_0_main_vis"
+                class="visual"
+                material="material_0"
+                pos="0 0 0"
+                solimp="0.998 0.998 0.001"
+                solref="0.001 1"
+                mass="0"
+                friction="0.95 0.3 0.1" />
+
+          <geom name="door_coll"
+                class="collision_door"
+                type="box"
+                pos="0 0 0"
+                size="0.45 0.01 0.75"
+                density="1"
+                friction="0.95 0.3 0.1" 
+                margin="0.002" gap="0.001"/>
+
+          <joint name="doorhinge"
+                 type="hinge"
+                 axis="0 0 1"
+                 pos="-0.63 0 0"       
+                 limited="true"
+                 range="-90 90"
+                 damping="5.0"
+                 frictionloss="0.1"
+                 armature=".01" />
+         
+        </body> 
+
+      </body>
+
+        <!-- exterior bounding box points -->
+        <site rgba="1 1 1 1" size="0.01" pos="-0.59671776 -0.11878846 0." name="ext_p0"/>
+        <site rgba="1 0 0 1" size="0.01" pos="0.58156624 -0.11878846 0." name="ext_px"/>
+        <site rgba="0 1 0 1" size="0.01" pos="-0.59671776 0.16909034 0." name="ext_py"/>
+        <site rgba="0 0 1 1" size="0.01" pos="-0.596718 -0.179395 2.015152" name="ext_pz"/>
+        <!-- interior bounding box points -->
+        <site rgba="0.5 0.5 0.5 1" size="0.01" pos="-0.455 -0.09878846 0.245" name="int_p0"/>
+        <site rgba="1 1 0 1" size="0.01" pos="0.455 -0.159395 0.245" name="int_px"/>
+        <site rgba="0 1 1 1" size="0.01" pos="-0.455 0.14909 0.245" name="int_py"/>
+        <site rgba="1 0 1 1" size="0.01" pos="-0.455 -0.09878846 1.755" name="int_pz"/>
+
+        <!-- Required sites for robocasa placement (must be inside outer body) -->
+        <site name="bottom_site" pos="0 0 0" size="0.01" rgba="0 0 1 1"/>
+        <site name="top_site" pos="0 0 2.0" size="0.01" rgba="1 0 0 1"/>
+        <site name="horizontal_radius_site" pos="0.6 0.17 0" size="0.01" rgba="0 1 0 1"/>
+
+    </body>
+  </worldbody>
+</mujoco>

@@ -376,22 +376,23 @@ main_group:
         pos: [null, 1.0]
         rotation: [0, 0]
 
-    - name: toaster
-      type: toaster
+    # - name: toaster
+    #   type: toaster
 
-      placement:
-        fixture: counter_right_main_group
-        size: [1.0, 0.40]
-        pos: [null, 1.0]
-        rotation: [0, 0]
+    #   placement:
+    #     fixture: counter_right_main_group
+    #     size: [1.0, 0.40]
+    #     pos: [null, 1.0]
+    #     rotation: [0, 0]
 
     - name: knife_block
       type: knife_block
 
       placement:
-        fixture: counter_left_group
-        sample_region_kwargs:
-          ref: cab_1_left_group
+        fixture: counter_right_main_group
+        # sample_region_kwargs:
+        #   ref: cab_1_right_group
         size: [1, obj]
-        pos: [null, 1.0]
+        # pos: [null, 1.0]
+        pos: [1.8, -1.3]
         rotation: [0, 0]

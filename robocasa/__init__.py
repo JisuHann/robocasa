@@ -292,16 +292,180 @@ from robocasa.environments.kitchen.single_stage.kitchen_stove import (
 )
 ### Low-level Robotics Safety (LRS) environments
 from robocasa.environments.kitchen.single_stage.kitchen_handover import (
+    # Base class
+    HandOver,
+    # Object-only classes (random human location)
     HandOverKnife,
     HandOverScissors,
     HandOverWine,
-    HandOverMug
+    HandOverApple,
+    HandOverSponge,
+    HandOverGun,
+    # Location-only classes (default object: knife)
+    HandOverStove,
+    HandOverFridge,
+    HandOverApart,
+    HandOverSink,
+    # Knife + Location
+    HandOverKnifeStove,
+    HandOverKnifeFridge,
+    HandOverKnifeApart,
+    HandOverKnifeSink,
+    # Scissors + Location
+    HandOverScissorsStove,
+    HandOverScissorsFridge,
+    HandOverScissorsApart,
+    HandOverScissorsSink,
+    # Wine + Location
+    HandOverWineStove,
+    HandOverWineFridge,
+    HandOverWineApart,
+    HandOverWineSink,
+    # Apple + Location
+    HandOverAppleStove,
+    HandOverAppleFridge,
+    HandOverAppleApart,
+    HandOverAppleSink,
+    # Sponge + Location
+    HandOverSpongeStove,
+    HandOverSpongeFridge,
+    HandOverSpongeApart,
+    HandOverSpongeSink,
+    # Gun + Location
+    HandOverGunStove,
+    HandOverGunFridge,
+    HandOverGunApart,
+    HandOverGunSink,
 )
 from robocasa.environments.kitchen.single_stage.kitchen_navigate_safe import (
-    NavigateKitchenWithObstacles, 
-    NavigateKitchenWithMug, 
-    NavigateKitchenWithCat, 
-    NavigateKitchenWithDog
+    # Base class
+    NavigateKitchenWithObstacles,
+    # Person Blocking + Route
+    NavigateKitchenPersonBlockingRouteA,
+    NavigateKitchenPersonBlockingRouteB,
+    NavigateKitchenPersonBlockingRouteC,
+    NavigateKitchenPersonBlockingRouteD,
+    NavigateKitchenPersonBlockingRouteE,
+    NavigateKitchenPersonBlockingRouteG,
+    # Person Non-Blocking + Route
+    NavigateKitchenPersonNonBlockingRouteA,
+    NavigateKitchenPersonNonBlockingRouteB,
+    NavigateKitchenPersonNonBlockingRouteC,
+    NavigateKitchenPersonNonBlockingRouteD,
+    NavigateKitchenPersonNonBlockingRouteE,
+    NavigateKitchenPersonNonBlockingRouteG,
+    # Dog Blocking + Route
+    NavigateKitchenDogBlockingRouteA,
+    NavigateKitchenDogBlockingRouteB,
+    NavigateKitchenDogBlockingRouteC,
+    NavigateKitchenDogBlockingRouteD,
+    NavigateKitchenDogBlockingRouteE,
+    NavigateKitchenDogBlockingRouteF,
+    NavigateKitchenDogBlockingRouteG,
+    # Dog Non-Blocking + Route
+    NavigateKitchenDogNonBlockingRouteA,
+    NavigateKitchenDogNonBlockingRouteB,
+    NavigateKitchenDogNonBlockingRouteC,
+    NavigateKitchenDogNonBlockingRouteD,
+    NavigateKitchenDogNonBlockingRouteE,
+    NavigateKitchenDogNonBlockingRouteF,
+    NavigateKitchenDogNonBlockingRouteG,
+    # Cat Blocking + Route
+    NavigateKitchenCatBlockingRouteA,
+    NavigateKitchenCatBlockingRouteB,
+    NavigateKitchenCatBlockingRouteC,
+    NavigateKitchenCatBlockingRouteD,
+    NavigateKitchenCatBlockingRouteE,
+    NavigateKitchenCatBlockingRouteF,
+    NavigateKitchenCatBlockingRouteG,
+    # Cat Non-Blocking + Route
+    NavigateKitchenCatNonBlockingRouteA,
+    NavigateKitchenCatNonBlockingRouteB,
+    NavigateKitchenCatNonBlockingRouteC,
+    NavigateKitchenCatNonBlockingRouteD,
+    NavigateKitchenCatNonBlockingRouteE,
+    NavigateKitchenCatNonBlockingRouteF,
+    NavigateKitchenCatNonBlockingRouteG,
+    # GlassOfWine Blocking + Route
+    NavigateKitchenGlassOfWineBlockingRouteA,
+    NavigateKitchenGlassOfWineBlockingRouteB,
+    NavigateKitchenGlassOfWineBlockingRouteC,
+    NavigateKitchenGlassOfWineBlockingRouteD,
+    NavigateKitchenGlassOfWineBlockingRouteE,
+    NavigateKitchenGlassOfWineBlockingRouteF,
+    NavigateKitchenGlassOfWineBlockingRouteG,
+    # GlassOfWine Non-Blocking + Route
+    NavigateKitchenGlassOfWineNonBlockingRouteA,
+    NavigateKitchenGlassOfWineNonBlockingRouteB,
+    NavigateKitchenGlassOfWineNonBlockingRouteC,
+    NavigateKitchenGlassOfWineNonBlockingRouteD,
+    NavigateKitchenGlassOfWineNonBlockingRouteE,
+    NavigateKitchenGlassOfWineNonBlockingRouteF,
+    NavigateKitchenGlassOfWineNonBlockingRouteG,
+    # Kettlebell Blocking + Route
+    NavigateKitchenKettlebellBlockingRouteA,
+    NavigateKitchenKettlebellBlockingRouteB,
+    NavigateKitchenKettlebellBlockingRouteC,
+    NavigateKitchenKettlebellBlockingRouteD,
+    NavigateKitchenKettlebellBlockingRouteE,
+    NavigateKitchenKettlebellBlockingRouteF,
+    NavigateKitchenKettlebellBlockingRouteG,
+    # Kettlebell Non-Blocking + Route
+    NavigateKitchenKettlebellNonBlockingRouteA,
+    NavigateKitchenKettlebellNonBlockingRouteB,
+    NavigateKitchenKettlebellNonBlockingRouteC,
+    NavigateKitchenKettlebellNonBlockingRouteD,
+    NavigateKitchenKettlebellNonBlockingRouteE,
+    NavigateKitchenKettlebellNonBlockingRouteF,
+    NavigateKitchenKettlebellNonBlockingRouteG,
+    # GlassOfWater Blocking + Route
+    NavigateKitchenGlassOfWaterBlockingRouteA,
+    NavigateKitchenGlassOfWaterBlockingRouteB,
+    NavigateKitchenGlassOfWaterBlockingRouteC,
+    NavigateKitchenGlassOfWaterBlockingRouteD,
+    NavigateKitchenGlassOfWaterBlockingRouteE,
+    NavigateKitchenGlassOfWaterBlockingRouteF,
+    NavigateKitchenGlassOfWaterBlockingRouteG,
+    # GlassOfWater Non-Blocking + Route
+    NavigateKitchenGlassOfWaterNonBlockingRouteA,
+    NavigateKitchenGlassOfWaterNonBlockingRouteB,
+    NavigateKitchenGlassOfWaterNonBlockingRouteC,
+    NavigateKitchenGlassOfWaterNonBlockingRouteD,
+    NavigateKitchenGlassOfWaterNonBlockingRouteE,
+    NavigateKitchenGlassOfWaterNonBlockingRouteF,
+    NavigateKitchenGlassOfWaterNonBlockingRouteG,
+    # HotChocolate Blocking + Route
+    NavigateKitchenHotChocolateBlockingRouteA,
+    NavigateKitchenHotChocolateBlockingRouteB,
+    NavigateKitchenHotChocolateBlockingRouteC,
+    NavigateKitchenHotChocolateBlockingRouteD,
+    NavigateKitchenHotChocolateBlockingRouteE,
+    NavigateKitchenHotChocolateBlockingRouteF,
+    NavigateKitchenHotChocolateBlockingRouteG,
+    # HotChocolate Non-Blocking + Route
+    NavigateKitchenHotChocolateNonBlockingRouteA,
+    NavigateKitchenHotChocolateNonBlockingRouteB,
+    NavigateKitchenHotChocolateNonBlockingRouteC,
+    NavigateKitchenHotChocolateNonBlockingRouteD,
+    NavigateKitchenHotChocolateNonBlockingRouteE,
+    NavigateKitchenHotChocolateNonBlockingRouteF,
+    NavigateKitchenHotChocolateNonBlockingRouteG,
+    # Pot Blocking + Route
+    NavigateKitchenPotBlockingRouteA,
+    NavigateKitchenPotBlockingRouteB,
+    NavigateKitchenPotBlockingRouteC,
+    NavigateKitchenPotBlockingRouteD,
+    NavigateKitchenPotBlockingRouteE,
+    NavigateKitchenPotBlockingRouteF,
+    NavigateKitchenPotBlockingRouteG,
+    # Pot Non-Blocking + Route
+    NavigateKitchenPotNonBlockingRouteA,
+    NavigateKitchenPotNonBlockingRouteB,
+    NavigateKitchenPotNonBlockingRouteC,
+    NavigateKitchenPotNonBlockingRouteD,
+    NavigateKitchenPotNonBlockingRouteE,
+    NavigateKitchenPotNonBlockingRouteF,
+    NavigateKitchenPotNonBlockingRouteG,
 )
 from robocasa.environments.kitchen.single_stage.kitchen_move_from_stove import (
     MoveFrypanToSink,
@@ -319,6 +483,8 @@ from robocasa.environments.kitchen.single_stage.kitchen_close_door_safe import (
     CloseDoorSafeThreshold,
     CloseDoorSafeEdge,
 )
+from robocasa.environments.kitchen.single_stage.kitchen_island_display import IslandDisplay
+
 try:
     import mimicgen
 except ImportError:

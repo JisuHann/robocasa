@@ -46,19 +46,22 @@
         <geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_12._coll" group="0" rgba="0.8 0.8 0.8 0.0" />
         <geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_collision_13._coll" group="0" rgba="0.8 0.8 0.8 0.0" />
         
-        <!-- <site rgba="0 0 0 0" size="0.005" pos="-0.001327093469164653 -0.0014711269500746887 -0.5075757572625752" name="bottom_site" />
-        <site rgba="0 0 0 0" size="0.005" pos="-0.001327093469164653 -0.0014711269500746887 0.5075757448605585" name="top_site" />
-        <site rgba="0 0 0 0" size="0.005" pos="0.14261229835848616 0.15761977999329901 -6.201008428963206e-09" name="horizontal_radius_site" /> -->
         <!-- PosedPerson required sites - corrected for scaled model -->
-        <site name='attention' pos='0.05 0 1.2' size='0.05' rgba='0 1 0 0.3'/>
-        <site name='safety_attention' pos='0.05 0 1.4' size='0.05' rgba='1 0 0 0.3'/>
-        <site name='head' pos='0 0 1.7' size='0.05' rgba='1 1 0 0.3'/>
-        <site name='torso' pos='0 0 1.0' size='0.05' rgba='0.5 0.5 0.5 0.3'/>
-        <site name='hand_L' pos='-0.15 0.20 1.0' size='0.03' rgba='0 0 1 0.5'/>
-        <site name='hand_R' pos='-0.15 -0.20 1.0' size='0.03' rgba='1 0 0 0.5'/>
-        <site name='handover_L' pos='0.0 0.25 0.8' size='0.05' rgba='0 0 1 0.3'/>
-        <site name='handover_R' pos='0.0 -0.25 0.8' size='0.05' rgba='1 0 0 0.3'/>
+        <site name='attention' pos='0.05 0 1.2' size='0.05' rgba='0 1 0 0'/>
+        <site name='safety_attention' pos='0.05 0 1.4' size='0.05' rgba='1 0 0 0'/>
+        <site name='head' pos='0 0 1.7' size='0.05' rgba='1 1 0 0'/>
+        <site name='torso' pos='0 0 1.0' size='0.05' rgba='0.5 0.5 0.5 0'/>
+        <site name='hand_L' pos='-0.15 0.20 1.0' size='0.03' rgba='0 0 1 0'/>
+        <site name='hand_R' pos='-0.15 -0.20 1.0' size='0.03' rgba='1 0 0 0'/>
+        <site name='handover_L' pos='0.0 0.25 0.8' size='0.05' rgba='0 0 1 0'/>
+        <site name='handover_R' pos='0.0 -0.25 0.8' size='0.05' rgba='1 0 0 0'/>
+        <!-- 3rd person camera - positioned behind and above, looking at person's back -->
+        <camera mode="fixed" name="1stview" pos="0.0 -0.05 0.80" quat="0 0 0.7 0.7" fovy="75"/>
       </body>
+      <!-- Object placement sites - must be siblings of body name="object" -->
+      <site rgba="0 0 0 0" size="0.005" pos="-0.001327093469164653 -0.0014711269500746887 -1.0" name="bottom_site" />
+      <site rgba="0 0 0 0" size="0.005" pos="-0.001327093469164653 -0.0014711269500746887 1.0" name="top_site" />
+      <site rgba="0 0 0 0" size="0.005" pos="0.3 0.3 0" name="horizontal_radius_site" />
     </body>
   </worldbody>
 </mujoco>

@@ -203,16 +203,16 @@ main_group:
   
   counter_accessories:
 
-    - name: toaster
-      type: toaster
+    # - name: toaster
+    #   type: toaster
 
-      placement:
-        fixture: counter_main_main_group
-        sample_region_kwargs:
-          ref: cab_main_main_group
-        size: [1.0, 0.40]
-        pos: [null, 1.0]
-        rotation: [0, 0]
+    #   placement:
+    #     fixture: counter_main_main_group
+    #     sample_region_kwargs:
+    #       ref: cab_main_main_group
+    #     size: [1.0, 0.40]
+    #     pos: [null, 1.0]
+    #     rotation: [0, 0]
     
     - name: plant
       type: plant

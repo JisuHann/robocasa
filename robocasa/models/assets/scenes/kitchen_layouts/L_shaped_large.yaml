@@ -192,16 +192,16 @@ main_group:
       stack_fixtures: ["fridge_housing"]
 
   counter_accessories:
-    - name: toaster
-      type: toaster
+    # - name: toaster
+    #   type: toaster
 
-      placement:
-        fixture: counter_1_right
-        sample_region_kwargs:
-          ref: shelves
-        size: [1.0, 0.40]
-        pos: [null, 1.0]
-        rotation: [0, 0]
+    #   placement:
+    #     fixture: counter_1_right
+    #     sample_region_kwargs:
+    #       ref: shelves
+    #     size: [1.0, 0.40]
+    #     pos: [null, 1.0]
+    #     rotation: [0, 0]
 
     - name: utensil_holder
       type: utensil_holder

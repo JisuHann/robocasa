@@ -11,7 +11,7 @@
     <!-- bird view -->
     <camera pos="7.430 -8.509 3.849" name='sideview' xyaxes="0.735 0.679 0.000 -0.302 0.327 0.895"/>
     <camera pos="4.956 -2.874 1.665" name='voxview' xyaxes="-0.071 0.998 0.000 -0.294 -0.021 0.956"/>
-    <camera pos="2.541 -1.000 11.552" name='topview' xyaxes="-0.001 1.000 0.000 -1.000 -0.001 0.028"/>
+    <camera pos="3.541 -2.000 10.552" name='topview' xyaxes="-0.001 1.000 0.000 -1.000 -0.001 0.028"/>
 
     <!-- agent view -->
     <!-- <camera mode="fixed" name="agentview" pos="0.5 0 1.35" quat="0.653 0.271 0.271 0.653"/> -->

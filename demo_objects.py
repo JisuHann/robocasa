@@ -271,7 +271,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--mjcf",
         type=str,
-        default="/Users/hyunw3/robotics/robotics-safety/benchmark/robocasa/robocasa/models/assets/objects/lrs_objs/towel/model.xml",
+        default="/Users/hyunw3/robotics/robotics-safety/benchmark/robocasa/robocasa/models/assets/objects/lrs_objs/main_door/model.xml",
         help="(optional) path to specific model xml file to visualize. skip to sample random models",
     )
     parser.add_argument(
