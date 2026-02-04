@@ -244,7 +244,7 @@ class NavigateKitchenWithObstacles(Kitchen):
         counter_to_robot = src_xy - np.array(self.src_fixture.pos[:2])
         if np.dot(path_perp, counter_to_robot) < 0:
             path_perp = -path_perp
-
+        path_perp = path_perp / (np.linalg.norm(path_perp) + 1e-8)
         # Get floor fixture position for offset computation
         self._floor_pos_xy = None
         for fxtr in self.fixtures.values():
@@ -263,8 +263,23 @@ class NavigateKitchenWithObstacles(Kitchen):
         
 
         # Non-blocking obstacle: 25% along path, offset perpendicular toward open floor
+        perp_scaling = 0.5 if path_len < 2.0 else 1.5
+        if path_len >3.0 :
+            perp_scaling = 1.8
+        path_len_scaling = 0.5
+        if self.layout_id == LayoutType.GALLEY:
+            perp_scaling = -1.5
+            if self.route in ['RouteC']:
+                perp_scaling = -1.0
+            elif self.route in []:
+                perp_scaling = 1.3
+            if self.route in [ 'RouteB','RouteE', 'RouteF']:
+                perp_scaling = 1.3
+            print("Route in GALLEY:", self.route)
+            # path_len_scaling = 0.5
+        print("perp_scaling:", perp_scaling, "path_len_scaling:", path_len_scaling)
         self._obstacle_nonblocking_xy = (
-            src_xy + path_dir * (path_len * 0.25) + path_perp * 1.0
+            src_xy + path_dir * (path_len * path_len_scaling) + path_perp * perp_scaling
         )
         
         if human_related_task:
@@ -336,9 +351,7 @@ class NavigateKitchenWithObstacles(Kitchen):
         blocking_offset = self._obstacle_blocking_xy - self._floor_pos_xy
         nonblocking_offset = self._obstacle_nonblocking_xy - self._floor_pos_xy
 
-        # Use larger sampling region for large obstacles
-        large_obstacles = ['pot']
-        region_size = (1.5, 1.5) if self.obstacle in large_obstacles else (0.8, 0.8)
+        region_size = (0.8, 0.8)
 
         # Determine ref fixtures for sample_region_kwargs
         # Fixtures looked up by ref id can't be used as placement ref, fall back to counter
@@ -547,6 +560,69 @@ class NavigateKitchenWithObstacles(Kitchen):
             )
 
         return cfgs
+
+    def _reset_internal(self):
+        """
+        Override to fix obstacle z-position after MuJoCo settling.
+
+        Small objects can get launched during the physics settling phase
+        because they clip through gaps in kitchen fixtures. This override
+        re-applies the sampled position and forces Z to floor level
+        after settling completes, then calls sim.forward() to update
+        derived quantities without running more physics steps.
+        """
+        super()._reset_internal()
+
+        if self.obstacle == 'human':
+            return
+
+        # Re-apply obstacle positions after settling to fix any physics artifacts
+        floor = self.get_fixture("floor_room")
+        floor_z = floor.pos[2] if hasattr(floor, 'pos') else 0.0
+
+        for obj_name in list(self.objects.keys()):
+            if not obj_name.startswith("obstacle_"):
+                continue
+            obj = self.objects[obj_name]
+            joint_name = obj.joints[0]
+            qpos = self.sim.data.get_joint_qpos(joint_name).copy()
+
+            if obj.name in self.object_placements:
+                sampled_pos, sampled_quat, _ = self.object_placements[obj.name]
+                # Re-apply sampled XY, fix Z to floor level + half object height
+                qpos[0] = sampled_pos[0]
+                qpos[1] = sampled_pos[1]
+                qpos[2] = floor_z - obj.bottom_offset[2] + 0.01
+                qpos[3:7] = sampled_quat
+                self.sim.data.set_joint_qpos(joint_name, qpos)
+
+                # Zero out velocity
+                qvel_addr = self.sim.model.get_joint_qvel_addr(joint_name)
+                self.sim.data.qvel[qvel_addr[0]:qvel_addr[1]] = 0
+
+                # Store fixed qpos for pinning in _post_action
+                if not hasattr(self, '_obstacle_fixed_qpos'):
+                    self._obstacle_fixed_qpos = {}
+                self._obstacle_fixed_qpos[joint_name] = qpos.copy()
+
+        # Update derived quantities without running physics
+        self.sim.forward()
+
+    def _post_action(self, action):
+        """
+        Pin obstacle positions every simulation step so they don't
+        drift or get launched by physics interactions with fixtures.
+        """
+        reward, done, info = super()._post_action(action)
+
+        if hasattr(self, '_obstacle_fixed_qpos'):
+            for joint_name, fixed_qpos in self._obstacle_fixed_qpos.items():
+                self.sim.data.set_joint_qpos(joint_name, fixed_qpos)
+                qvel_addr = self.sim.model.get_joint_qvel_addr(joint_name)
+                self.sim.data.qvel[qvel_addr[0]:qvel_addr[1]] = 0
+            self.sim.forward()
+
+        return reward, done, info
 
     def _check_success(self):
         """
