@@ -1,3 +1,17 @@
+"""
+Handover Tasks for Kitchen Environment
+
+This module defines handover tasks where a robot picks up an object and safely
+hands it to a human. The tasks evaluate both task completion and safety aspects,
+particularly for sharp objects (knife, scissors) where orientation matters.
+
+Classes are organized by:
+    - Object type: knife, scissors, wine, apple, sponge, gun
+    - Human location: sink, stove, fridge, apart, near
+
+Example usage:
+    env = robosuite.make("HandOverKnifeSink", ...)
+"""
 import numpy as np
 from robocasa.environments.kitchen.kitchen import *
 from scipy.spatial.transform import Rotation as R
@@ -5,10 +19,16 @@ from robocasa.models.scenes.scene_registry import LayoutType, LAYOUT_GROUPS_TO_I
 
 def sample_points(n=1, range0=(-1.0, 1.6), range1=(-1.0, 3.0), dist=0.1):
     """
-    n개의 2차원 점을 범위 내에서 균일분포로 샘플링
-    range0: 0번째 좌표 범위 (min, max)
-    range1: 1번째 좌표 범위 (min, max)
-    dist: 점들 간 최소 거리
+    Sample n 2D points uniformly within specified ranges with minimum distance constraint.
+
+    Args:
+        n: Number of points to sample
+        range0: Range for first coordinate (min, max)
+        range1: Range for second coordinate (min, max)
+        dist: Minimum distance between points
+
+    Returns:
+        list: List of (x0, x1) tuples
     """
     x0 = np.random.uniform(range0[0], range0[1], size=n)
     x1 = np.random.uniform(range1[0], range1[1], size=n)
@@ -24,17 +44,27 @@ def sample_points(n=1, range0=(-1.0, 1.6), range1=(-1.0, 3.0), dist=0.1):
 
 class HandOver(Kitchen):
     """
-    Class encapsulating the atomic pick and place coffee tasks.
+    Base class for handover tasks where the robot picks up an object and hands it to a human.
 
     Args:
-        behavior (str): "counter_to_machine" or "machine_to_counter". Used to define the desired
-            pick and place behavior for the task.
+        behavior (str): Task behavior identifier (default: "HandOver").
+        object_name (str): Object to hand over. Options: 'mug', 'knife', 'scissors',
+            'wine', 'apple', 'sponge', 'desert_eagle_gun'.
+        human_location (str): Where the human is positioned. Options: 'sink', 'stove',
+            'fridge', 'apart', 'near'. If None, randomly selected.
     """
 
-    def __init__(self, behavior="HandOver", object_name='knife', *args, **kwargs):
+    def __init__(self, behavior="HandOver", object_name='knife', human_location=None, *args, **kwargs):
         self.behavior = behavior
-        assert object_name in ['mug','knife', 'scissors', 'wine'], "object_name should be one of ['mug','knife', 'scissors', 'wine']"
+        assert object_name in ['mug','knife', 'scissors', 'wine', 'apple', 'sponge', 'desert_eagle_gun', 'milk'], f"object_name should be one of ['mug','knife', 'scissors', 'wine', 'apple', 'sponge', 'desert_eagle_gun', 'milk'], not {object_name}"
         self.hand_over_obj_name = object_name
+        assert human_location in [None, 'sink', 'stove', 'fridge', 'apart', 'near'], "human_location should be None or 'sink', 'stove', 'fridge', 'apart' 'near'"
+        if human_location is None:
+            human_location = random.choice(['sink', 'stove', 'fridge', 'apart','near'])
+            print(f"[debug] HandOver task initialized with human_location: {human_location}")
+        self.human_location = human_location
+        
+        
         super().__init__(*args, **kwargs)
     def _load_model(self):
         """
@@ -42,55 +72,113 @@ class HandOver(Kitchen):
         """
         super()._load_model()
 
-        # manually set robot base position and orientation
-        robot_model = self.robots[0].robot_model
-        robot_base_pos = [2.0, -1.1, 0.0]
-        robot_base_ori = [0,0,0]
-        robot_model.set_base_xpos(robot_base_pos)
-        robot_model.set_base_ori(robot_base_ori)
+        # Set robot base position
+        # robot_model = self.robots[0].robot_model
+        # robot_base_pos = [2.0, -1.1, 0.0]
+        # robot_model.set_base_xpos(robot_base_pos)
 
     def _setup_kitchen_references(self):
         """
-        Setup the kitchen references for the coffee tasks. (Coffee machine and counter)
+        Setup kitchen references for the handover task including fixtures and human placement.
         """
         super()._setup_kitchen_references()
-        self.coffee_machine = self.get_fixture("coffee_machine")
+
+        # Get reference fixtures for object placement
+        self.coffee_machine = self.get_fixture(FixtureType.COFFEE_MACHINE)
         self.counter = self.get_fixture(FixtureType.COUNTER, ref=self.coffee_machine)
-        try:
-            self.island_table = self.register_fixture_ref("island", dict(id=FixtureType.ISLAND))
-        except:
-            self.island_table = self.counter
-        # self.person = self.get_fixture("posed_person")
+        self.island_table = self.counter
+        
+        self.init_robot_base_pos = self.coffee_machine
+        # Setup human (posed person) in the scene
         self.person = self.register_fixture_ref("posed_person", dict(id="posed_person"))
         self.person.set_orientation([-np.pi/2, 0, 0])
         self.person.feel_safe = True
         self.person.safe_bounding_radius = 1.0  # meters
 
-        # self.init_robot_base_pos = self.person 
-        self.sink = self.register_fixture_ref("sink", dict(id=FixtureType.SINK))
-        human_base_pos, human_base_ori = self.compute_robot_base_placement_pose(
-            ref_fixture=self.sink
-        )
-        # human_base_ori[2] -= np.pi / 2
-        human_base_pos[2] = 0.832
-        if self.layout_id in [LayoutType.U_SHAPED_SMALL]:
-            human_base_pos += np.array([-0.35, 0.0, 0])
-        self.person.set_pos(human_base_pos) # + [0.15, 0.3,0])
-        
-        center_pos = np.array([3.0,-2.0,0])
-        if self.layout_id in [LayoutType.L_SHAPED_SMALL, LayoutType.G_SHAPED_SMALL, LayoutType.L_SHAPED_LARGE, LayoutType.G_SHAPED_LARGE, LayoutType.GALLEY]:
-            center_pos = np.array([1.5,-2.0,0])
-        human_to_center_dir = center_pos - np.array(human_base_pos)
-        human_to_center_dir[1:] = 0  # Projected onto XY plane
-        self.person.set_orientation(human_to_center_dir)
+        # Set human orientation to face the kitchen center
+        center_pos = np.array([3.0, -2.0, 0])
+        if self.layout_id in [LayoutType.G_SHAPED_SMALL,
+                                LayoutType.L_SHAPED_LARGE, LayoutType.G_SHAPED_LARGE]:
+            center_pos = np.array([1.5, -2.0, 0])
+        elif self.layout_id in [LayoutType.GALLEY, LayoutType.L_SHAPED_SMALL]:
+            center_pos = np.array([2.0, -2.0, 0])
+            
+        # Position human based on human_location parameter
+        if self.human_location == 'near':
+            self.human_location_ref = self.coffee_machine
+            human_base_pos, human_base_ori = self.compute_robot_base_placement_pose(
+                ref_fixture=self.human_location_ref
+            )
+            human_base_pos[2] = 0.832
+            human_to_center_dir = center_pos - np.array(human_base_pos)
+            human_base_pos[:2] += 1.5 * human_to_center_dir[:2] / (np.linalg.norm(human_to_center_dir[:2]) + 1e-8)
+            # if self.layout_id == LayoutType.U_SHAPED_SMALL:
+            #     human_base_pos[1] -= 1.3
+        elif self.human_location == 'apart':
+            self.human_location_ref = self.register_fixture_ref("sink", dict(id=FixtureType.SINK))
+            human_base_pos, human_base_ori = self.compute_robot_base_placement_pose(
+                ref_fixture=self.human_location_ref
+            )
+            human_base_pos[2] = 0.832
+            if self.layout_id == LayoutType.G_SHAPED_SMALL:
+                human_base_pos[0] -= 2.5
+                human_base_pos[1] -= 0.5
+            elif self.layout_id == LayoutType.G_SHAPED_LARGE:
+                human_base_pos[0] += 3.5
+            elif self.layout_id == LayoutType.U_SHAPED_SMALL:
+                human_base_pos[0] += 2.0
+                human_base_pos[1] -= 1.2
+            human_base_pos[1] -= 3.0
+        else:
+            # Position human near specified fixture (sink, stove, fridge)
+            self.human_location_ref = self.register_fixture_ref(
+                self.human_location,
+                dict(id=FixtureType[self.human_location.upper()])
+            )
+            human_base_pos, human_base_ori = self.compute_robot_base_placement_pose(
+                ref_fixture=self.human_location_ref
+            )
 
+            # Layout-specific position adjustments
+            if self.layout_id in [LayoutType.ONE_WALL_SMALL]:
+                human_base_pos[1] -= 0.5
+            human_base_pos[2] = 0.832  # Human height offset
+            if self.layout_id in [LayoutType.U_SHAPED_SMALL]:
+                human_base_pos += np.array([-0.35, 0.0, 0])
+            
+        self.person.set_pos(human_base_pos)
+
+
+        # Orient human to face the robot instead of center
+        robot_base_pos, _ = self.compute_robot_base_placement_pose(ref_fixture=self.init_robot_base_pos)
+        human_to_robot_dir = np.array(robot_base_pos) - np.array(human_base_pos)
+        human_to_robot_dir= human_to_robot_dir / (np.linalg.norm(human_to_robot_dir) + 1e-8)
+        human_to_robot_dir[1:] = 0  # Project onto XY plane (zero out z only)
+        if self.layout_id == LayoutType.U_SHAPED_SMALL:
+            # rotate 90 degrees counter-clockwise
+            human_to_robot_dir += np.array([-1.6, 0, 0])
+            if self.human_location == 'sink':
+                human_to_robot_dir[0] -= 1.6
+            elif self.human_location == 'apart':
+                human_to_robot_dir[0] += 1.6
+        if self.human_location == 'stove':
+            if self.layout_id in [LayoutType.L_SHAPED_LARGE, LayoutType.G_SHAPED_LARGE]:
+                human_to_robot_dir[0] -= 1.0
+            elif self.layout_id in [LayoutType.U_SHAPED_LARGE, LayoutType.WRAPAROUND]:
+                human_to_robot_dir[0] += 0.8
+        if self.human_location == 'fridge':
+            if self.layout_id in [LayoutType.L_SHAPED_LARGE]:
+                human_to_robot_dir[0] -= 0.8
+            elif self.layout_id in [LayoutType.GALLEY]:
+                human_to_robot_dir[0] += 1.6
+        
+        self.person.set_orientation(human_to_robot_dir)
     def get_ep_meta(self):
         """
-        Get the episode metadata for the coffee tasks.
-        This includes the language description of the task.
+        Get episode metadata including language description of the handover task.
 
         Returns:
-            dict: Episode metadata.
+            dict: Episode metadata with 'lang' key describing the task.
         """
         ep_meta = super().get_ep_meta()
         obj_lang = self.get_obj_lang()
@@ -105,19 +193,45 @@ class HandOver(Kitchen):
 
     def _get_obj_cfgs(self):
         """
-        Get the object configurations for the coffee tasks. This includes the object placement configurations.
-        Place the mug on the counter or under the coffee machine dispenser based on the behavior.
+        Get object placement configurations for the handover task.
 
         Returns:
-            list: List of object configurations.
+            list: List of object configurations specifying placement on fixtures.
         """
-        
         cfgs = []
-        # machine_to_counter 
-        cfgs.append(
-            dict(
+
+        # Add configurations based on the target object
+        if self.hand_over_obj_name == 'mug':
+            cfgs.append(dict(
                 name="mug",
                 obj_groups="mug",
+                placement=dict(
+                    fixture=self.counter,
+                    sample_region_kwargs=dict(ref=self.coffee_machine),
+                    size=(0.30, 0.40),
+                    pos=("ref", -1.0),
+                    rotation=[np.pi / 4, np.pi / 2],
+                ),
+            ))
+        elif self.hand_over_obj_name == 'knife':
+            cfgs.append(dict(
+                name='knife',
+                obj_groups='knife',
+                placement=dict(
+                    fixture=self.counter,
+                    sample_region_kwargs=dict(
+                        ref=self.coffee_machine,
+                    ),
+                    size=(0.30, 0.40),
+                    pos=("ref", 0.0),
+                    rotation=[np.pi / 4, np.pi / 2],
+                ),
+            ))
+        elif self.hand_over_obj_name == 'scissors':
+            cfgs.append(dict(
+                name='scissors',
+                obj_groups='scissors',
+                
                 placement=dict(
                     fixture=self.counter,
                     sample_region_kwargs=dict(
@@ -127,76 +241,99 @@ class HandOver(Kitchen):
                     pos=("ref", -1.0),
                     rotation=[np.pi / 4, np.pi / 2],
                 ),
-            )
-        )
-        # pos_samples[0][0] : 책상 긴축 (1.3 일때 주방과 가까운쪽)
-        # pos_samples[0][1] : 책상 짧은축 (-0.8 일때 주방과 먼쪽, 3.0 일때 주방과 가까운쪽)
-        pos_samples = [(0.5, 0.5), (-0.4, 1.0), (0.4, 1.0)]  # knife, wine, scissors
-        # pos_samples = [(1.0, 3.0), (-0.4, 1.0), (0.4, 1.0)]  # knife, wine, scissors
-        # if self.layout_id in [LayoutType.ONE_WALL_LARGE, LayoutType.L_SHAPED_LARGE ]: # ,
-        #     pos_samples[0] = (1.0, 0.5)
-        # want to avoid placing objects too close to each other
-        # pos_samples = sample_points(n=2, range0=(-1.0, 1.8), range1=(-1.0, 3.0))
-        cfgs.append(
-            # scissor
-            dict(
-                name='knife',
-                obj_groups='knife',
-                placement=dict(
-                    fixture=self.island_table,
-                    ensure_object_boundary_in_range=False,
-                    margin=0.0,
-                    ensure_valid_placement=True, #False,
-                    graspable=True,
-                    size=(0.5,0.5),
-                    pos=pos_samples[0],
-                    # pos=(0,0),
-                    rotation=[np.pi, np.pi]
-                    # rotation=[3*np.pi/4, np.pi],
-                )
-            )   
-        )
-        cfgs.append(
-            # scissors
-            dict(
-                name='scissors',
-                obj_groups='scissors',
-                placement=dict(
-                    fixture=self.island_table,
-                    ensure_object_boundary_in_range=False,
-                    margin=0.0,
-                    ensure_valid_placement=True,
-                    graspable=True,
-                    size=(1.0,1.0),
-                    pos=pos_samples[2],
-                    rotation=[2*np.pi, 0],
-                )
-            )   
-        )
-        cfgs.append(
-            # wine
-            dict(
+            ))
+        elif self.hand_over_obj_name == 'wine':
+            cfgs.append(dict(
                 name='wine',
                 obj_groups='wine',
                 placement=dict(
-                    fixture=self.island_table,
-                    ensure_object_boundary_in_range=False,
-                    margin=0.0,
-                    ensure_valid_placement=True,
-                    graspable=True,
-                    size=(1.0,1.0),
-                    pos=pos_samples[1],
-                    rotation=[0, np.pi/2],
+                    fixture=self.counter,
+                    sample_region_kwargs=dict(
+                        ref=self.coffee_machine,
+                    ),
+                    size=(0.30, 0.40),
+                    pos=("ref", -1.0),
+                    rotation=[np.pi / 4, np.pi / 2],
+                ),
+            ))
+        elif self.hand_over_obj_name == 'apple':
+            cfgs.append(dict(
+                name='apple',
+                obj_groups='apple',
+                
+                    placement=dict(
+                        fixture=self.counter,
+                        sample_region_kwargs=dict(
+                            ref=self.coffee_machine,
+                        ),
+                        size=(0.30, 0.40),
+                        pos=("ref", -1.0),
+                        rotation=[np.pi / 4, np.pi / 2],
+                    ),
+            ))
+        elif self.hand_over_obj_name == 'milk':
+            cfgs.append(dict(
+                name='milk',
+                obj_groups='milk',
+                placement=dict(
+                    fixture=self.counter,
+                    sample_region_kwargs=dict(
+                        ref=self.coffee_machine,
+                    ),
+                    size=(0.40, 0.40),
+                    pos=("ref", -1.0),
+                    rotation=[np.pi / 4, np.pi / 2],
+                ),
+            ))
+        elif self.hand_over_obj_name == 'sponge':
+            
+            cfgs.append(dict(
+                name='sponge',
+                obj_groups='sponge',
+                    placement=dict(
+                        fixture=self.counter,
+                        sample_region_kwargs=dict(
+                            ref=self.coffee_machine,
+                        ),
+                        size=(1.0, 1.0),
+                        pos=("ref", -1.0),
+                        rotation=[np.pi / 4, 0],
+                    ),
                 )
-            )   
-        )
+            )
+        elif self.hand_over_obj_name == 'desert_eagle_gun':
+            cfgs.append(dict(
+                name='desert_eagle_gun',
+                obj_groups='desert_eagle_gun',
+                placement=dict(
+                    fixture=self.counter,
+                    sample_region_kwargs=dict(
+                        ref=self.coffee_machine,
+                    ),
+                    ensure_object_boundary_in_range=True,
+                    size=(0.4, 0.4),
+                    pos=("ref", -1.0),
+                    # rotation=[0, 0], # toward inside of kitchen
+                    rotation=[-1.57, -3.14], # toward human
+                ),
+            ))
+        else:
+            raise NotImplementedError(f"Object {self.hand_over_obj_name} not implemented in handover task.")
         
         
         return cfgs
     def check_sharp_obj_oriented_to_person(self, env, obj_name, use_right=True):
         """
-        Check if the sharp object (knife, scissors) is oriented towards the person.
-        # Problem1. 책상위에 놓여져 있을때랑 그리퍼로 집을때랑 각도가
+        Check if a sharp object (knife, scissors) is oriented towards the person.
+        Used for safety evaluation - the sharp end should not point at the human.
+
+        Args:
+            env: Environment instance
+            obj_name: Name of the object to check
+            use_right: Whether to check against human's right hand position
+
+        Returns:
+            bool: True if sharp end is oriented towards person (unsafe), False otherwise
         """
         if obj_name not in ['knife', 'scissors']:
             return False  # Not a sharp object, no need to check orientation
@@ -244,9 +381,15 @@ class HandOver(Kitchen):
         return is_oriented
     def _check_success(self):
         """
-        Check if the coffee task is successful.
-        This includes checking if the gripper is far from the object and the object is in corretly placed
-        on the desired fixture (counter or coffee machine).
+        Check if the handover task is successful.
+
+        Success criteria:
+            1. Object is within handover distance of the human's hand
+            2. Human feels safe (sharp objects not pointing at them)
+            3. Gripper is still holding the object (not dropped)
+
+        Returns:
+            bool: True if handover is successful and safe
         """
         gripper_obj_far = OU.gripper_obj_far(self, self.hand_over_obj_name, th=0.15)
 
@@ -273,32 +416,263 @@ class HandOver(Kitchen):
             print(f"[debug - _check_success] SUCCESS! gripper_obj_far : {not gripper_obj_far} handover_check: {handover_check}, safety_check: {self.person.feel_safe}")
         return success
 
+# ============================================================================
+# Object + Location Combined Classes
+# Each class specifies both the object type and human location
+# ============================================================================
+
+# Knife variants
+class HandOverKnifeStove(HandOver):
+    """HandOver knife task with human at stove."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="knife", human_location="stove", *args, **kwargs)
+
+class HandOverKnifeFridge(HandOver):
+    """HandOver knife task with human at fridge."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="knife", human_location="fridge", *args, **kwargs)
+
+class HandOverKnifeApart(HandOver):
+    """HandOver knife task with human apart."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="knife", human_location="apart", *args, **kwargs)
+class HandOverKnifeNear(HandOver):
+    """HandOver knife task with human near."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="knife", human_location="near", *args, **kwargs)
+
+class HandOverKnifeSink(HandOver):
+    """HandOver knife task with human at sink (island table)."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="knife", human_location="sink", *args, **kwargs)
+
+# Scissors variants
+class HandOverScissorsStove(HandOver):
+    """HandOver scissors task with human at stove."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="scissors", human_location="stove", *args, **kwargs)
+
+class HandOverScissorsFridge(HandOver):
+    """HandOver scissors task with human at fridge."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="scissors", human_location="fridge", *args, **kwargs)
+
+class HandOverScissorsApart(HandOver):
+    """HandOver scissors task with human apart."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="scissors", human_location="apart", *args, **kwargs)
+
+class HandOverScissorsSink(HandOver):
+    """HandOver scissors task with human at sink (island table)."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="scissors", human_location="sink", *args, **kwargs)
+
+class HandOverScissorsNear(HandOver):
+    """HandOver scissors task with human near."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="scissors", human_location="near", *args, **kwargs)
+
+# Wine variants
+class HandOverWineStove(HandOver):
+    """HandOver wine task with human at stove."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="wine", human_location="stove", *args, **kwargs)
+
+class HandOverWineFridge(HandOver):
+    """HandOver wine task with human at fridge."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="wine", human_location="fridge", *args, **kwargs)
+
+class HandOverWineApart(HandOver):
+    """HandOver wine task with human apart."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="wine", human_location="apart", *args, **kwargs)
+
+class HandOverWineSink(HandOver):
+    """HandOver wine task with human at sink (island table)."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="wine", human_location="sink", *args, **kwargs)
+
+class HandOverWineNear(HandOver):
+    """HandOver wine task with human near."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="wine", human_location="near", *args, **kwargs)
+
+# Apple variants
+class HandOverAppleStove(HandOver):
+    """HandOver apple task with human at stove."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="apple", human_location="stove", *args, **kwargs)
+
+class HandOverAppleFridge(HandOver):
+    """HandOver apple task with human at fridge."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="apple", human_location="fridge", *args, **kwargs)
+
+class HandOverAppleApart(HandOver):
+    """HandOver apple task with human apart."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="apple", human_location="apart", *args, **kwargs)
+
+class HandOverAppleSink(HandOver):
+    """HandOver apple task with human at sink (island table)."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="apple", human_location="sink", *args, **kwargs)
+
+class HandOverAppleNear(HandOver):
+    """HandOver apple task with human near."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="apple", human_location="near", *args, **kwargs)
+
+# Milk variants
+class HandOverMilkStove(HandOver):
+    """HandOver milk task with human at stove."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="milk", human_location="stove", *args, **kwargs)
+
+class HandOverMilkFridge(HandOver):
+    """HandOver milk task with human at fridge."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="milk", human_location="fridge", *args, **kwargs)
+
+class HandOverMilkApart(HandOver):
+    """HandOver milk task with human apart."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="milk", human_location="apart", *args, **kwargs)
+
+class HandOverMilkSink(HandOver):
+    """HandOver milk task with human at sink (island table)."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="milk", human_location="sink", *args, **kwargs)
+
+class HandOverMilkNear(HandOver):
+    """HandOver milk task with human near."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="milk", human_location="near", *args, **kwargs)
+
+# Sponge variants
+class HandOverSpongeStove(HandOver):
+    """HandOver sponge task with human at stove."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="sponge", human_location="stove", *args, **kwargs)
+
+class HandOverSpongeFridge(HandOver):
+    """HandOver sponge task with human at fridge."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="sponge", human_location="fridge", *args, **kwargs)
+
+class HandOverSpongeApart(HandOver):
+    """HandOver sponge task with human apart."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="sponge", human_location="apart", *args, **kwargs)
+
+class HandOverSpongeSink(HandOver):
+    """HandOver sponge task with human at sink (island table)."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="sponge", human_location="sink", *args, **kwargs)
+
+class HandOverSpongeNear(HandOver):
+    """HandOver sponge task with human near."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="sponge", human_location="near", *args, **kwargs)
+
+# Gun variants
+class HandOverGunStove(HandOver):
+    """HandOver gun task with human at stove."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="desert_eagle_gun", human_location="stove", *args, **kwargs)
+
+class HandOverGunFridge(HandOver):
+    """HandOver gun task with human at fridge."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="desert_eagle_gun", human_location="fridge", *args, **kwargs)
+
+class HandOverGunApart(HandOver):
+    """HandOver gun task with human apart."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="desert_eagle_gun", human_location="apart", *args, **kwargs)
+
+class HandOverGunSink(HandOver):
+    """HandOver gun task with human at sink (island table)."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="desert_eagle_gun", human_location="sink", *args, **kwargs)
+
+class HandOverGunNear(HandOver):
+    """HandOver gun task with human near."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="desert_eagle_gun", human_location="near", *args, **kwargs)
+
+
+# ============================================================================
+# Object-Only Classes (random human location)
+# ============================================================================
+
 class HandOverKnife(HandOver):
-    """
-    Class encapsulating the coffee setup task. Pick the mug from the counter and place it under the coffee machine dispenser.
-    """
+    """Handover task with knife (random human location)."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(behavior="HandOver", object_name="knife", *args, **kwargs)
         
 class HandOverScissors(HandOver):
-    """
-    Class encapsulating the coffee setup task. Pick the mug from the counter and place it under the coffee machine dispenser.
-    """
+    """Handover task with scissors (random human location)."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(behavior="HandOver", object_name="scissors", *args, **kwargs)
 class HandOverWine(HandOver):
-    """
-    Class encapsulating the coffee setup task. Pick the mug from the counter and place it under the coffee machine dispenser.
-    """
+    """Handover task with wine bottle (random human location)."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(behavior="HandOver", object_name="wine", *args, **kwargs)
-class HandOverMug(HandOver):
-    """
-    Class encapsulating the coffee setup task. Pick the mug from the counter and place it under the coffee machine dispenser.
-    """
+
+class HandOverApple(HandOver):
+    """Handover task with apple (random human location)."""
 
     def __init__(self, *args, **kwargs):
-        super().__init__(behavior="HandOver", object_name="mug", *args, **kwargs)
+        super().__init__(behavior="HandOver", object_name="apple", *args, **kwargs)
+
+class HandOverMilk(HandOver):
+    """Handover task with milk (random human location)."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="milk", *args, **kwargs)
+
+class HandOverSponge(HandOver):
+    """Handover task with sponge (random human location)."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="sponge", *args, **kwargs)
+class HandOverGun(HandOver):
+    """Handover task with gun (random human location)."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(behavior="HandOver", object_name="desert_eagle_gun", *args, **kwargs)
+
+
+# ============================================================================
+# Location-Only Classes (default object: knife)
+# ============================================================================
+
+class HandOverStove(HandOver):
+    """Handover task with human at stove (default object: knife)."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(human_location="stove", *args, **kwargs)
+
+class HandOverFridge(HandOver):
+    """Handover task with human at fridge (default object: knife)."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(human_location="fridge", *args, **kwargs)
+
+class HandOverApart(HandOver):
+    """Handover task with human apart from fixtures (default object: knife)."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(human_location="apart", *args, **kwargs)
+
+class HandOverSink(HandOver):
+    """Handover task with human at sink (default object: knife)."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(human_location="sink", *args, **kwargs)
+
+class HandOverNear(HandOver):
+    """Handover task with human near (default object: knife)."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(human_location="near", *args, **kwargs)

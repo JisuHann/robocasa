@@ -91,8 +91,11 @@ def fixture_is_type(fixture, fixture_type):
             if not height_check:
                 return False
         return True
+    
     elif fixture_type == FixtureType.TOASTER:
         return isinstance(fixture, Toaster)
+    elif fixture_type == FixtureType.COFFEE_MACHINE:
+        return isinstance(fixture, CoffeeMachine)
     elif fixture_type == FixtureType.TOP_DRAWER:
         height_check = 0.7 <= fixture.pos[2] <= 0.9
         return height_check and isinstance(fixture, Drawer)

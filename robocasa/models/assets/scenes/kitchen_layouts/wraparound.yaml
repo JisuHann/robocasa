@@ -307,16 +307,16 @@ main_group:
         pos: [0.0, -1.0]
         rotation: [0, 0]
 
-    - name: toaster
-      type: toaster
+    # - name: toaster
+    #   type: toaster
 
-      placement:
-        fixture: counter_main_main_group
-        sample_region_kwargs:
-          ref: cab_main_main_group
-        size: [1.0, 0.40]
-        pos: [null, 1.0]
-        rotation: [0, 0]
+    #   placement:
+    #     fixture: counter_main_main_group
+    #     sample_region_kwargs:
+    #       ref: cab_main_main_fgroup
+    #     size: [1.0, 0.40]
+    #     pos: [null, 1.0]
+    #     rotation: [0, 0]
     - name: posed_person
       type: posed_person
       pos : [5.0, -5.0, 0.832]
@@ -325,7 +325,7 @@ main_group:
 
     - name: main_door
       type: main_door
-      pos: [5.0, -6.0, 1.0]
+      pos: [3.0, -6.0, 1.0]
       size: [1.2, 0.3, 2.0]
       rot: 0
 
@@ -639,6 +639,20 @@ island_group:
       size: [2.25, 1, 0.92]
       pos: [-0.8, 0.65, 0.46]
 
+    # - name: knife_block
+    #   type: knife_block
+
+    #   placement:
+    #     fixture: island_group
+    #     size: [1.0, obj]
+    #     pos: [null, 1.0]
+    #     rotation: [0, 0]
+
+  stools:
+    - name: knife_block
+      type: knife_block
+      pos: [0.1, 0.5, 1.0]
+    
 stool_group:
   group_origin: [0, 0]
   group_z_rot: 3.1415

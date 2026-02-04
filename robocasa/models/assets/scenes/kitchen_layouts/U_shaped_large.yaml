@@ -653,13 +653,13 @@ right_group:
         rotation: [0, 0]
         margin: 0.0
 
-    - name: toaster
-      type: toaster
+    # - name: toaster
+    #   type: toaster
 
-      placement:
-        fixture: counter_1_right_group
-        size: [1.0, 0.40]
-        pos: [1.0, 0]
-        rotation: [0, 0]
+    #   placement:
+    #     fixture: counter_1_right_group
+    #     size: [1.0, 0.40]
+    #     pos: [1.0, 0]
+    #     rotation: [0, 0]
       
 

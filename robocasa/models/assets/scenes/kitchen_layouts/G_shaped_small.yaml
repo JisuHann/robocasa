@@ -204,23 +204,32 @@ main_group:
       side: right
   
   counter_accessories:
-    - name: toaster
-      type: toaster
+    # - name: toaster
+    #   type: toaster
+
+    #   placement:
+    #     fixture: counter_main_main_group
+    #     size: [1.0, 0.4]
+    #     pos: [1.0, 1.0]
+    #     rotation: [0, 0]
+
+    - name: coffee_machine
+      type: coffee_machine
 
       placement:
         fixture: counter_main_main_group
-        size: [1.0, 0.4]
-        pos: [1.0, 1.0]
+        size: [1.0, 0.52]
+        pos: [null, 1.0]
         rotation: [0, 0]
+        margin: 0.0
+    # - name: knife_block
+    #   type: knife_block
 
-    - name: knife_block
-      type: knife_block
-
-      placement:
-        fixture: counter_main_main_group
-        size: [1.0, obj]
-        pos: [-1.0, 1.0]
-        rotation: [0, 0]
+    #   placement:
+    #     fixture: counter_main_main_group
+    #     size: [1.0, obj]
+    #     pos: [-1.0, 1.0]
+    #     rotation: [0, 0]
     - name: posed_person
       type: posed_person
       pos : [2.5, -5.0, 0.832]
@@ -244,15 +253,15 @@ front_group:
       base_opening: [false, true]
       overhang: 0
 
-      size: [1.9, 0.65, 0.92]
-      pos: [0, 0.025, 0.46]
+      size: [1.8, 0.65, 0.92]
+      pos: [-0.7, 0.525, 0.46]
 
     - name: counter_corner
       type: counter
       hollow: [false, false]
       half_top: [false, true]
 
-      size: [0.1, 0.65, 0.92]
+      size: [0.2, 0.65, 0.92]
       align_to: counter_1
       side: left
 
@@ -262,20 +271,28 @@ front_group:
       placement:
         fixture: counter_1_front_group
         size: [1.0, 0.40]
-        pos: [0.0, 0.0]
+        pos: [-1.5, 0.0]
+    - name: knife_block
+      type: knife_block
+
+      placement:
+        fixture: counter_1_front_group
+        size: [1.0, obj]
+        pos: [0.5, -1.0]
+        rotation: [0, 0]
   
   stools:
     - name: stool_1
       type: stool
 
       # place flush to ground
-      pos: [-0.35, 0.40, 0.5]
+      pos: [-0.3, 0.80, 0.5]
 
     - name: stool_2
       type: stool
 
       # place flush to ground
-      pos: [0.40, 0.40, 0.5]
+      pos: [-1.1, 0.80, 0.5]
 
 # fixtures on the left wall
 left_group:
@@ -412,15 +429,15 @@ left_group:
       stack_fixtures: ["fridge_housing"]
 
   counter_accessories:
-    - name: coffee_machine
-      type: coffee_machine
+    # - name: coffee_machine
+    #   type: coffee_machine
 
-      placement:
-        fixture: counter_1_left_group
-        size: [1.0, 0.52]
-        pos: [null, 1.0]
-        rotation: [0, 0]
-        margin: 0.0
+    #   placement:
+    #     fixture: counter_1_left_group
+    #     size: [1.0, 0.52]
+    #     pos: [null, 1.0]
+    #     rotation: [0, 0]
+    #     margin: 0.0
 
     - name: utensil_holder
       type: utensil_holder

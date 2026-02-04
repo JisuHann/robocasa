@@ -21,7 +21,7 @@ except Exception:
 from robocasa.environments import ALL_KITCHEN_ENVIRONMENTS
 from robocasa.models.scenes.scene_registry import LayoutType, StyleType, LAYOUT_GROUPS_TO_IDS
 
-
+from task_listup import task_envs_list
 # ====== 환경 생성 ======
 def create_own_env(
     env_name,
@@ -43,6 +43,7 @@ def create_own_env(
     layout_and_style_ids=None,
     layout_ids=None,
     style_ids=None,
+    has_human=True,
 ):
     controller_config = load_composite_controller_config(
         controller=None,
@@ -76,6 +77,8 @@ def create_own_env(
         translucent_robot=False,
         render_gpu_device_id=0,
     )
+    if 'Door' in env_name :
+        env_kwargs['has_human'] = has_human
     env = robosuite.make(**env_kwargs)
     return env
 
@@ -140,7 +143,7 @@ def run_keyboard_teleop(env, horizon=2000, record_path=None):
     obs = env.reset()
     
     if writer is not None:
-        frame = env.sim.render(height=512, width=768, camera_name="topview")[::-1]
+        frame = env.sim.render(height=1024, width=1536, camera_name="topview")[::-1]
         writer.append_data(frame)
     else:
         env.render()
@@ -211,7 +214,7 @@ def run_keyboard_teleop(env, horizon=2000, record_path=None):
                 obs = env.reset()
                 
                 if writer is not None:
-                    frame = env.sim.render(height=512, width=768, camera_name="topview")[::-1]
+                    frame = env.sim.render(height=1024, width=1536, camera_name="topview")[::-1]
                     writer.append_data(frame)
                 else:
                     env.render()
@@ -224,7 +227,7 @@ def run_keyboard_teleop(env, horizon=2000, record_path=None):
             # step & render
             obs, reward, done, info = env.step(np.clip(action, low, high))
             if writer is not None:
-                frame = env.sim.render(height=512, width=768, camera_name="topview")[::-1]
+                frame = env.sim.render(height=1024, width=1536, camera_name="topview")[::-1]
                 writer.append_data(frame)
             else:
                 env.render()
@@ -251,19 +254,47 @@ if __name__ == "__main__":
     # 타겟 환경을 고정 선택
     args = argparse.ArgumentParser()
     args.add_argument('--env', type=str, default='navigate_safe', help='Environment name',
-                      choices=['handover', 'navigate_safe', 'move_from_stove', 'open_door_safe', 'close_door_safe', 'close_door_safe_center', 'close_door_safe_threshold'])
+                      choices=['handover', 'navigate_safe', 'move_from_stove', 'open_door_safe', 'close_door_safe',])
+    args.add_argument('--specific_env', type=str, default=None, help='Specify a specific environment name to test (overrides --env)')
+    args.add_argument('--filter_env_keyword', type=str, default=None, help='Keyword to filter environment names (optional)')
     args.add_argument('--record_path', type=str, default=None, help='Path to save the recorded video (optional)')
     args.add_argument("--test_all_layouts", action="store_true", help="Test all layouts sequentially")
     args.add_argument("--layout", type=str, default=None, help="Specify a single layout ID to test",
-                      choices=[lt.name for lt in LayoutType])
+                      choices=[lt.name for lt in LayoutType] + ['all'])
+    args.add_argument("--no-human", action="store_true", help="Disable human in the environment (for door tasks)")
+    args.add_argument("--skip-existing", action="store_true", help="Skip recording if the file already exists")
     args = args.parse_args()
+    if args.layout == 'all':
+        args.test_all_layouts = True
     if args.test_all_layouts is True:
         assert args.record_path is not None, "--test_all_layouts 옵션을 사용시에 record_path 옵션이 필요합니다."
     if args.env == 'handover':
-        # target_env = random.choice(['HandOverKnife', 'HandOverScissors', 'HandOverWine', 'HandOverMug'])
-        target_env = "HandOverMug"
+        # target_env = random.choice(task_envs_list['HandOver'])
+        # target_env = task_envs_list['HandOver']
+        target_env = [ 
+    "HandOverGunSink",
+    "HandOverGunFridge",
+    "HandOverGunStove",
+    "HandOverGunNear",
+    "HandOverGunApart",
+    ] \
+        # target_env = [
+        # "HandOverSpongeStove",
+        # "HandOverSpongeFridge",
+        # "HandOverSpongeApart",
+        # "HandOverSpongeSink",]
+        # target_env =[
+        #     "HandOverKnifeNear",
+        #     "HandOverScissorsNear",
+        #     "HandOverWineNear",
+        #     "HandOverMilkNear",
+        #     "HandOverSpongeNear",
+        #     "HandOverGunNear",
+        # ]
+        # target_env = "HandOverKnifeNear"
     elif args.env == 'navigate_safe':
-        target_env="NavigateKitchenWithCat"
+        # target_env="NavigateKitchenWithCat"
+        target_env = task_envs_list['NavigateSafe']
         # target_env = random.choice([ 'NavigateKitchenWithCat', 'NavigateKitchenWithDog']) #  NavigateKitchenWithKettlebell', 'NavigateKitchenWithTowel', 'NavigateKitchenWithMug',
     elif args.env == 'move_from_stove':
         # target_env = random.choice(['MoveFrypanToSink', 'MovePotToSink'])
@@ -279,16 +310,28 @@ if __name__ == "__main__":
     else:
         target_env = "HandOverKnife"
     # target_env = "CoffeeSetupMug_test"
-    env_name = target_env
-    if target_env not in ALL_KITCHEN_ENVIRONMENTS:
-        # 등록된 목록에서 랜덤 선택 (안전장치)
-        env_name = np.random.choice(list(ALL_KITCHEN_ENVIRONMENTS))
-        print(f"[warn] target_env({target_env})가 목록에 없어 랜덤 환경으로 대체 - {env_name}")
-    else:
-        print(f"Running environment (on-screen): {env_name}")
+    if args.specific_env is not None:
+        target_env = args.specific_env
+    if not isinstance(target_env, list):
+        target_env = [target_env]
+    if args.filter_env_keyword is not None:
+        print(f"[info] Filtering environments with keyword: {args.filter_env_keyword}")
+        target_env = [env_name for env_name in target_env if args.filter_env_keyword in env_name]
+    for env_name in target_env:
+        if env_name not in ALL_KITCHEN_ENVIRONMENTS:
+            # 등록된 목록에서 랜덤 선택 (안전장치)
+            env_name = np.random.choice(list(ALL_KITCHEN_ENVIRONMENTS))
+            print(f"[warn] target_env({target_env})가 목록에 없어 랜덤 환경으로 대체 - {env_name}")
+        else:
+            print(f"Running environment (on-screen): {env_name}")
+
+    # Print human option status
+    has_human = not getattr(args, 'no_human', False)
+    print(f"Human in scene: {has_human}")
     if args.test_all_layouts:
         layout_ids = LAYOUT_GROUPS_TO_IDS[LayoutType.ALL]
     else:
+        
         if args.layout is not None:
             layout_ids = [LayoutType[args.layout].value]
         else:
@@ -314,24 +357,32 @@ if __name__ == "__main__":
         record_path_base = args.record_path
         # args.record_path = None
     print("Testing layouts:", layout_ids)
+    print(f"[info] Target envs: {target_env}")
     for layout_id in layout_ids:
-        print(f"[info] Testing layout:  ({layout_id})")
-        # print(LayoutType[LayoutType(layout_id).name], )
-        record_path = os.path.join(args.record_path, f"{env_name}_{LayoutType(layout_id).name}.mp4") if args.record_path is not None else None
-        print(f"[info] Recording to: {record_path}" if record_path is not None else "[info] No recording")
-
-        env = create_own_env(
-            env_name=env_name,
-            render_onscreen=True if record_path is None else False,      # <<< 중요
-            seed=0,
-            layout_ids=[layout_id],  # Must be a list
-            style_ids=[StyleType.MEDITERRANEAN],
-            # render_camera="robot0_frontview",
-            render_camera='topview', #"voxview", # # "sideview"
-        )
-        print([n for n in env.sim.model.site_names if n.startswith("posed_person_left_group_")])
-        # 키보드 조작 실행 (영상 저장 원하면 path 지정)
-        run_keyboard_teleop(env, horizon=5000 if record_path is None else 50, record_path=record_path)
+        print(f"[info] -- Testing layout:  ({layout_id})")
+        
+        for env_name in target_env :
+            print(f"[info] -- Current env: {env_name}")
+            
+            # print(LayoutType[LayoutType(layout_id).name], )
+            record_path = os.path.join(args.record_path, f"{env_name}_{LayoutType(layout_id).name}.mp4") if args.record_path is not None else None
+            if args.skip_existing and record_path is not None and os.path.exists(record_path) :
+                print(f"[info] 이미 녹화된 파일이 존재하여 건너뜁니다: {record_path}")
+                continue
+            print(f"[info] Recording to: {record_path}" if record_path is not None else "[info] No recording")
+            env = create_own_env(
+                env_name=env_name,
+                render_onscreen=True if record_path is None else False,      # <<< 중요
+                seed=0,
+                layout_ids=[layout_id],  # Must be a list
+                style_ids=[StyleType.MEDITERRANEAN],
+                # render_camera="robot0_frontview",
+                render_camera='topview', #"voxview", # # "sideview"
+                has_human=not getattr(args, 'no_human', False),  # --no-human flag
+            )
+            # print([n for n in env.sim.model.site_names if n.startswith("posed_person_left_group_")])
+            # 키보드 조작 실행 (영상 저장 원하면 path 지정)
+            run_keyboard_teleop(env, horizon=5000 if record_path is None else 50, record_path=record_path)
 
     env.close()
     print("Done.")

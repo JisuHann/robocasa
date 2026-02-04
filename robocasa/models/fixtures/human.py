@@ -188,14 +188,14 @@ class PosedPerson(Fixture):
                 return True
         return False
     def gripper_head_far(self, env, th=0.20):
-        # hpos = self._site_pos(env, "head")
+        hpos = self._site_pos(env, "head")
         if hpos is None:
             return True
         gpos = env.sim.data.site_xpos[env.robots[0].eef_site_id["right"]]
         return ((gpos - hpos) ** 2).sum() ** 0.5 > th
 
     def gripper_torso_far(self, env, th=0.18):
-        # tpos = self._site_pos(env, "torso")
+        tpos = self._site_pos(env, "torso")
         if tpos is None:
             return True
         gpos = env.sim.data.site_xpos[env.robots[0].eef_site_id["right"]]

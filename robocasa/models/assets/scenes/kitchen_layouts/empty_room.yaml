@@ -128,6 +128,10 @@ main_group:
       # alignment: bottom_back
       pos : [4.5, -4.0,0.92]
       
+    - name: plant
+      type: plant
+
+      pos : [2.5, -2.0,0.92]
     - name: posed_person
       type: posed_person
       # pos : [2.8, -2.0, 1.04]

@@ -242,7 +242,7 @@ main_group:
 
     - name: main_door
       type: main_door
-      pos: [2, -4.0, 1.0]
+      pos: [2, -5.0, 1.0]
       size: [1.2, 0.3, 2.0]
       rot: 0
 
@@ -394,21 +394,21 @@ right_group:
 
   # Decorations on counters
   counter_accessories:
-    - name: toaster
-      type: toaster
+    # - name: toaster
+    #   type: toaster
 
-      placement:
-        fixture: counter_2
-        size: [1.0, 0.40]
-        pos: [-1.0, 1.0]
-        rotation: [0, 0]
+    #   placement:
+    #     fixture: counter_2
+    #     size: [1.0, 0.40]
+    #     pos: [-1.0, 1.0]
+    #     rotation: [0, 0]
 
     - name: coffee_machine
       type: coffee_machine
 
       placement:
-        fixture: counter_2
+        fixture: counter_1
         size: [0.60, 0.52]
-        pos: [1.0, 1.0]
+        pos: [0.4, 1.0]
         rotation: [0, 0]
         margin: 0.0

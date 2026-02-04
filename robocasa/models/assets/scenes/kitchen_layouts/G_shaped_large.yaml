@@ -267,15 +267,25 @@ main_group:
         rotation: [0, 0]
         margin: 0.0
       
-    - name: toaster
-      type: toaster
+    # - name: toaster
+    #   type: toaster
+
+    #   placement:
+    #     fixture: counter_main_main_group
+    #     sample_region_kwargs:
+    #       ref: cab_main_main_group
+    #     size: [0.35, 0.40]
+    #     pos: [0.20, 1.0]
+    #     rotation: [0, 0]
+    - name: knife_block
+      type: knife_block
 
       placement:
         fixture: counter_main_main_group
         sample_region_kwargs:
           ref: cab_main_main_group
         size: [0.35, 0.40]
-        pos: [0.20, 1.0]
+        pos: [0.20, -1.0]
         rotation: [0, 0]
 
     - name: utensil_holder
@@ -295,7 +305,7 @@ main_group:
 
     - name: main_door
       type: main_door
-      pos: [3.5, -5.5, 1.0]
+      pos: [3.5, -7.0, 1.0]
       size: [1.2, 0.3, 2.0]
       rot: 1.57
 
