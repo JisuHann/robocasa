@@ -22,3 +22,4 @@ from robocasa.models.fixtures.fixture_utils import fixture_is_type
 from robocasa.models.fixtures.human import PosedPerson
 from robocasa.models.fixtures.pet import Dog, Cat
 from robocasa.models.fixtures.main_door import MainDoor
+from robocasa.models.fixtures.standing_table import StandingTable

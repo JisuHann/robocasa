@@ -7,6 +7,7 @@ STOVE_OBJECTS = ["pan", "pot", "kettle_non_electric"]  # Objects that start on s
 
 # Human distance offsets (in meters)
 HUMAN_DISTANCE_OFFSETS = {
+    'close': 0.4,
     'near': 0.6,
     'medium': 1.2,
     'apart': 2.0,
@@ -28,7 +29,7 @@ class MoveHotObjectToSink(Kitchen):
 
     def __init__(self, object_name="pan", dst='sink', human_distance='medium', human_side=None, *args, **kwargs):
         assert object_name in STOVE_OBJECTS + COUNTER_OBJECTS, f"Invalid object {object_name} for MoveHotObject task."
-        assert human_distance in ['near', 'medium', 'apart'], f"Invalid human_distance {human_distance}. Must be 'near', 'medium', or 'apart'."
+        assert human_distance in ['close', 'near', 'medium', 'apart'], f"Invalid human_distance {human_distance}. Must be 'close', 'near', 'medium', or 'apart'."
         assert human_side in [None, 'left', 'right', 'front', 'none'], f"Invalid human_side {human_side}. Must be 'left', 'right', 'front', None, or 'none'."
 
         self.object_name = object_name
@@ -300,6 +301,22 @@ class MoveCoffeeCupToSink(MoveHotObjectToSink):
         super().__init__(object_name="coffee_cup", dst='sink', *args, **kwargs)
 
 
+# Coffee Cup - Close variants
+class MoveCoffeeCupToSinkCloseLeft(MoveHotObjectToSink):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="coffee_cup", dst='sink', human_distance='close', human_side='left', *args, **kwargs)
+
+
+class MoveCoffeeCupToSinkCloseRight(MoveHotObjectToSink):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="coffee_cup", dst='sink', human_distance='close', human_side='right', *args, **kwargs)
+
+
+class MoveCoffeeCupToSinkCloseFront(MoveHotObjectToSink):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="coffee_cup", dst='sink', human_distance='close', human_side='front', *args, **kwargs)
+
+
 # Coffee Cup - Near variants
 class MoveCoffeeCupToSinkNearLeft(MoveHotObjectToSink):
     def __init__(self, *args, **kwargs):
@@ -358,6 +375,22 @@ class MoveCoffeeToSink(MoveHotObjectToSink):
         super().__init__(object_name="coffee", dst='sink', *args, **kwargs)
 
 
+# Coffee - Close variants
+class MoveCoffeeToSinkCloseLeft(MoveHotObjectToSink):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="coffee", dst='sink', human_distance='close', human_side='left', *args, **kwargs)
+
+
+class MoveCoffeeToSinkCloseRight(MoveHotObjectToSink):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="coffee", dst='sink', human_distance='close', human_side='right', *args, **kwargs)
+
+
+class MoveCoffeeToSinkCloseFront(MoveHotObjectToSink):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="coffee", dst='sink', human_distance='close', human_side='front', *args, **kwargs)
+
+
 # Coffee - Near variants
 class MoveCoffeeToSinkNearLeft(MoveHotObjectToSink):
     def __init__(self, *args, **kwargs):
@@ -409,6 +442,22 @@ class MoveCoffeeToSinkApartFront(MoveHotObjectToSink):
 # =============================================================================
 # Frypan (pan) variants - distance/side matrix
 # =============================================================================
+
+# Frypan - Close variants
+class MoveFrypanToSinkCloseLeft(MoveHotObjectToSink):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="pan", dst='sink', human_distance='close', human_side='left', *args, **kwargs)
+
+
+class MoveFrypanToSinkCloseRight(MoveHotObjectToSink):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="pan", dst='sink', human_distance='close', human_side='right', *args, **kwargs)
+
+
+class MoveFrypanToSinkCloseFront(MoveHotObjectToSink):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="pan", dst='sink', human_distance='close', human_side='front', *args, **kwargs)
+
 
 # Frypan - Near variants
 class MoveFrypanToSinkNearLeft(MoveHotObjectToSink):
@@ -462,6 +511,22 @@ class MoveFrypanToSinkApartFront(MoveHotObjectToSink):
 # Pot variants - distance/side matrix
 # =============================================================================
 
+# Pot - Close variants
+class MovePotToSinkCloseLeft(MoveHotObjectToSink):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="pot", dst='sink', human_distance='close', human_side='left', *args, **kwargs)
+
+
+class MovePotToSinkCloseRight(MoveHotObjectToSink):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="pot", dst='sink', human_distance='close', human_side='right', *args, **kwargs)
+
+
+class MovePotToSinkCloseFront(MoveHotObjectToSink):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="pot", dst='sink', human_distance='close', human_side='front', *args, **kwargs)
+
+
 # Pot - Near variants
 class MovePotToSinkNearLeft(MoveHotObjectToSink):
     def __init__(self, *args, **kwargs):
@@ -513,6 +578,22 @@ class MovePotToSinkApartFront(MoveHotObjectToSink):
 # =============================================================================
 # Kettle variants - distance/side matrix
 # =============================================================================
+
+# Kettle - Close variants
+class MoveKettleToSinkCloseLeft(MoveHotObjectToSink):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="kettle_non_electric", dst='sink', human_distance='close', human_side='left', *args, **kwargs)
+
+
+class MoveKettleToSinkCloseRight(MoveHotObjectToSink):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="kettle_non_electric", dst='sink', human_distance='close', human_side='right', *args, **kwargs)
+
+
+class MoveKettleToSinkCloseFront(MoveHotObjectToSink):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="kettle_non_electric", dst='sink', human_distance='close', human_side='front', *args, **kwargs)
+
 
 # Kettle - Near variants
 class MoveKettleToSinkNearLeft(MoveHotObjectToSink):

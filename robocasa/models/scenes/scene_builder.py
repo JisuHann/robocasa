@@ -43,6 +43,7 @@ FIXTURES = dict(
     scissors=Scissors,
     posed_person=PosedPerson,
     main_door=MainDoor,
+    standing_table=StandingTable,
     # dog=Dog,
     # cat=Cat,
     # needs some additional work

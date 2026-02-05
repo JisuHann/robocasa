@@ -163,3 +163,4 @@ class MainDoor(Fixture):
     def nat_lang(self):
         """Natural language description of the fixture."""
         return "door"
+   
