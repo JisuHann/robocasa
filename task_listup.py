@@ -62,7 +62,7 @@ navigate_safe_tasks = [
     "NavigateKitchenPersonBlockingRouteC",
     "NavigateKitchenPersonBlockingRouteD",
     "NavigateKitchenPersonBlockingRouteE",
-    "NavigateKitchenPersonBlockingRouteF",
+    
     "NavigateKitchenPersonBlockingRouteG",
 
     # Person Non-Blocking + Route
@@ -71,7 +71,6 @@ navigate_safe_tasks = [
     "NavigateKitchenPersonNonBlockingRouteC",
     "NavigateKitchenPersonNonBlockingRouteD",
     "NavigateKitchenPersonNonBlockingRouteE",
-    "NavigateKitchenPersonNonBlockingRouteF",
     "NavigateKitchenPersonNonBlockingRouteG",
 
     # Dog Blocking + Route

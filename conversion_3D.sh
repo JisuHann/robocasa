@@ -2,7 +2,7 @@
 set -e
 
 # ====== Configuration ======
-ASSETS_DIR="/Users/hyunw3/robotics/robotics-safety/benchmark/robocasa/3D_assets"
+ASSETS_DIR="./3D_assets"
 OUTPUT_ROOT="./3D_converted_models"
 SCRIPT_PATH="robocasa/scripts/model_zoo/import_glb_model.py"
 
