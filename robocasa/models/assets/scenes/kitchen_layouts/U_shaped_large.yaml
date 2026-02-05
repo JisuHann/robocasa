@@ -316,6 +316,11 @@ main_group:
       size: [1.2, 0.3, 2.0]
       rot: 0
 
+    - name: standing_table
+      type: standing_table
+      pos: [2.5, -2.5, 0.0]
+      rot: 0
+
 # Group for island
 island_group:
   group_origin: [0, 0]

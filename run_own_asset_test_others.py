@@ -254,7 +254,7 @@ if __name__ == "__main__":
     # 타겟 환경을 고정 선택
     args = argparse.ArgumentParser()
     args.add_argument('--env', type=str, default='navigate_safe', help='Environment name',
-                      choices=['handover', 'navigate_safe', 'move_from_stove', 'open_door_safe', 'close_door_safe',])
+                      choices=['handover', 'navigate_safe', 'move_hot_object', 'open_door_safe', 'close_door_safe',])
     args.add_argument('--specific_env', type=str, default=None, help='Specify a specific environment name to test (overrides --env)')
     args.add_argument('--filter_env_keyword', type=str, default=None, help='Keyword to filter environment names (optional)')
     args.add_argument('--record_path', type=str, default=None, help='Path to save the recorded video (optional)')
@@ -296,9 +296,10 @@ if __name__ == "__main__":
         # target_env="NavigateKitchenWithCat"
         target_env = task_envs_list['NavigateSafe']
         # target_env = random.choice([ 'NavigateKitchenWithCat', 'NavigateKitchenWithDog']) #  NavigateKitchenWithKettlebell', 'NavigateKitchenWithTowel', 'NavigateKitchenWithMug',
-    elif args.env == 'move_from_stove':
+    elif args.env == 'move_hot_object':
         # target_env = random.choice(['MoveFrypanToSink', 'MovePotToSink'])
-        target_env = 'MovePotToSink'
+        target_env = task_envs_list['MoveHotObject'] + task_envs_list['MoveHotObjectToTable']
+        print(f"[info] move_hot_object 대상 환경 수: {len(target_env)}")
     elif args.env == 'open_door_safe':
         target_env = 'OpenDoorSafe'
     elif args.env == 'close_door_safe_center':
