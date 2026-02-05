@@ -265,17 +265,107 @@ class NavigateKitchenWithObstacles(Kitchen):
         # Non-blocking obstacle: 25% along path, offset perpendicular toward open floor
         perp_scaling = 0.5 if path_len < 2.0 else 1.5
         if path_len >3.0 :
+            perp_scaling = 2.0
+        path_len_scaling = 0.5
+        
+
+        # Non-blocking obstacle: 25% along path, offset perpendicular toward open floor
+        perp_scaling = 0.5 if path_len < 2.0 else 1.5
+        if path_len >3.0 :
             perp_scaling = 1.8
         path_len_scaling = 0.5
+        if self.route == 'RouteC':
+            path_len_scaling = 1.4
+            perp_scaling = 0.8
+        if self.route == 'RouteD':
+            perp_scaling = 1.2
+        if self.route == 'RouteE':
+            path_len_scaling = 0.8
+            perp_scaling *= -0.8
+            if self.layout_id in [LayoutType.WRAPAROUND, LayoutType.L_SHAPED_LARGE]:
+                perp_scaling *= -1
+                path_len_scaling = 1.1
+            elif 'ONE_WALL' in LayoutType(self.layout_id).name:
+                print("ONE WALL in RouteE")
+                perp_scaling = 1.5
+                path_len_scaling = 0.6
+                
+        if self.route == 'RouteF':
+            # if self.layout_id in [LayoutType.WRAPAROUND,LayoutType.ONE_WALL_LARGE, LayoutType.L_SHAPED_LARGE, LayoutType.G_SHAPED_SMALL, LayoutType.G_SHAPED_LARGE,LayoutType.GALLEY]:
+            path_len_scaling = 1.2
+            perp_scaling = -0.5
+            if self.layout_id in [ LayoutType.L_SHAPED_SMALL]:
+                perp_scaling = -1.0
+                path_len_scaling = 0.8
+            elif self.layout_id in [LayoutType.U_SHAPED_LARGE]:
+                perp_scaling *= -1.0
+            elif self.layout_id in [LayoutType.U_SHAPED_SMALL]:
+                path_len_scaling -= 0.1
+        if self.route == 'RouteG':
+            path_len_scaling = 0.3
+            perp_scaling += 1.0
+            if self.layout_id in [ LayoutType.L_SHAPED_LARGE]:
+                perp_scaling = 1.5
+                path_len_scaling = -0.6
+            if self.layout_id in [ LayoutType.L_SHAPED_SMALL]:
+                perp_scaling = 1.5
+                path_len_scaling = 0.2
+            if self.layout_id in [ LayoutType.GALLEY, LayoutType.WRAPAROUND]:
+                perp_scaling = -1.0
+                path_len_scaling = 0.4
         if self.layout_id == LayoutType.GALLEY:
             perp_scaling = -1.5
             if self.route in ['RouteC']:
                 perp_scaling = -1.0
-            elif self.route in []:
-                perp_scaling = 1.3
-            if self.route in [ 'RouteB','RouteE', 'RouteF']:
-                perp_scaling = 1.3
+            if self.route in ['RouteB','RouteE', 'RouteF']:
+                perp_scaling = 1.2
             print("Route in GALLEY:", self.route)
+        if self.layout_id == LayoutType.G_SHAPED_LARGE:
+            if self.route in ['RouteB']:
+                perp_scaling = -1.3
+            if self.route in ['RouteC']:
+                perp_scaling = 1.2
+        if self.layout_id == LayoutType.G_SHAPED_SMALL:
+            if self.route in ['RouteB']:
+                perp_scaling = 1.0
+            if self.route in ['RouteC']:
+                perp_scaling = 1.4
+        if self.layout_id == LayoutType.U_SHAPED_LARGE:
+            if self.route in ['RouteB']:
+                perp_scaling = 2.0
+            if self.route in ['RouteC']:
+                perp_scaling = 1.3
+                path_len_scaling = 1.0
+            if self.route in ['RouteD']:
+                perp_scaling *= -1.0
+                path_len_scaling = 0.8
+        if self.layout_id == LayoutType.U_SHAPED_SMALL:
+            if self.route in ['RouteC']:
+                perp_scaling = 1.2
+            if self.route in ['RouteD']:
+                perp_scaling = 1.5
+        if self.layout_id == LayoutType.L_SHAPED_LARGE:
+            if self.route in ['RouteA', 'RouteB']:
+                path_len_scaling = 0.8
+        if self.layout_id == LayoutType.L_SHAPED_SMALL:
+            if self.route in ['RouteC']:
+                path_len_scaling = 1.0
+                perp_scaling = 1.4
+        if self.layout_id == LayoutType.ONE_WALL_LARGE:
+            if self.route in ['RouteA']:
+                path_len_scaling = 1.0
+            if self.route in ['RouteC']:
+                path_len_scaling = 1.8
+            if self.route in ['RouteD']:
+                perp_scaling *= -1
+        if self.layout_id == LayoutType.ONE_WALL_SMALL:
+            
+            if self.route in ['RouteC']:
+                perp_scaling = 1.2
+        if self.layout_id == LayoutType.WRAPAROUND:
+            if self.route in ['RouteB']:
+                perp_scaling = -1.0
+                path_len_scaling =0.4
             # path_len_scaling = 0.5
         print("perp_scaling:", perp_scaling, "path_len_scaling:", path_len_scaling)
         self._obstacle_nonblocking_xy = (
@@ -303,8 +393,6 @@ class NavigateKitchenWithObstacles(Kitchen):
             human_dir[1:] = 0
             if self.layout_id == LayoutType.G_SHAPED_LARGE:
                 human_dir[0] += np.pi/2
-            elif self.layout_id == LayoutType.L_SHAPED_LARGE:
-                human_dir[0] += np.pi/4
             elif self.layout_id == LayoutType.L_SHAPED_SMALL:
                 human_dir[0] += np.pi/4
             elif self.layout_id == LayoutType.G_SHAPED_SMALL:
