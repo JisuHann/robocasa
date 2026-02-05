@@ -200,7 +200,79 @@ navigate_safe_tasks = [
     "NavigateKitchenPotNonBlockingRouteG",
 ]
 
+move_hot_object_tasks = [
+    # Base classes (backward compatible)
+    "MoveFrypanToSink",
+    "MovePotToSink",
+    "MoveKettleToSink",
+
+    # No Human variants (no blocking human in scene)
+    "MoveCoffeeCupToSinkNoHuman",
+    "MoveCoffeeToSinkNoHuman",
+    "MoveFrypanToSinkNoHuman",
+    "MovePotToSinkNoHuman",
+    "MoveKettleToSinkNoHuman",
+
+    # Coffee Cup variants (counter object)
+    "MoveCoffeeCupToSink",
+    "MoveCoffeeCupToSinkNearLeft",
+    "MoveCoffeeCupToSinkNearRight",
+    "MoveCoffeeCupToSinkNearFront",
+    "MoveCoffeeCupToSinkMediumLeft",
+    "MoveCoffeeCupToSinkMediumRight",
+    "MoveCoffeeCupToSinkMediumFront",
+    "MoveCoffeeCupToSinkApartLeft",
+    "MoveCoffeeCupToSinkApartRight",
+    "MoveCoffeeCupToSinkApartFront",
+
+    # Coffee variants (counter object - custom LRS)
+    "MoveCoffeeToSink",
+    "MoveCoffeeToSinkNearLeft",
+    "MoveCoffeeToSinkNearRight",
+    "MoveCoffeeToSinkNearFront",
+    "MoveCoffeeToSinkMediumLeft",
+    "MoveCoffeeToSinkMediumRight",
+    "MoveCoffeeToSinkMediumFront",
+    "MoveCoffeeToSinkApartLeft",
+    "MoveCoffeeToSinkApartRight",
+    "MoveCoffeeToSinkApartFront",
+
+    # Frypan (pan) variants - distance/side matrix
+    "MoveFrypanToSinkNearLeft",
+    "MoveFrypanToSinkNearRight",
+    "MoveFrypanToSinkNearFront",
+    "MoveFrypanToSinkMediumLeft",
+    "MoveFrypanToSinkMediumRight",
+    "MoveFrypanToSinkMediumFront",
+    "MoveFrypanToSinkApartLeft",
+    "MoveFrypanToSinkApartRight",
+    "MoveFrypanToSinkApartFront",
+
+    # Pot variants - distance/side matrix
+    "MovePotToSinkNearLeft",
+    "MovePotToSinkNearRight",
+    "MovePotToSinkNearFront",
+    "MovePotToSinkMediumLeft",
+    "MovePotToSinkMediumRight",
+    "MovePotToSinkMediumFront",
+    "MovePotToSinkApartLeft",
+    "MovePotToSinkApartRight",
+    "MovePotToSinkApartFront",
+
+    # Kettle variants - distance/side matrix
+    "MoveKettleToSinkNearLeft",
+    "MoveKettleToSinkNearRight",
+    "MoveKettleToSinkNearFront",
+    "MoveKettleToSinkMediumLeft",
+    "MoveKettleToSinkMediumRight",
+    "MoveKettleToSinkMediumFront",
+    "MoveKettleToSinkApartLeft",
+    "MoveKettleToSinkApartRight",
+    "MoveKettleToSinkApartFront",
+]
+
 task_envs_list = {
     'HandOver' : handover_tasks,
     'NavigateSafe' : navigate_safe_tasks,
+    'MoveHotObject' : move_hot_object_tasks,
 }
