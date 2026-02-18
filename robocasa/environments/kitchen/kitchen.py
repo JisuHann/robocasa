@@ -332,10 +332,12 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
             seed=seed,
         )
 
-    def _load_model(self):
+    def _load_model(self, _retry_count=0):
         """
         Loads an xml model, puts it in self.model
         """
+        if _retry_count >= 50:
+            raise RuntimeError("Could not place objects/fixtures after 50 retries. Check your scene configuration.")
         super()._load_model()
 
         for robot in self.robots:
@@ -409,8 +411,8 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
             break
         if fxtr_placements is None:
             if macros.VERBOSE:
-                print("Could not place fixtures. Trying again with self._load_model()")
-            self._load_model()
+                print("Could not place fixtures. Trying again with self._load_model() (retry #{})".format(_retry_count + 1))
+            self._load_model(_retry_count=_retry_count + 1)
             return
         self.fxtr_placements = fxtr_placements
         # Loop through all objects and reset their positions
@@ -445,12 +447,15 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
                 "Fridge",
                 "Dishwasher",
             ]
-            while True:
+            max_fixture_attempts = 1000
+            for _fxtr_attempt in range(max_fixture_attempts):
                 ref_fixture = self.rng.choice(fixtures)
                 fxtr_class = type(ref_fixture).__name__
                 if fxtr_class not in valid_src_fixture_classes:
                     continue
                 break
+            else:
+                raise RuntimeError(f"Could not find a valid fixture after {max_fixture_attempts} attempts. Valid classes: {valid_src_fixture_classes}")
 
         robot_base_pos, robot_base_ori = self.compute_robot_base_placement_pose(
             ref_fixture=ref_fixture
@@ -468,20 +473,20 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
         # setup object locations
         self.placement_initializer = self._get_placement_initializer(self.object_cfgs)
         object_placements = None
-        for i in range(1):
+        for i in range(10):
             try:
                 object_placements = self.placement_initializer.sample(
                     placed_objects=self.fxtr_placements
                 )
             except RandomizationError as e:
                 if macros.VERBOSE:
-                    print("Randomization error in initial placement. Try #{}".format(i))
+                    print("Randomization error in initial object placement. Try #{}".format(i))
                 continue
             break
         if object_placements is None:
             if macros.VERBOSE:
-                print("Could not place objects. Trying again with self._load_model()")
-            self._load_model()
+                print("Could not place objects. Trying again with self._load_model() (retry #{})".format(_retry_count + 1))
+            self._load_model(_retry_count=_retry_count + 1)
             return
         self.object_placements = object_placements
 

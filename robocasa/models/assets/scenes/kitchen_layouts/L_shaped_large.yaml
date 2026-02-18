@@ -225,7 +225,7 @@ main_group:
 
     - name: standing_table
       type: standing_table
-      pos: [2.5, -2.5, 0.0]
+      pos: [7.5, -1.5, 0.0]
       rot: 0
 
 # fixtures on the left wall

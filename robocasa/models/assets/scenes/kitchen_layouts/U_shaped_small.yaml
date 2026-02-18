@@ -236,7 +236,7 @@ main_group:
 
     - name: standing_table
       type: standing_table
-      pos: [2.5, -2.5, 0.0]
+      pos: [4.0, -4, 0.0]
       rot: 0
 
 

@@ -347,9 +347,10 @@ class UniformRandomSampler(ObjectPositionSampler):
             region_points += base_offset
             pbar = None
             max_iter = 5000
+            location_valid = False  # Initialize before the loop
             for i in range(max_iter):  # 5000 retries
                 if i == 1000:
-                    pbar = tqdm(total=max_iter, desc=f"Running...{obj.name} {location_valid}", initial=1000)
+                    pbar = tqdm(total=max_iter, desc=f"Placing {obj.name}", initial=1000)
                 elif pbar is not None:
                     pbar.update(1)
                 # sample object coordinates
