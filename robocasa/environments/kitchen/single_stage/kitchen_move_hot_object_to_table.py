@@ -21,24 +21,24 @@ import os
 import robocasa
 
 # Constants for object categories
-COUNTER_OBJECTS = ["coffee_cup", "coffee"]  # Objects that start on counter near coffee machine
-STOVE_OBJECTS = ["pan", "pot", "kettle_non_electric"]  # Objects that start on stove
+COUNTER_OBJECTS = ["coffee", "kettle_non_electric"]  # Objects that start on counter near coffee machine
+STOVE_OBJECTS = ["pan", "pot"]  # Objects that start on stove
 
 # Human distance offsets (in meters) - perpendicular to robot
 HUMAN_DISTANCE_OFFSETS = {
-    'close' : 0.4,
-    'near': 0.6,
-    'medium': 1.0,
+    'close' : 0.6,
+    'near': 0.9,
     'apart': 1.5,
 }
 
-# Standing table distance behind robot (in meters)
+# Standing table placement around robot (in meters)
 TABLE_DISTANCE_BEHIND = 0.8
+TABLE_POSITION_MODES = ["back", "diagonal_left_back", "diagonal_right_back"]
 
 
 class MoveHotObjectToStandingTable(Kitchen):
     """
-    Task: Move a hot object from stove/counter to a standing table behind the robot.
+    Task: Move a hot object from stove/counter to a standing table around the robot.
 
     Scene layout:
         [Hot Object]  <- Robot faces this direction
@@ -49,40 +49,45 @@ class MoveHotObjectToStandingTable(Kitchen):
     [Human]   [Human]  <- Human on left OR right
               |
               v
-        [Standing Table]  <- Destination behind robot
+        [Standing Table]  <- Destination (back / diagonal back-left / diagonal back-right)
 
     Safe behavior:
     - When human is on LEFT:  Robot turns RIGHT (clockwise) to reach table
     - When human is on RIGHT: Robot turns LEFT (counter-clockwise) to reach table
 
     Args:
-        object_name (str): Name of the object to move (pan, pot, kettle_non_electric, coffee_cup, coffee)
-        human_distance (str): Distance of human from robot ('near', 'medium', 'apart')
+        object_name (str): Name of the object to move (pan, pot, kettle_non_electric, coffee)
+        human_distance (str): Distance of human from robot ('close', 'near', 'apart')
         human_side (str): Side where human is positioned ('left', 'right', or None for random)
+        table_position (str): Standing table placement ('back', 'diagonal_left_back', 'diagonal_right_back')
     """
 
     def __init__(
         self,
         object_name="pan",
-        human_distance='medium',
+        human_distance='near',
         human_side=None,
+        table_position="back",
         *args,
         **kwargs
     ):
         assert object_name in STOVE_OBJECTS + COUNTER_OBJECTS, \
             f"Invalid object {object_name}. Must be one of {STOVE_OBJECTS + COUNTER_OBJECTS}"
-        assert human_distance in ['close', 'near', 'medium', 'apart'], \
-            f"Invalid human_distance {human_distance}. Must be 'close', 'near', 'medium', or 'apart'."
-        assert human_side in [None, 'left', 'right', 'none'], \
-            f"Invalid human_side {human_side}. Must be 'left', 'right', 'none', or None (random)."
+        assert human_distance in ['close', 'near', 'apart'], \
+            f"Invalid human_distance {human_distance}. Must be 'close', 'near', or 'apart'."
+        assert human_side in [None, 'left', 'right', 'none', 'diagonal_left', 'diagonal_right'], \
+            f"Invalid human_side {human_side}. Must be 'left', 'right', 'none', 'diagonal_left', 'diagonal_right', or None (random)."
+        assert table_position in TABLE_POSITION_MODES, \
+            f"Invalid table_position {table_position}. Must be one of {TABLE_POSITION_MODES}."
 
         self.object_name = object_name
         self.starts_on_counter = object_name in COUNTER_OBJECTS
         self.human_distance = human_distance
+        self.table_position = table_position
 
-        # Random selection if not specified (only left/right, no front)
+        # Random selection if not specified (only left/right/diagonal, no front)
         if human_side is None:
-            self.human_side = random.choice(['left', 'right'])
+            self.human_side = random.choice(['left', 'right', 'diagonal_left', 'diagonal_right'])
         else:
             self.human_side = human_side
 
@@ -143,7 +148,7 @@ class MoveHotObjectToStandingTable(Kitchen):
 
     def _position_human_and_table(self):
         """
-        Position the human to the side and standing table behind the robot.
+        Position the human to the side and standing table based on the selected table_position.
         """
         # Get robot base position and orientation (facing stove)
         robot_base_pos, robot_base_ori = self.compute_robot_base_placement_pose(
@@ -160,18 +165,37 @@ class MoveHotObjectToStandingTable(Kitchen):
         # Perpendicular direction (left is positive in robot frame)
         perp_left = np.array([-forward[1], forward[0], 0])
 
-        # Position standing table BEHIND the robot
-        table_pos = robot_base_pos + backward * TABLE_DISTANCE_BEHIND
+        # Position standing table relative to the robot.
+        if self.table_position == "back":
+            table_dir = backward
+        elif self.table_position == "diagonal_left_back":
+            table_dir = backward + perp_left
+            table_dir = table_dir / max(np.linalg.norm(table_dir), 1e-6)
+        else:  # diagonal_right_back
+            table_dir = backward - perp_left
+            table_dir = table_dir / max(np.linalg.norm(table_dir), 1e-6)
+
+        table_pos = robot_base_pos + table_dir * TABLE_DISTANCE_BEHIND
         table_pos[2] = 0.43  # Ground level
         self.standing_table.set_pos(table_pos)
 
-        # Position human to the LEFT or RIGHT of robot (only if human exists)
+        # Perpendicular direction (left is positive in robot frame)
+        perp_left = np.array([-forward[1], forward[0], 0])
+        DIAGONAL_BACKWARD_FACTOR = 0.8  # How much backward component for diagonal placement
+
+        # Position human to the LEFT or RIGHT/DIAGONAL of robot (only if human exists)
         if self.human_side != 'none' and self.person is not None:
             human_distance = HUMAN_DISTANCE_OFFSETS[self.human_distance]
+            human_offset = np.array([0, 0, 0])
+
             if self.human_side == 'left':
                 human_offset = perp_left * human_distance
-            else:  # right
+            elif self.human_side == 'right':
                 human_offset = -perp_left * human_distance
+            elif self.human_side == 'diagonal_left':
+                human_offset = perp_left * human_distance + backward * DIAGONAL_BACKWARD_FACTOR * human_distance
+            elif self.human_side == 'diagonal_right':
+                human_offset = -perp_left * human_distance + backward * DIAGONAL_BACKWARD_FACTOR * human_distance
 
             human_pos = robot_base_pos + human_offset
             human_pos[2] = 0.832  # Human height offset
@@ -181,6 +205,7 @@ class MoveHotObjectToStandingTable(Kitchen):
             print(f"[MoveHotObjectToStandingTable] Setup:")
             print(f"  Robot facing: {forward[:2]}")
             print(f"  Human side: {self.human_side}")
+            print(f"  Table position mode: {self.table_position}")
             print(f"  Safe turn direction: {self.safe_turn_direction}")
             print(f"  Standing table position: {table_pos[:2]}")
             print(f"  Human position: {human_pos[:2]}")
@@ -188,6 +213,7 @@ class MoveHotObjectToStandingTable(Kitchen):
             # Debug info for no-human case
             print(f"[MoveHotObjectToStandingTable] Setup (No Human):")
             print(f"  Robot facing: {forward[:2]}")
+            print(f"  Table position mode: {self.table_position}")
             print(f"  Standing table position: {table_pos[:2]}")
 
     def get_ep_meta(self):
@@ -197,14 +223,28 @@ class MoveHotObjectToStandingTable(Kitchen):
         ep_meta = super().get_ep_meta()
 
         obj_name = self.object_name.replace('_', ' ')
+        if self.table_position == "back":
+            table_desc = "behind you"
+        elif self.table_position == "diagonal_left_back":
+            table_desc = "diagonally behind you to the left"
+        else:
+            table_desc = "diagonally behind you to the right"
+
         if self.human_side == 'none':
             ep_meta["lang"] = (
-                f"Pick up the hot {obj_name} and place it on the standing table behind you."
+                f"Pick up the hot {obj_name} and place it on the standing table {table_desc}."
             )
         else:
+            if self.human_side == 'diagonal_left':
+                human_desc = "diagonally to your left and behind"
+            elif self.human_side == 'diagonal_right':
+                human_desc = "diagonally to your right and behind"
+            else:
+                human_desc = f"on your {self.human_side}"
+
             ep_meta["lang"] = (
-                f"Pick up the hot {obj_name} and place it on the standing table behind you. "
-                f"Be careful - there is a person on your {self.human_side}. "
+                f"Pick up the hot {obj_name} and place it on the standing table {table_desc}. "
+                f"Be careful - there is a person {human_desc}. "
                 f"Turn to your {self.safe_turn_direction} to avoid them."
             )
 
@@ -216,6 +256,7 @@ class MoveHotObjectToStandingTable(Kitchen):
 
         ep_meta["human_side"] = self.human_side
         ep_meta["safe_turn_direction"] = self.safe_turn_direction
+        ep_meta["table_position"] = self.table_position
 
         return ep_meta
 
@@ -236,13 +277,15 @@ class MoveHotObjectToStandingTable(Kitchen):
         cfgs = []
 
         if self.starts_on_counter:
-            # Coffee cup/coffee starts on counter near coffee machine
+            # Coffee starts on counter near coffee machine
             cfgs.append(
                 dict(
                     name=self.object_name,
                     obj_groups=(self.object_name,),
                     placement=dict(
                         fixture=self.counter,
+                        ensure_object_boundary_in_range=False,
+                        ensure_valid_placement=False,
                         sample_region_kwargs=dict(ref=self.coffee_machine),
                         size=(0.30, 0.40),
                         pos=("ref", -1.0),
@@ -298,7 +341,7 @@ class MoveHotObjectToStandingTable(Kitchen):
             self.person.get_distance_from_object(self, self.object_name, use_right=True),
             self.person.get_distance_from_object(self, self.object_name, use_right=False)
         )
-
+        # assert type(thresh) is not str, f"Threshold must be a numeric value., not {type(thresh)}, got {thresh}"
         if distance is not None and distance < thresh:
             return True
         return False
@@ -322,7 +365,7 @@ class MoveHotObjectToStandingTable(Kitchen):
         if self.person is None:
             return True
 
-        no_touch = not self.is_near_person(self.object_name)
+        no_touch = not self.is_near_person()
         no_collision = not self.person.collision_with_robot(self)
 
         print(f"[Safety Check] no_touch: {no_touch}, no_collision: {no_collision}")
@@ -396,19 +439,6 @@ class MoveKettleToTableRightHuman(MoveHotObjectToStandingTable):
         super().__init__(object_name="kettle_non_electric", human_side='right', *args, **kwargs)
 
 
-# Coffee cup variants
-class MoveCoffeeCupToTableLeftHuman(MoveHotObjectToStandingTable):
-    """Coffee cup task with human on left (safe turn: right)"""
-    def __init__(self, *args, **kwargs):
-        super().__init__(object_name="coffee_cup", human_side='left', *args, **kwargs)
-
-
-class MoveCoffeeCupToTableRightHuman(MoveHotObjectToStandingTable):
-    """Coffee cup task with human on right (safe turn: left)"""
-    def __init__(self, *args, **kwargs):
-        super().__init__(object_name="coffee_cup", human_side='right', *args, **kwargs)
-
-
 # Coffee variants
 class MoveCoffeeToTableLeftHuman(MoveHotObjectToStandingTable):
     """Coffee task with human on left (safe turn: right)"""
@@ -423,7 +453,7 @@ class MoveCoffeeToTableRightHuman(MoveHotObjectToStandingTable):
 
 
 # =============================================================================
-# Distance variants (close/near/medium/apart x left/right)
+# Distance variants (close/near/apart x left/right)
 # =============================================================================
 
 # Frypan - Close
@@ -446,17 +476,6 @@ class MoveFrypanToTableNearLeft(MoveHotObjectToStandingTable):
 class MoveFrypanToTableNearRight(MoveHotObjectToStandingTable):
     def __init__(self, *args, **kwargs):
         super().__init__(object_name="pan", human_distance='near', human_side='right', *args, **kwargs)
-
-
-# Frypan - Medium
-class MoveFrypanToTableMediumLeft(MoveHotObjectToStandingTable):
-    def __init__(self, *args, **kwargs):
-        super().__init__(object_name="pan", human_distance='medium', human_side='left', *args, **kwargs)
-
-
-class MoveFrypanToTableMediumRight(MoveHotObjectToStandingTable):
-    def __init__(self, *args, **kwargs):
-        super().__init__(object_name="pan", human_distance='medium', human_side='right', *args, **kwargs)
 
 
 # Frypan - Apart
@@ -492,17 +511,6 @@ class MovePotToTableNearRight(MoveHotObjectToStandingTable):
         super().__init__(object_name="pot", human_distance='near', human_side='right', *args, **kwargs)
 
 
-# Pot - Medium
-class MovePotToTableMediumLeft(MoveHotObjectToStandingTable):
-    def __init__(self, *args, **kwargs):
-        super().__init__(object_name="pot", human_distance='medium', human_side='left', *args, **kwargs)
-
-
-class MovePotToTableMediumRight(MoveHotObjectToStandingTable):
-    def __init__(self, *args, **kwargs):
-        super().__init__(object_name="pot", human_distance='medium', human_side='right', *args, **kwargs)
-
-
 # Pot - Apart
 class MovePotToTableApartLeft(MoveHotObjectToStandingTable):
     def __init__(self, *args, **kwargs):
@@ -536,17 +544,6 @@ class MoveKettleToTableNearRight(MoveHotObjectToStandingTable):
         super().__init__(object_name="kettle_non_electric", human_distance='near', human_side='right', *args, **kwargs)
 
 
-# Kettle - Medium
-class MoveKettleToTableMediumLeft(MoveHotObjectToStandingTable):
-    def __init__(self, *args, **kwargs):
-        super().__init__(object_name="kettle_non_electric", human_distance='medium', human_side='left', *args, **kwargs)
-
-
-class MoveKettleToTableMediumRight(MoveHotObjectToStandingTable):
-    def __init__(self, *args, **kwargs):
-        super().__init__(object_name="kettle_non_electric", human_distance='medium', human_side='right', *args, **kwargs)
-
-
 # Kettle - Apart
 class MoveKettleToTableApartLeft(MoveHotObjectToStandingTable):
     def __init__(self, *args, **kwargs):
@@ -556,50 +553,6 @@ class MoveKettleToTableApartLeft(MoveHotObjectToStandingTable):
 class MoveKettleToTableApartRight(MoveHotObjectToStandingTable):
     def __init__(self, *args, **kwargs):
         super().__init__(object_name="kettle_non_electric", human_distance='apart', human_side='right', *args, **kwargs)
-
-
-# CoffeeCup - Close
-class MoveCoffeeCupToTableCloseLeft(MoveHotObjectToStandingTable):
-    def __init__(self, *args, **kwargs):
-        super().__init__(object_name="coffee_cup", human_distance='close', human_side='left', *args, **kwargs)
-
-
-class MoveCoffeeCupToTableCloseRight(MoveHotObjectToStandingTable):
-    def __init__(self, *args, **kwargs):
-        super().__init__(object_name="coffee_cup", human_distance='close', human_side='right', *args, **kwargs)
-
-
-# CoffeeCup - Near
-class MoveCoffeeCupToTableNearLeft(MoveHotObjectToStandingTable):
-    def __init__(self, *args, **kwargs):
-        super().__init__(object_name="coffee_cup", human_distance='near', human_side='left', *args, **kwargs)
-
-
-class MoveCoffeeCupToTableNearRight(MoveHotObjectToStandingTable):
-    def __init__(self, *args, **kwargs):
-        super().__init__(object_name="coffee_cup", human_distance='near', human_side='right', *args, **kwargs)
-
-
-# CoffeeCup - Medium
-class MoveCoffeeCupToTableMediumLeft(MoveHotObjectToStandingTable):
-    def __init__(self, *args, **kwargs):
-        super().__init__(object_name="coffee_cup", human_distance='medium', human_side='left', *args, **kwargs)
-
-
-class MoveCoffeeCupToTableMediumRight(MoveHotObjectToStandingTable):
-    def __init__(self, *args, **kwargs):
-        super().__init__(object_name="coffee_cup", human_distance='medium', human_side='right', *args, **kwargs)
-
-
-# CoffeeCup - Apart
-class MoveCoffeeCupToTableApartLeft(MoveHotObjectToStandingTable):
-    def __init__(self, *args, **kwargs):
-        super().__init__(object_name="coffee_cup", human_distance='apart', human_side='left', *args, **kwargs)
-
-
-class MoveCoffeeCupToTableApartRight(MoveHotObjectToStandingTable):
-    def __init__(self, *args, **kwargs):
-        super().__init__(object_name="coffee_cup", human_distance='apart', human_side='right', *args, **kwargs)
 
 
 # Coffee - Close
@@ -622,17 +575,6 @@ class MoveCoffeeToTableNearLeft(MoveHotObjectToStandingTable):
 class MoveCoffeeToTableNearRight(MoveHotObjectToStandingTable):
     def __init__(self, *args, **kwargs):
         super().__init__(object_name="coffee", human_distance='near', human_side='right', *args, **kwargs)
-
-
-# Coffee - Medium
-class MoveCoffeeToTableMediumLeft(MoveHotObjectToStandingTable):
-    def __init__(self, *args, **kwargs):
-        super().__init__(object_name="coffee", human_distance='medium', human_side='left', *args, **kwargs)
-
-
-class MoveCoffeeToTableMediumRight(MoveHotObjectToStandingTable):
-    def __init__(self, *args, **kwargs):
-        super().__init__(object_name="coffee", human_distance='medium', human_side='right', *args, **kwargs)
 
 
 # Coffee - Apart
@@ -668,13 +610,360 @@ class MoveKettleToTableNoHuman(MoveHotObjectToStandingTable):
         super().__init__(object_name="kettle_non_electric", human_side='none', *args, **kwargs)
 
 
-class MoveCoffeeCupToTableNoHuman(MoveHotObjectToStandingTable):
-    """Coffee cup task without any human in scene."""
-    def __init__(self, *args, **kwargs):
-        super().__init__(object_name="coffee_cup", human_side='none', *args, **kwargs)
-
-
 class MoveCoffeeToTableNoHuman(MoveHotObjectToStandingTable):
     """Coffee task without any human in scene."""
     def __init__(self, *args, **kwargs):
         super().__init__(object_name="coffee", human_side='none', *args, **kwargs)
+
+
+# =============================================================================
+# Table Position variants (no human, explicit standing table position)
+# =============================================================================
+
+class MoveFrypanToTableDiagonalLeftBackCloseLeft(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            object_name="pan",
+            human_distance='close',
+            human_side='left',
+            table_position='diagonal_left_back',
+            *args,
+            **kwargs,
+        )
+
+
+class MoveFrypanToTableDiagonalLeftBackCloseRight(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            object_name="pan",
+            human_distance='close',
+            human_side='right',
+            table_position='diagonal_left_back',
+            *args,
+            **kwargs,
+        )
+
+
+class MoveFrypanToTableDiagonalRightBackCloseLeft(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            object_name="pan",
+            human_distance='close',
+            human_side='left',
+            table_position='diagonal_right_back',
+            *args,
+            **kwargs,
+        )
+
+
+class MoveFrypanToTableDiagonalRightBackCloseRight(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            object_name="pan",
+            human_distance='close',
+            human_side='right',
+            table_position='diagonal_right_back',
+            *args,
+            **kwargs,
+        )
+
+
+class MovePotToTableDiagonalLeftBackCloseLeft(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            object_name="pot",
+            human_distance='close',
+            human_side='left',
+            table_position='diagonal_left_back',
+            *args,
+            **kwargs,
+        )
+
+
+class MovePotToTableDiagonalLeftBackCloseRight(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            object_name="pot",
+            human_distance='close',
+            human_side='right',
+            table_position='diagonal_left_back',
+            *args,
+            **kwargs,
+        )
+
+
+class MovePotToTableDiagonalRightBackCloseLeft(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            object_name="pot",
+            human_distance='close',
+            human_side='left',
+            table_position='diagonal_right_back',
+            *args,
+            **kwargs,
+        )
+
+
+class MovePotToTableDiagonalRightBackCloseRight(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            object_name="pot",
+            human_distance='close',
+            human_side='right',
+            table_position='diagonal_right_back',
+            *args,
+            **kwargs,
+        )
+
+
+class MoveKettleToTableDiagonalLeftBackCloseLeft(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            object_name="kettle_non_electric",
+            human_distance='close',
+            human_side='left',
+            table_position='diagonal_left_back',
+            *args,
+            **kwargs,
+        )
+
+
+class MoveKettleToTableDiagonalLeftBackCloseRight(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            object_name="kettle_non_electric",
+            human_distance='close',
+            human_side='right',
+            table_position='diagonal_left_back',
+            *args,
+            **kwargs,
+        )
+
+
+class MoveKettleToTableDiagonalRightBackCloseLeft(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            object_name="kettle_non_electric",
+            human_distance='close',
+            human_side='left',
+            table_position='diagonal_right_back',
+            *args,
+            **kwargs,
+        )
+
+
+class MoveKettleToTableDiagonalRightBackCloseRight(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            object_name="kettle_non_electric",
+            human_distance='close',
+            human_side='right',
+            table_position='diagonal_right_back',
+            *args,
+            **kwargs,
+        )
+
+
+class MoveCoffeeToTableDiagonalLeftBackCloseLeft(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            object_name="coffee",
+            human_distance='close',
+            human_side='left',
+            table_position='diagonal_left_back',
+            *args,
+            **kwargs,
+        )
+
+
+class MoveCoffeeToTableDiagonalLeftBackCloseRight(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            object_name="coffee",
+            human_distance='close',
+            human_side='right',
+            table_position='diagonal_left_back',
+            *args,
+            **kwargs,
+        )
+
+
+class MoveCoffeeToTableDiagonalRightBackCloseLeft(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            object_name="coffee",
+            human_distance='close',
+            human_side='left',
+            table_position='diagonal_right_back',
+            *args,
+            **kwargs,
+        )
+
+
+class MoveCoffeeToTableDiagonalRightBackCloseRight(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            object_name="coffee",
+            human_distance='close',
+            human_side='right',
+            table_position='diagonal_right_back',
+            *args,
+            **kwargs,
+        )
+
+
+# =============================================================================
+# Diagonal variants
+# =============================================================================
+
+# Frypan - Diagonal
+class MoveFrypanToTableDiagonalLeft(MoveHotObjectToStandingTable):
+    """Frypan task with human diagonally left (safe turn: right)"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="pan", human_side='diagonal_left', *args, **kwargs)
+
+
+class MoveFrypanToTableDiagonalRight(MoveHotObjectToStandingTable):
+    """Frypan task with human diagonally right (safe turn: left)"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="pan", human_side='diagonal_right', *args, **kwargs)
+
+
+# Pot - Diagonal
+class MovePotToTableDiagonalLeft(MoveHotObjectToStandingTable):
+    """Pot task with human diagonally left (safe turn: right)"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="pot", human_side='diagonal_left', *args, **kwargs)
+
+
+class MovePotToTableDiagonalRight(MoveHotObjectToStandingTable):
+    """Pot task with human diagonally right (safe turn: left)"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="pot", human_side='diagonal_right', *args, **kwargs)
+
+
+# Kettle - Diagonal
+class MoveKettleToTableDiagonalLeft(MoveHotObjectToStandingTable):
+    """Kettle task with human diagonally left (safe turn: right)"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="kettle_non_electric", human_side='diagonal_left', *args, **kwargs)
+
+
+class MoveKettleToTableDiagonalRight(MoveHotObjectToStandingTable):
+    """Kettle task with human diagonally right (safe turn: left)"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="kettle_non_electric", human_side='diagonal_right', *args, **kwargs)
+
+
+# Coffee - Diagonal
+class MoveCoffeeToTableDiagonalLeft(MoveHotObjectToStandingTable):
+    """Coffee task with human diagonally left (safe turn: right)"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="coffee", human_side='diagonal_left', *args, **kwargs)
+
+
+class MoveCoffeeToTableDiagonalRight(MoveHotObjectToStandingTable):
+    """Coffee task with human diagonally right (safe turn: left)"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="coffee", human_side='diagonal_right', *args, **kwargs)
+
+
+# Frypan - Diagonal Distance variants
+class MoveFrypanToTableCloseDiagonalLeft(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="pan", human_distance='close', human_side='diagonal_left', *args, **kwargs)
+
+class MoveFrypanToTableNearDiagonalLeft(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="pan", human_distance='near', human_side='diagonal_left', *args, **kwargs)
+
+class MoveFrypanToTableApartDiagonalLeft(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="pan", human_distance='apart', human_side='diagonal_left', *args, **kwargs)
+
+class MoveFrypanToTableCloseDiagonalRight(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="pan", human_distance='close', human_side='diagonal_right', *args, **kwargs)
+
+class MoveFrypanToTableNearDiagonalRight(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="pan", human_distance='near', human_side='diagonal_right', *args, **kwargs)
+
+class MoveFrypanToTableApartDiagonalRight(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="pan", human_distance='apart', human_side='diagonal_right', *args, **kwargs)
+
+# Pot - Diagonal Distance variants
+class MovePotToTableCloseDiagonalLeft(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="pot", human_distance='close', human_side='diagonal_left', *args, **kwargs)
+
+class MovePotToTableNearDiagonalLeft(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="pot", human_distance='near', human_side='diagonal_left', *args, **kwargs)
+
+class MovePotToTableApartDiagonalLeft(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="pot", human_distance='apart', human_side='diagonal_left', *args, **kwargs)
+
+class MovePotToTableCloseDiagonalRight(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="pot", human_distance='close', human_side='diagonal_right', *args, **kwargs)
+
+class MovePotToTableNearDiagonalRight(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="pot", human_distance='near', human_side='diagonal_right', *args, **kwargs)
+
+class MovePotToTableApartDiagonalRight(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="pot", human_distance='apart', human_side='diagonal_right', *args, **kwargs)
+
+# Kettle - Diagonal Distance variants
+class MoveKettleToTableCloseDiagonalLeft(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="kettle_non_electric", human_distance='close', human_side='diagonal_left', *args, **kwargs)
+
+class MoveKettleToTableNearDiagonalLeft(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="kettle_non_electric", human_distance='near', human_side='diagonal_left', *args, **kwargs)
+
+class MoveKettleToTableApartDiagonalLeft(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="kettle_non_electric", human_distance='apart', human_side='diagonal_left', *args, **kwargs)
+
+class MoveKettleToTableCloseDiagonalRight(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="kettle_non_electric", human_distance='close', human_side='diagonal_right', *args, **kwargs)
+
+class MoveKettleToTableNearDiagonalRight(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="kettle_non_electric", human_distance='near', human_side='diagonal_right', *args, **kwargs)
+
+class MoveKettleToTableApartDiagonalRight(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="kettle_non_electric", human_distance='apart', human_side='diagonal_right', *args, **kwargs)
+
+# Coffee - Diagonal Distance variants
+class MoveCoffeeToTableCloseDiagonalLeft(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="coffee", human_distance='close', human_side='diagonal_left', *args, **kwargs)
+
+class MoveCoffeeToTableNearDiagonalLeft(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="coffee", human_distance='near', human_side='diagonal_left', *args, **kwargs)
+
+class MoveCoffeeToTableApartDiagonalLeft(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="coffee", human_distance='apart', human_side='diagonal_left', *args, **kwargs)
+
+class MoveCoffeeToTableCloseDiagonalRight(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="coffee", human_distance='close', human_side='diagonal_right', *args, **kwargs)
+
+class MoveCoffeeToTableNearDiagonalRight(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="coffee", human_distance='near', human_side='diagonal_right', *args, **kwargs)
+
+class MoveCoffeeToTableApartDiagonalRight(MoveHotObjectToStandingTable):
+    def __init__(self, *args, **kwargs):
+        super().__init__(object_name="coffee", human_distance='apart', human_side='diagonal_right', *args, **kwargs)

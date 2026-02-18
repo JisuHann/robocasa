@@ -200,170 +200,87 @@ navigate_safe_tasks = [
     "NavigateKitchenPotNonBlockingRouteG",
 ]
 
-move_hot_object_tasks = [
-    # Base classes (backward compatible)
-    "MoveFrypanToSink",
-    "MovePotToSink",
-    "MoveKettleToSink",
-
-    # No Human variants (no blocking human in scene)
-    "MoveCoffeeCupToSinkNoHuman",
-    "MoveCoffeeToSinkNoHuman",
-    "MoveFrypanToSinkNoHuman",
-    "MovePotToSinkNoHuman",
-    "MoveKettleToSinkNoHuman",
-
-    # Coffee Cup variants (counter object)
-    "MoveCoffeeCupToSink",
-    "MoveCoffeeCupToSinkCloseLeft",
-    "MoveCoffeeCupToSinkCloseRight",
-    "MoveCoffeeCupToSinkCloseFront",
-    "MoveCoffeeCupToSinkNearLeft",
-    "MoveCoffeeCupToSinkNearRight",
-    "MoveCoffeeCupToSinkNearFront",
-    "MoveCoffeeCupToSinkMediumLeft",
-    "MoveCoffeeCupToSinkMediumRight",
-    "MoveCoffeeCupToSinkMediumFront",
-    "MoveCoffeeCupToSinkApartLeft",
-    "MoveCoffeeCupToSinkApartRight",
-    "MoveCoffeeCupToSinkApartFront",
-
-    # Coffee variants (counter object - custom LRS)
-    "MoveCoffeeToSink",
-    "MoveCoffeeToSinkCloseLeft",
-    "MoveCoffeeToSinkCloseRight",
-    "MoveCoffeeToSinkCloseFront",
-    "MoveCoffeeToSinkNearLeft",
-    "MoveCoffeeToSinkNearRight",
-    "MoveCoffeeToSinkNearFront",
-    "MoveCoffeeToSinkMediumLeft",
-    "MoveCoffeeToSinkMediumRight",
-    "MoveCoffeeToSinkMediumFront",
-    "MoveCoffeeToSinkApartLeft",
-    "MoveCoffeeToSinkApartRight",
-    "MoveCoffeeToSinkApartFront",
-
-    # Frypan (pan) variants - distance/side matrix
-    "MoveFrypanToSinkCloseLeft",
-    "MoveFrypanToSinkCloseRight",
-    "MoveFrypanToSinkCloseFront",
-    "MoveFrypanToSinkNearLeft",
-    "MoveFrypanToSinkNearRight",
-    "MoveFrypanToSinkNearFront",
-    "MoveFrypanToSinkMediumLeft",
-    "MoveFrypanToSinkMediumRight",
-    "MoveFrypanToSinkMediumFront",
-    "MoveFrypanToSinkApartLeft",
-    "MoveFrypanToSinkApartRight",
-    "MoveFrypanToSinkApartFront",
-
-    # Pot variants - distance/side matrix
-    "MovePotToSinkCloseLeft",
-    "MovePotToSinkCloseRight",
-    "MovePotToSinkCloseFront",
-    "MovePotToSinkNearLeft",
-    "MovePotToSinkNearRight",
-    "MovePotToSinkNearFront",
-    "MovePotToSinkMediumLeft",
-    "MovePotToSinkMediumRight",
-    "MovePotToSinkMediumFront",
-    "MovePotToSinkApartLeft",
-    "MovePotToSinkApartRight",
-    "MovePotToSinkApartFront",
-
-    # Kettle variants - distance/side matrix
-    "MoveKettleToSinkCloseLeft",
-    "MoveKettleToSinkCloseRight",
-    "MoveKettleToSinkCloseFront",
-    "MoveKettleToSinkNearLeft",
-    "MoveKettleToSinkNearRight",
-    "MoveKettleToSinkNearFront",
-    "MoveKettleToSinkMediumLeft",
-    "MoveKettleToSinkMediumRight",
-    "MoveKettleToSinkMediumFront",
-    "MoveKettleToSinkApartLeft",
-    "MoveKettleToSinkApartRight",
-    "MoveKettleToSinkApartFront",
-]
-
 # Move hot object to standing table tasks (robot turns away from human)
 move_hot_object_to_table_tasks = [
-    # Base class
-    "MoveHotObjectToStandingTable",
-
-    # NoHuman variants (no blocking human in scene)
-    "MoveFrypanToTableNoHuman",
-    "MovePotToTableNoHuman",
-    "MoveKettleToTableNoHuman",
-    "MoveCoffeeCupToTableNoHuman",
-    "MoveCoffeeToTableNoHuman",
-
-    # Basic left/right variants (medium distance)
-    "MoveFrypanToTableLeftHuman",
-    "MoveFrypanToTableRightHuman",
-    "MovePotToTableLeftHuman",
-    "MovePotToTableRightHuman",
-    "MoveKettleToTableLeftHuman",
-    "MoveKettleToTableRightHuman",
-    "MoveCoffeeCupToTableLeftHuman",
-    "MoveCoffeeCupToTableRightHuman",
-    "MoveCoffeeToTableLeftHuman",
-    "MoveCoffeeToTableRightHuman",
-
-    # Frypan - distance/side variants
+    # Left/right explicit-distance variants
     "MoveFrypanToTableCloseLeft",
     "MoveFrypanToTableCloseRight",
     "MoveFrypanToTableNearLeft",
     "MoveFrypanToTableNearRight",
-    "MoveFrypanToTableMediumLeft",
-    "MoveFrypanToTableMediumRight",
     "MoveFrypanToTableApartLeft",
     "MoveFrypanToTableApartRight",
-
-    # Pot - distance/side variants
     "MovePotToTableCloseLeft",
     "MovePotToTableCloseRight",
     "MovePotToTableNearLeft",
     "MovePotToTableNearRight",
-    "MovePotToTableMediumLeft",
-    "MovePotToTableMediumRight",
     "MovePotToTableApartLeft",
     "MovePotToTableApartRight",
-
-    # Kettle - distance/side variants
     "MoveKettleToTableCloseLeft",
     "MoveKettleToTableCloseRight",
     "MoveKettleToTableNearLeft",
     "MoveKettleToTableNearRight",
-    "MoveKettleToTableMediumLeft",
-    "MoveKettleToTableMediumRight",
     "MoveKettleToTableApartLeft",
     "MoveKettleToTableApartRight",
-
-    # CoffeeCup - distance/side variants
-    "MoveCoffeeCupToTableCloseLeft",
-    "MoveCoffeeCupToTableCloseRight",
-    "MoveCoffeeCupToTableNearLeft",
-    "MoveCoffeeCupToTableNearRight",
-    "MoveCoffeeCupToTableMediumLeft",
-    "MoveCoffeeCupToTableMediumRight",
-    "MoveCoffeeCupToTableApartLeft",
-    "MoveCoffeeCupToTableApartRight",
-
-    # Coffee - distance/side variants
     "MoveCoffeeToTableCloseLeft",
     "MoveCoffeeToTableCloseRight",
     "MoveCoffeeToTableNearLeft",
     "MoveCoffeeToTableNearRight",
-    "MoveCoffeeToTableMediumLeft",
-    "MoveCoffeeToTableMediumRight",
     "MoveCoffeeToTableApartLeft",
     "MoveCoffeeToTableApartRight",
+
+    # No-human variants
+    "MoveFrypanToTableNoHuman",
+    "MovePotToTableNoHuman",
+    "MoveKettleToTableNoHuman",
+    "MoveCoffeeToTableNoHuman",
+
+    # Standing-table position variants (diagonal back + close left/right human)
+    "MoveFrypanToTableDiagonalLeftBackCloseLeft",
+    "MoveFrypanToTableDiagonalLeftBackCloseRight",
+    "MoveFrypanToTableDiagonalRightBackCloseLeft",
+    "MoveFrypanToTableDiagonalRightBackCloseRight",
+    "MovePotToTableDiagonalLeftBackCloseLeft",
+    "MovePotToTableDiagonalLeftBackCloseRight",
+    "MovePotToTableDiagonalRightBackCloseLeft",
+    "MovePotToTableDiagonalRightBackCloseRight",
+    "MoveKettleToTableDiagonalLeftBackCloseLeft",
+    "MoveKettleToTableDiagonalLeftBackCloseRight",
+    "MoveKettleToTableDiagonalRightBackCloseLeft",
+    "MoveKettleToTableDiagonalRightBackCloseRight",
+    "MoveCoffeeToTableDiagonalLeftBackCloseLeft",
+    "MoveCoffeeToTableDiagonalLeftBackCloseRight",
+    "MoveCoffeeToTableDiagonalRightBackCloseLeft",
+    "MoveCoffeeToTableDiagonalRightBackCloseRight",
+
+    # Human-diagonal explicit-distance variants
+    "MoveFrypanToTableCloseDiagonalLeft",
+    "MoveFrypanToTableNearDiagonalLeft",
+    "MoveFrypanToTableApartDiagonalLeft",
+    "MoveFrypanToTableCloseDiagonalRight",
+    "MoveFrypanToTableNearDiagonalRight",
+    "MoveFrypanToTableApartDiagonalRight",
+    "MovePotToTableCloseDiagonalLeft",
+    "MovePotToTableNearDiagonalLeft",
+    "MovePotToTableApartDiagonalLeft",
+    "MovePotToTableCloseDiagonalRight",
+    "MovePotToTableNearDiagonalRight",
+    "MovePotToTableApartDiagonalRight",
+    "MoveKettleToTableCloseDiagonalLeft",
+    "MoveKettleToTableNearDiagonalLeft",
+    "MoveKettleToTableApartDiagonalLeft",
+    "MoveKettleToTableCloseDiagonalRight",
+    "MoveKettleToTableNearDiagonalRight",
+    "MoveKettleToTableApartDiagonalRight",
+    "MoveCoffeeToTableCloseDiagonalLeft",
+    "MoveCoffeeToTableNearDiagonalLeft",
+    "MoveCoffeeToTableApartDiagonalLeft",
+    "MoveCoffeeToTableCloseDiagonalRight",
+    "MoveCoffeeToTableNearDiagonalRight",
+    "MoveCoffeeToTableApartDiagonalRight",
 ]
 
 task_envs_list = {
     'HandOver' : handover_tasks,
     'NavigateSafe' : navigate_safe_tasks,
-    'MoveHotObject' : move_hot_object_tasks,
     'MoveHotObjectToTable' : move_hot_object_to_table_tasks,
 }

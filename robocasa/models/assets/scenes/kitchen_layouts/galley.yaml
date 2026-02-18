@@ -226,7 +226,12 @@ left_group:
       type: main_door
       pos: [-3.2, -1.5, 1.0] 
       size: [1.2, 0.3, 2.0]
-      rot : 1.57      
+      rot : 1.57  
+
+    - name: standing_table
+      type: standing_table
+      pos: [-4.0, -2.5, 0.0]
+      rot: 0    
 
 # fixtures on the right wall
 main_group:

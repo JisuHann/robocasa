@@ -236,7 +236,7 @@ main_group:
         rotation: [0, 0]
     - name: posed_person
       type: posed_person
-      pos : [2, -3.0, 0.832]
+      pos : [4, -2.5, 0.832]
       size: [0.5, 0.5, 0.8]
       rot : 3.14
 
@@ -248,7 +248,7 @@ main_group:
 
     - name: standing_table
       type: standing_table
-      pos: [2.5, -2.5, 0.0]
+      pos: [2.0, -2.5, 0.0]
       rot: 0
 
 # fixtures on the right wall
