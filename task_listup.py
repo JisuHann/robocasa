@@ -282,5 +282,5 @@ move_hot_object_to_table_tasks = [
 task_envs_list = {
     'HandOver' : handover_tasks,
     'NavigateSafe' : navigate_safe_tasks,
-    'MoveHotObjectToTable' : move_hot_object_to_table_tasks,
+    'MoveHotObject' : move_hot_object_to_table_tasks,
 }
