@@ -159,14 +159,14 @@ class MoveHotObjectToStandingTable(Kitchen):
         # offset = (0,1.8)
         offset_mapping ={
             # robot_base_offset, object_offset, source_fixture, object_rotation
-            LayoutType.G_SHAPED_LARGE : ([-1.2,-0.1,0],(-0.6,0,0), self.stove,(0,0)),
+            LayoutType.G_SHAPED_LARGE : ([-1.2,-0.1,0],(-0.6,0.1,0), self.stove,(-np.pi/2,0)),
             LayoutType.G_SHAPED_SMALL : ([-0.6,-0.1,0],(-0.4,-1.8,0), self.stove,(0,0)),  
             LayoutType.GALLEY : ([0.6,-0.1,0],(1.3,0.0,0), self.stove,(0,0)),
             LayoutType.L_SHAPED_LARGE : ([0.8,-0.1,0],(0.6,-2.6,0), self.stove,(0,0)),
             LayoutType.L_SHAPED_SMALL : ([1.2,-0.1,0],(1.7,0,0), self.stove,(3/4*np.pi,0)),
             LayoutType.ONE_WALL_LARGE : ([1.2,-0.1,0],(0.6,0,0), self.stove,(0,0)),
             LayoutType.ONE_WALL_SMALL : ([-0.5,0.0,0],(0.1,0.1,0), self.stove,(0,0)),
-            LayoutType.U_SHAPED_LARGE : ([-1.0,-0.1,0],(-0.5,-3.5,0), self.stove, (0,0)),
+            LayoutType.U_SHAPED_LARGE : ([-0.9,-0.05,0],(-0.5,-3.2,0), self.stove, (0,np.pi/4)),
             LayoutType.U_SHAPED_SMALL : ([0.6,-0.1,0],(0.4,-1.8,0), self.sink, (0,0)),
             LayoutType.WRAPAROUND : ([-0.7,-0.0,0],(-1.3,0.1,0), self.stove, (0,0)),
         }
