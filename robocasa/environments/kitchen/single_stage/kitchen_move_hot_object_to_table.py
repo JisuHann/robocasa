@@ -19,6 +19,7 @@ from robocasa.models.fixtures.standing_table import StandingTable
 import random
 import os
 import robocasa
+from robocasa.models.scenes.scene_registry import LayoutType, StyleType
 
 # Constants for object categories
 COUNTER_OBJECTS = ["coffee", "kettle_non_electric"]  # Objects that start on counter near coffee machine
@@ -28,7 +29,7 @@ STOVE_OBJECTS = ["pan", "pot"]  # Objects that start on stove
 HUMAN_DISTANCE_OFFSETS = {
     'close' : 0.6,
     'near': 0.9,
-    'apart': 1.5,
+    'apart': 1.4,
 }
 
 # Standing table placement around robot (in meters)
@@ -111,8 +112,16 @@ class MoveHotObjectToStandingTable(Kitchen):
 
         if self.starts_on_counter:
             self.coffee_machine = self.get_fixture(FixtureType.COFFEE_MACHINE)
+            # original_coffee_machine_pos = self.coffee_machine.pos
+            # if self.layout_id in [LayoutType]:
+            #     # place coffee machine next to stove
+            #     self.coffee_machine.set_pos(self.stove.pos + np.array([-0.7, 0, 0]))
+            # elif self.layout_id == LayoutType.U_SHAPED_SMALL:
+            #     self.coffee_machine.set_pos(self.coffee_machine.pos + np.array([0,0.5, 0]))
+            
+            # elif self.layout_id == :
             self.counter = self.get_fixture(FixtureType.COUNTER, ref=self.coffee_machine)
-
+            self.sink = self.get_fixture(FixtureType.SINK, ref=self.coffee_machine)
         # Register standing table fixture
         self.standing_table = self.register_fixture_ref(
             "standing_table",
@@ -140,25 +149,47 @@ class MoveHotObjectToStandingTable(Kitchen):
                 self.knob = "front_left"
                 self.cookware_burner = self.knob
 
-        # Use stove as reference for robot base position
-        self.init_robot_base_pos = self.stove
-
+        # Use source fixture as reference for robot base position.2
+        # self.source_fixture = self.coffee_machine if self.starts_on_counter else self.stove
+        self.source_fixture = self.stove
+        # self.robot_base_offset = (1.0, 0.0) if self.starts_on_counter else (0.0, 0.0)
+    
         # Position human and standing table relative to robot
+        # Get robot base position and orientation (facing source fixture)
+        # offset = (0,1.8)
+        offset_mapping ={
+            # robot_base_offset, object_offset, source_fixture, object_rotation
+            LayoutType.G_SHAPED_LARGE : ([-1.2,-0.1,0],(-0.6,0,0), self.stove,(0,0)),
+            LayoutType.G_SHAPED_SMALL : ([-0.6,-0.1,0],(-0.4,-1.8,0), self.stove,(0,0)),  
+            LayoutType.GALLEY : ([0.6,-0.1,0],(1.3,0.0,0), self.stove,(0,0)),
+            LayoutType.L_SHAPED_LARGE : ([0.8,-0.1,0],(0.6,-2.6,0), self.stove,(0,0)),
+            LayoutType.L_SHAPED_SMALL : ([1.2,-0.1,0],(1.7,0,0), self.stove,(3/4*np.pi,0)),
+            LayoutType.ONE_WALL_LARGE : ([1.2,-0.1,0],(0.6,0,0), self.stove,(0,0)),
+            LayoutType.ONE_WALL_SMALL : ([-0.5,0.0,0],(0.1,0.1,0), self.stove,(0,0)),
+            LayoutType.U_SHAPED_LARGE : ([-1.0,-0.1,0],(-0.5,-3.5,0), self.stove, (0,0)),
+            LayoutType.U_SHAPED_SMALL : ([0.6,-0.1,0],(0.4,-1.8,0), self.sink, (0,0)),
+            LayoutType.WRAPAROUND : ([-0.7,-0.0,0],(-1.3,0.1,0), self.stove, (0,0)),
+        }
+        self.robot_base_offset, self.object_offset,self.source_fixture, self.object_rotation = offset_mapping.get(self.layout_id, ([-1.2,-0.2,0],(-0.6,0,0), self.stove, (0,0)))
+        self.init_robot_base_pos = self.source_fixture
         self._position_human_and_table()
+    
 
     def _position_human_and_table(self):
         """
         Position the human to the side and standing table based on the selected table_position.
         """
-        # Get robot base position and orientation (facing stove)
+        # self.offset = (-0.6,0,0)
         robot_base_pos, robot_base_ori = self.compute_robot_base_placement_pose(
-            ref_fixture=self.stove
+            ref_fixture=self.source_fixture, offset=self.robot_base_offset
         )
-
-        # Forward direction (robot facing direction - towards stove)
+        
+        # robot_model = self.robots[0].robot_model
+        # robot_model.set_base_xpos(self.source_fixture.pos + [offset[0], offset[1], 0])
+        # Forward direction (robot facing direction - towards source fixture)
         yaw = robot_base_ori[2]
         forward = np.array([np.cos(yaw), np.sin(yaw), 0])
-
+        
         # Backward direction (opposite of forward - where table will be)
         backward = -forward
 
@@ -181,7 +212,7 @@ class MoveHotObjectToStandingTable(Kitchen):
 
         # Perpendicular direction (left is positive in robot frame)
         perp_left = np.array([-forward[1], forward[0], 0])
-        DIAGONAL_BACKWARD_FACTOR = 0.8  # How much backward component for diagonal placement
+        DIAGONAL_BACKWARD_FACTOR = 0.6  # How much backward component for diagonal placement
 
         # Position human to the LEFT or RIGHT/DIAGONAL of robot (only if human exists)
         if self.human_side != 'none' and self.person is not None:
@@ -215,6 +246,24 @@ class MoveHotObjectToStandingTable(Kitchen):
             print(f"  Robot facing: {forward[:2]}")
             print(f"  Table position mode: {self.table_position}")
             print(f"  Standing table position: {table_pos[:2]}")
+
+    def compute_robot_base_placement_pose(self, ref_fixture, offset=None):
+        """
+        Apply the same source-relative robot offset used for human/table placement.
+        """
+        if offset is None and hasattr(self, "source_fixture"):
+            src_name = getattr(self.source_fixture, "name", None)
+            ref_name = getattr(ref_fixture, "name", None)
+            same_source = (
+                ref_fixture is self.source_fixture
+                or (src_name is not None and ref_name == src_name)
+            )
+            if not same_source and self.starts_on_counter:
+                # Robust fallback for fixture re-resolution during reset.
+                same_source = type(ref_fixture).__name__ == "CoffeeMachine"
+            if same_source:
+                offset = self.robot_base_offset
+        return super().compute_robot_base_placement_pose(ref_fixture=ref_fixture, offset=offset)
 
     def get_ep_meta(self):
         """
@@ -277,19 +326,36 @@ class MoveHotObjectToStandingTable(Kitchen):
         cfgs = []
 
         if self.starts_on_counter:
-            # Coffee starts on counter near coffee machine
+            # Coffee starts in front of the coffee machine (dispenser area)
+        
+            # sample_ref = self.source_fixture
+            # ref_pos = -1.0
+            
+            # # sample_ref = self.coffee_machine
+            # if self.layout_id == LayoutType.WRAPAROUND:
+            #     ref_pos = -1.0  # Adjust for smaller layout to avoid object being too far back
+            #     sample_ref = self.stove
             cfgs.append(
                 dict(
                     name=self.object_name,
                     obj_groups=(self.object_name,),
                     placement=dict(
+                        # fixture=self.source_fixture,
+                        # size=(0.6,0.6),
+                        # pos=self.object_pos,
                         fixture=self.counter,
+                        sample_region_kwargs=dict(
+                            ref=self.source_fixture,
+                        ),
                         ensure_object_boundary_in_range=False,
                         ensure_valid_placement=False,
-                        sample_region_kwargs=dict(ref=self.coffee_machine),
-                        size=(0.30, 0.40),
-                        pos=("ref", -1.0),
-                        rotation=[np.pi/4, np.pi/2],
+                        # margin=0.0,
+                        size=(0.30, 0.30),
+                        pos=("ref", -1),
+                        offset=self.object_offset,
+                        # offset=(0,0,-0.4),
+                        # rotation=[np.pi/4, np.pi/2],
+                        rotation=self.object_rotation
                     ),
                 )
             )
