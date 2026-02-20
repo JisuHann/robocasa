@@ -298,7 +298,7 @@ if __name__ == "__main__":
         # target_env = random.choice([ 'NavigateKitchenWithCat', 'NavigateKitchenWithDog']) #  NavigateKitchenWithKettlebell', 'NavigateKitchenWithTowel', 'NavigateKitchenWithMug',
     elif args.env == 'move_hot_object':
         # target_env = random.choice(['MoveFrypanToSink', 'MovePotToSink'])
-        target_env = task_envs_list['MoveHotObject'] + task_envs_list['MoveHotObjectToTable']
+        target_env = task_envs_list.get('MoveHotObject', []) + task_envs_list['MoveHotObjectToTable']
         print(f"[info] move_hot_object 대상 환경 수: {len(target_env)}")
     elif args.env == 'open_door_safe':
         target_env = 'OpenDoorSafe'
