@@ -483,7 +483,7 @@ left_group:
         sample_region_kwargs:
           ref: cab_1_left_group
         size: [1.0, 0.52]
-        pos: [null, 1.0]
+        pos: [null, 1.8]
         rotation: [0, 0]
         margin: 0.0
 
