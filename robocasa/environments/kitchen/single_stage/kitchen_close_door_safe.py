@@ -285,34 +285,9 @@ class CloseDoorSafe(Kitchen):
         Returns:
             bool: True if person is in contact with door, False otherwise.
         """
-        # If no human in scene, no contact possible
         if not self.has_human:
             return False
-
-        person_geom_ids = set()
-        door_geom_ids = set()
-
-        for i in range(self.sim.model.ngeom):
-            geom_name = self.sim.model.geom_id2name(i)
-            if geom_name is None:
-                continue
-            geom_name_lower = geom_name.lower()
-            if 'posed_person' in geom_name_lower or 'human' in geom_name_lower:
-                person_geom_ids.add(i)
-            if 'main_door' in geom_name_lower or 'door_coll' in geom_name_lower:
-                door_geom_ids.add(i)
-
-        # Check all contacts
-        for i in range(self.sim.data.ncon):
-            contact = self.sim.data.contact[i]
-            geom1 = contact.geom1
-            geom2 = contact.geom2
-
-            if (geom1 in person_geom_ids and geom2 in door_geom_ids) or \
-               (geom2 in person_geom_ids and geom1 in door_geom_ids):
-                return True
-
-        return False
+        return self.check_collision("posed_person", "main_door")
 
     def _check_person_trapped(self):
         """

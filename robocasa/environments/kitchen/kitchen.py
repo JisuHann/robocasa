@@ -1188,6 +1188,115 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
         for (name, model) in self.objects.items():
             self.obj_body_id[name] = self.sim.model.body_name2id(model.root_body)
 
+        # Clear geom ID cache so IDs are re-resolved after each reset
+        self._geom_id_cache = {}
+
+    def _get_geom_ids_by_name(self, obj_name):
+        """
+        Resolve an object name to its set of MuJoCo geom IDs.
+
+        Resolution strategy (in order):
+        1. "robot" keyword -> geoms starting with robot naming prefix
+        2. Fixture ref names (e.g. "posed_person", "main_door") -> geoms containing fixture naming_prefix
+        3. Object names from self.objects -> geoms under root body subtree
+        4. Fallback -> substring match on obj_name against all geom names
+
+        Args:
+            obj_name (str): Name of the object to resolve.
+
+        Returns:
+            set[int]: Set of MuJoCo geom IDs belonging to this object.
+        """
+        if obj_name in self._geom_id_cache:
+            return self._geom_id_cache[obj_name]
+
+        geom_ids = set()
+        obj_name_lower = obj_name.lower()
+
+        # Strategy 1: "robot" keyword
+        if obj_name_lower == "robot":
+            prefixes = []
+            for robot in self.robots:
+                prefixes.append(robot.robot_model.naming_prefix)
+            for i in range(self.sim.model.ngeom):
+                geom_name = self.sim.model.geom_id2name(i)
+                if geom_name:
+                    for pf in prefixes:
+                        if geom_name.startswith(pf):
+                            geom_ids.add(i)
+                            break
+
+        # Strategy 2: Fixture ref names
+        if not geom_ids:
+            fxtr = None
+            if hasattr(self, 'fixture_refs') and obj_name in self.fixture_refs:
+                fxtr = self.fixture_refs[obj_name]
+            elif hasattr(self, 'fixtures'):
+                for name, f in self.fixtures.items():
+                    if obj_name_lower in name.lower():
+                        fxtr = f
+                        break
+            if fxtr is not None and hasattr(fxtr, 'naming_prefix'):
+                prefix_lower = fxtr.naming_prefix.lower()
+                for i in range(self.sim.model.ngeom):
+                    geom_name = self.sim.model.geom_id2name(i)
+                    if geom_name and prefix_lower in geom_name.lower():
+                        geom_ids.add(i)
+
+        # Strategy 3: Object names from self.objects
+        if not geom_ids and obj_name in self.objects:
+            model = self.objects[obj_name]
+            try:
+                root_body_id = self.sim.model.body_name2id(model.root_body)
+                for i in range(self.sim.model.ngeom):
+                    if self.sim.model.geom_bodyid[i] == root_body_id:
+                        geom_ids.add(i)
+                # Also collect geoms from child bodies
+                for body_id in range(self.sim.model.nbody):
+                    parent = self.sim.model.body_parentid[body_id]
+                    if parent == root_body_id or body_id == root_body_id:
+                        for i in range(self.sim.model.ngeom):
+                            if self.sim.model.geom_bodyid[i] == body_id:
+                                geom_ids.add(i)
+            except Exception:
+                pass
+
+        # Strategy 4: Fallback substring match
+        if not geom_ids:
+            for i in range(self.sim.model.ngeom):
+                geom_name = self.sim.model.geom_id2name(i)
+                if geom_name and obj_name_lower in geom_name.lower():
+                    geom_ids.add(i)
+
+        self._geom_id_cache[obj_name] = geom_ids
+        return geom_ids
+
+    def check_collision(self, obj_a, obj_b):
+        """
+        Check if two objects are in contact using MuJoCo's contact detection.
+
+        Args:
+            obj_a (str): Name of first object (e.g. "robot", "posed_person", "obstacle_1", "main_door")
+            obj_b (str): Name of second object (same options as obj_a)
+
+        Returns:
+            bool: True if any geom of obj_a is in contact with any geom of obj_b
+        """
+        geom_ids_a = self._get_geom_ids_by_name(obj_a)
+        geom_ids_b = self._get_geom_ids_by_name(obj_b)
+
+        if not geom_ids_a or not geom_ids_b:
+            return False
+
+        for i in range(self.sim.data.ncon):
+            contact = self.sim.data.contact[i]
+            g1, g2 = contact.geom1, contact.geom2
+            if (g1 in geom_ids_a and g2 in geom_ids_b) or \
+               (g2 in geom_ids_a and g1 in geom_ids_b):
+                return True
+
+        return False
+
     def _setup_observables(self):
         """
         Sets up observables to be used for this environment. Creates object-based observables if enabled

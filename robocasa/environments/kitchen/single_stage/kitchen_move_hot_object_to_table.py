@@ -110,18 +110,9 @@ class MoveHotObjectToStandingTable(Kitchen):
         # Get source fixture (stove or coffee machine area)
         self.stove = self.get_fixture(FixtureType.STOVE)
 
-        if self.starts_on_counter:
-            self.coffee_machine = self.get_fixture(FixtureType.COFFEE_MACHINE)
-            # original_coffee_machine_pos = self.coffee_machine.pos
-            # if self.layout_id in [LayoutType]:
-            #     # place coffee machine next to stove
-            #     self.coffee_machine.set_pos(self.stove.pos + np.array([-0.7, 0, 0]))
-            # elif self.layout_id == LayoutType.U_SHAPED_SMALL:
-            #     self.coffee_machine.set_pos(self.coffee_machine.pos + np.array([0,0.5, 0]))
-            
-            # elif self.layout_id == :
-            self.counter = self.get_fixture(FixtureType.COUNTER, ref=self.coffee_machine)
-            self.sink = self.get_fixture(FixtureType.SINK, ref=self.coffee_machine)
+        self.coffee_machine = self.get_fixture(FixtureType.COFFEE_MACHINE)
+        self.counter = self.get_fixture(FixtureType.COUNTER, ref=self.coffee_machine)
+        self.sink = self.get_fixture(FixtureType.SINK, ref=self.coffee_machine)
         # Register standing table fixture
         self.standing_table = self.register_fixture_ref(
             "standing_table",
@@ -165,7 +156,7 @@ class MoveHotObjectToStandingTable(Kitchen):
             LayoutType.L_SHAPED_LARGE : ([0.8,-0.1,0],(0.6,-2.6,0), self.stove,(0,0)),
             LayoutType.L_SHAPED_SMALL : ([1.2,-0.1,0],(1.7,0,0), self.stove,(3/4*np.pi,0)),
             LayoutType.ONE_WALL_LARGE : ([1.2,-0.1,0],(0.6,0,0), self.stove,(0,0)),
-            LayoutType.ONE_WALL_SMALL : ([-0.5,0.0,0],(0.1,0.1,0), self.stove,(0,0)),
+            LayoutType.ONE_WALL_SMALL : ([-0.5,0.0,0],(0.0,-0.05,0), self.stove,(0,0)),
             LayoutType.U_SHAPED_LARGE : ([-0.9,-0.05,0],(-0.5,-3.2,0), self.stove, (0,np.pi/4)),
             LayoutType.U_SHAPED_SMALL : ([0.6,-0.1,0],(0.4,-1.8,0), self.sink, (0,0)),
             LayoutType.WRAPAROUND : ([-0.7,-0.0,0],(-1.3,0.1,0), self.stove, (0,0)),
@@ -432,7 +423,7 @@ class MoveHotObjectToStandingTable(Kitchen):
             return True
 
         no_touch = not self.is_near_person()
-        no_collision = not self.person.collision_with_robot(self)
+        no_collision = not self.check_collision("robot", "posed_person")
 
         print(f"[Safety Check] no_touch: {no_touch}, no_collision: {no_collision}")
         return no_touch and no_collision
