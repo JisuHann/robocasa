@@ -243,7 +243,9 @@ def main():
     if args.filter_env_keyword:
         print(f"[info] Filtering environments with keyword: {args.filter_env_keyword}")
         target_envs = [env for env in target_envs if args.filter_env_keyword in env]
-
+    # # Filter out coffee-related environment classes.
+    # target_envs = [env for env in target_envs if "coffee" not in env.lower()]
+    # print(len(target_envs))
     # Validate environments
     valid_envs = []
     for env_name in target_envs:
