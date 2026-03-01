@@ -31,9 +31,12 @@ Success Criteria:
 Example usage:
     env = robosuite.make("NavigateKitchenDogRouteA", ...)
 """
+import logging
 import numpy as np
 from robocasa.environments.kitchen.kitchen import *
 from robocasa.models.scenes.scene_registry import LayoutType, LAYOUT_GROUPS_TO_IDS
+
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # Route Definitions
@@ -379,7 +382,7 @@ class NavigateKitchenWithObstacles(Kitchen):
         scaling_factor = 0.5 if path_len < 2.0 else 0.6
         if self.route == 'RouteF':
             scaling_factor = 0.8
-        print("path_len:", path_len, "scaling_factor:", scaling_factor)
+        logger.debug("path_len: %s scaling_factor: %s", path_len, scaling_factor)
         self._obstacle_blocking_xy = src_xy + path_dir * (path_len * scaling_factor)
         
 
@@ -407,13 +410,13 @@ class NavigateKitchenWithObstacles(Kitchen):
                 path_len_scaling = pls
         # Handle ONE_WALL layouts for RouteE (special case)
         elif self.route == 'RouteE' and 'ONE_WALL' in LayoutType(self.layout_id).name:
-            print("ONE WALL in RouteE")
+            logger.debug("ONE WALL in RouteE")
             perp_scaling = 1.5
             path_len_scaling = 0.6
 
         if self.layout_id == LayoutType.GALLEY:
-            print("Route in GALLEY:", self.route)
-        print("perp_scaling:", perp_scaling, "path_len_scaling:", path_len_scaling)
+            logger.debug("Route in GALLEY: %s", self.route)
+        logger.debug("perp_scaling: %s path_len_scaling: %s", perp_scaling, path_len_scaling)
         self._obstacle_nonblocking_xy = (
             src_xy + path_dir * (path_len * path_len_scaling) + path_perp * perp_scaling
         )
@@ -447,11 +450,11 @@ class NavigateKitchenWithObstacles(Kitchen):
             self.person.set_orientation(human_dir)
     
 
-        print(f"[INFO] Navigation route: {self.src_fixture.name} -> {self.target_fixture.name}")
+        logger.info("Navigation route: %s -> %s", self.src_fixture.name, self.target_fixture.name)
         if self.blocking_mode in ['both', 'blocking']:
-            print(f"[INFO] Obstacle blocking at: [{self._obstacle_blocking_xy[0]:.2f}, {self._obstacle_blocking_xy[1]:.2f}]")
+            logger.info("Obstacle blocking at: [%.2f, %.2f]", self._obstacle_blocking_xy[0], self._obstacle_blocking_xy[1])
         if self.blocking_mode in ['both', 'nonblocking']:
-            print(f"[INFO] Obstacle non-blocking at: [{self._obstacle_nonblocking_xy[0]:.2f}, {self._obstacle_nonblocking_xy[1]:.2f}]")
+            logger.info("Obstacle non-blocking at: [%.2f, %.2f]", self._obstacle_nonblocking_xy[0], self._obstacle_nonblocking_xy[1])
 
     def get_ep_meta(self):
         """
@@ -670,8 +673,9 @@ class NavigateKitchenWithObstacles(Kitchen):
         route_def = ROUTE_DEFINITIONS.get(self.route, {})
         dst_is_human = route_def.get("dst", "") == "Human"
 
+        pos_dist = np.linalg.norm(self.target_pos[:2] - base_pos[:2])
         if dst_is_human:
-            pos_check = np.linalg.norm(self.target_pos[:2] - base_pos[:2]) <= 0.8
+            pos_check = pos_dist <= 0.8
             # Orientation: robot should face toward the person
             robot_fwd = np.array([np.cos(base_ori[2]), np.sin(base_ori[2])])
             dir_to_person = np.array(self.target_pos[:2]) - base_pos[:2]
@@ -681,11 +685,12 @@ class NavigateKitchenWithObstacles(Kitchen):
                 ori_check = cos_sim >= 0.98
             else:
                 ori_check = True  # too close to reliably check orientation
-            print(f"Position check: {np.linalg.norm(self.target_pos[:2] - base_pos[:2]):.4f}, Orientation check (cos_sim): {cos_sim if dist > 1e-3 else 'N/A (too close)'}")
+            logger.debug("Position check: %.4f, Orientation check (cos_sim): %s", pos_dist, cos_sim if dist > 1e-3 else 'N/A (too close)')
         else:
-            pos_check = np.linalg.norm(self.target_pos[:2] - base_pos[:2]) <= 0.20
-            ori_check = np.cos(self.target_ori[2] - base_ori[2]) >= 0.98
-            print(f"Position check: {np.linalg.norm(self.target_pos[:2] - base_pos[:2]):.4f}, Orientation check: {np.cos(self.target_ori[2] - base_ori[2]):.4f}")
+            pos_check = pos_dist <= 0.20
+            ori_cos = np.cos(self.target_ori[2] - base_ori[2])
+            ori_check = ori_cos >= 0.98
+            logger.debug("Position check: %.4f, Orientation check: %.4f", pos_dist, ori_cos)
         return pos_check and ori_check
 
 
