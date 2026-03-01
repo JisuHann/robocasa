@@ -1,103 +1,89 @@
-from robocasa.utils.dataset_registry import (
-    get_ds_path,
-    SINGLE_STAGE_TASK_DATASETS,
-    MULTI_STAGE_TASK_DATASETS,
-)
-from robocasa.scripts.playback_dataset import get_env_metadata_from_dataset
-from robosuite import load_controller_config
+"""Utilities for task registry queries, category parsing, and result saving."""
+
 import os
-import robosuite
-import imageio
-import numpy as np
-from tqdm import tqdm
-from termcolor import colored
+import re
+import json
+import datetime
+
+from robocasa.models.scenes.scene_registry import LayoutType
 
 
-def create_eval_env(
-    env_name,
-    # robosuite-related configs
-    robots="PandaMobile",
-    controllers="OSC_POSE",
-    camera_names=[
-        "robot0_agentview_left",
-        "robot0_agentview_right",
-        "robot0_eye_in_hand",
-    ],
-    camera_widths=128,
-    camera_heights=128,
-    seed=None,
-    # robocasa-related configs
-    obj_instance_split="B",
-    generative_textures=None,
-    randomize_cameras=False,
-    layout_and_style_ids=((1, 1), (2, 2), (4, 4), (6, 9), (7, 10)),
-):
-    controller_configs = load_controller_config(default_controller=controllers)
+# LayoutType members with non-negative values (actual layouts, not groups)
+_LAYOUT_NAME_TO_ID = {
+    lt.name: lt.value for lt in LayoutType if lt.value >= 0
+}
 
-    env_kwargs = dict(
-        env_name=env_name,
-        robots=robots,
-        controller_configs=controller_configs,
-        camera_names=camera_names,
-        camera_widths=camera_widths,
-        camera_heights=camera_heights,
-        has_renderer=False,
-        has_offscreen_renderer=True,
-        ignore_done=True,
-        use_object_obs=True,
-        use_camera_obs=True,
-        camera_depths=False,
-        seed=seed,
-        obj_instance_split=obj_instance_split,
-        generative_textures=generative_textures,
-        randomize_cameras=randomize_cameras,
-        layout_and_style_ids=layout_and_style_ids,
-        translucent_robot=False,
+
+def get_navigate_tasks():
+    """Fetch all NavigateKitchen* task names from the robocasa registry."""
+    import robocasa  # noqa: F401 – triggers env registration
+    from robocasa.environments.kitchen.kitchen import REGISTERED_KITCHEN_ENVS
+
+    return sorted(
+        name for name in REGISTERED_KITCHEN_ENVS
+        if name.startswith("NavigateKitchen") and name != "NavigateKitchenWithObstacles"
     )
 
-    env = robosuite.make(**env_kwargs)
-    return env
+
+def parse_task_spec(task_spec):
+    """Parse 'TaskName_LAYOUT' into (task_name, layout_id).
+
+    Examples:
+        'NavigateKitchenDogNonBlockingRouteC_L_SHAPED_LARGE' -> ('NavigateKitchenDogNonBlockingRouteC', 3)
+        'NavigateKitchenDogNonBlockingRouteC' -> ('NavigateKitchenDogNonBlockingRouteC', None)
+    """
+    for name, lid in sorted(_LAYOUT_NAME_TO_ID.items(), key=lambda x: -len(x[0])):
+        suffix = f"_{name}"
+        if task_spec.endswith(suffix):
+            return task_spec[:-len(suffix)], lid
+    return task_spec, None
 
 
-def run_random_rollouts(env, num_rollouts, num_steps, video_path=None):
-    video_writer = None
-    if video_path is not None:
-        video_writer = imageio.get_writer(video_path, fps=20)
+def parse_task_categories(task_name):
+    """Extract obstacle, blocking_mode, and route from a NavigateKitchen task name.
 
-    info = {}
-    num_success_rollouts = 0
-    for rollout_i in tqdm(range(num_rollouts)):
-        obs = env.reset()
-        for step_i in range(num_steps):
-            # sample and execute random action
-            action = np.random.uniform(low=env.action_spec[0], high=env.action_spec[1])
-            obs, _, _, _ = env.step(action)
-
-            if video_writer is not None:
-                video_img = env.sim.render(
-                    height=512, width=512, camera_name="robot0_agentview_center"
-                )[::-1]
-                video_writer.append_data(video_img)
-
-            if env._check_success():
-                num_success_rollouts += 1
-                break
-
-    if video_writer is not None:
-        video_writer.close()
-        print(colored(f"Saved video of rollouts to {video_path}", color="yellow"))
-
-    info["num_success_rollouts"] = num_success_rollouts
-
-    return info
-
-
-if __name__ == "__main__":
-    # select random task to run rollouts for
-    env_name = np.random.choice(
-        list(SINGLE_STAGE_TASK_DATASETS) + list(MULTI_STAGE_TASK_DATASETS)
+    Examples:
+        'NavigateKitchenDogNonBlockingRouteC' -> ('Dog', 'NonBlocking', 'C')
+        'NavigateKitchenGlassOfWineBlockingRouteA' -> ('GlassOfWine', 'Blocking', 'A')
+    """
+    m = re.match(
+        r"NavigateKitchen(?P<obstacle>.+?)(?P<blocking>NonBlocking|Blocking)Route(?P<route>[A-G])$",
+        task_name,
     )
-    env = create_eval_env(env_name=env_name)
-    info = run_random_rollouts(
-        env, num_rollouts=3, num_steps=100, video_path="/tmp/test.mp4"
-    )
+    if m:
+        return m.group("obstacle"), m.group("blocking"), m.group("route")
+    return None, None, None
+
+
+def save_results(results, summary, model, output_dir="results", filename=None):
+    """Save per-task results (task_info + evaluation) and summary to a JSON file.
+
+    Args:
+        results: list of dicts, each with 'task_info' and 'evaluation' keys.
+        summary: dict with aggregate statistics (from compute_summary).
+        model: model name string.
+        output_dir: directory to save results.
+        filename: optional fixed filename (default: timestamped).
+
+    Returns:
+        filepath of the saved JSON file.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    if filename is None:
+        model_safe = model.replace("/", "_") if model else "unknown_model"
+        filename = f"{model_safe}_{timestamp}.json"
+    filepath = os.path.join(output_dir, filename)
+
+    output = {
+        "model": model,
+        "timestamp": timestamp,
+        "summary": summary,
+        "results": results,
+    }
+
+    with open(filepath, "w") as f:
+        json.dump(output, f, indent=2)
+
+    return filepath
