@@ -34,22 +34,8 @@ import task_listup
 
 # Environment category definitions
 ENV_CATEGORIES = {
-    'handover': [
-        "HandOverKnifeSink", "HandOverKnifeStove", "HandOverKnifeFridge", "HandOverKnifeApart",
-        "HandOverScissorsSink", "HandOverScissorsStove", "HandOverScissorsFridge", "HandOverScissorsApart",
-        "HandOverWineSink", "HandOverWineStove", "HandOverWineFridge", "HandOverWineApart",
-        "HandOverSpongeSink", "HandOverSpongeStove", "HandOverSpongeFridge", "HandOverSpongeApart",
-        "HandOverGunSink", "HandOverGunStove", "HandOverGunFridge", "HandOverGunApart",
-    ],
-    'navigate_safe': [
-        "NavigateKitchenPersonBlockingRouteA", "NavigateKitchenPersonBlockingRouteB",
-        "NavigateKitchenPersonNonBlockingRouteA", "NavigateKitchenPersonNonBlockingRouteB",
-        "NavigateKitchenDogBlockingRouteA", "NavigateKitchenDogNonBlockingRouteA",
-        "NavigateKitchenCatBlockingRouteA", "NavigateKitchenCatNonBlockingRouteA",
-    ],
-    'move_from_stove': [
-        "MoveFrypanToSink", "MovePotToSink",
-    ],
+    'handover': task_listup.handover_tasks,
+    'navigate_safe': task_listup.navigate_safe_tasks,
     'move_hot_object': task_listup.move_hot_object_to_table_tasks,
     'open_door_safe': ["OpenDoorSafe"],
     'close_door_safe': ["CloseDoorSafeCenter", "CloseDoorSafeThreshold", "CloseDoorSafeEdge"],
@@ -226,6 +212,8 @@ def main():
                         help='Render onscreen instead of offscreen')
     parser.add_argument('--gpu_id', type=int, default=0,
                         help='GPU device ID for rendering')
+    parser.add_argument('--filter_out_keyword', type=str, default=None,
+                        help='Keyword to filter out environment names')
 
     args = parser.parse_args()
 
@@ -242,10 +230,15 @@ def main():
     # Filter by keyword if provided
     if args.filter_env_keyword:
         print(f"[info] Filtering environments with keyword: {args.filter_env_keyword}")
-        target_envs = [env for env in target_envs if args.filter_env_keyword in env]
+        target_envs = [env for env in target_envs if args.filter_env_keyword.lower() in env.lower()]
     # # Filter out coffee-related environment classes.
-    # target_envs = [env for env in target_envs if "coffee" not in env.lower()]
-    # print(len(target_envs))
+    target_envs = [env for env in target_envs if "coffee" not in env.lower()]
+    # Filter out environments with the specified keyword
+    if args.filter_out_keyword:
+        print(f"[info] Filtering out environments with keyword: {args.filter_out_keyword}")
+        target_envs = [env for env in target_envs if args.filter_out_keyword.lower() not in env.lower()]
+    print(f"[info] Number of target environments: {len(target_envs)}")
+    
     # Validate environments
     valid_envs = []
     for env_name in target_envs:
@@ -264,7 +257,9 @@ def main():
 
     target_envs = valid_envs
     print(f"[info] Target environments: {len(target_envs)} - {target_envs}")
-
+    print(f"[info] The number of tasks : {len(target_envs)}")
+    # import sys
+    # sys.exit()
     # Determine layouts
     if args.layout == 'all':
         layout_ids = LAYOUT_GROUPS_TO_IDS[LayoutType.ALL]

@@ -269,36 +269,14 @@ if __name__ == "__main__":
     if args.test_all_layouts is True:
         assert args.record_path is not None, "--test_all_layouts 옵션을 사용시에 record_path 옵션이 필요합니다."
     if args.env == 'handover':
-        # target_env = random.choice(task_envs_list['HandOver'])
-        # target_env = task_envs_list['HandOver']
-        target_env = [ 
-    "HandOverGunSink",
-    "HandOverGunFridge",
-    "HandOverGunStove",
-    "HandOverGunNear",
-    "HandOverGunApart",
-    ] \
-        # target_env = [
-        # "HandOverSpongeStove",
-        # "HandOverSpongeFridge",
-        # "HandOverSpongeApart",
-        # "HandOverSpongeSink",]
-        # target_env =[
-        #     "HandOverKnifeNear",
-        #     "HandOverScissorsNear",
-        #     "HandOverWineNear",
-        #     "HandOverMilkNear",
-        #     "HandOverSpongeNear",
-        #     "HandOverGunNear",
-        # ]
-        # target_env = "HandOverKnifeNear"
+        target_env = task_envs_list['HandOver']
     elif args.env == 'navigate_safe':
         # target_env="NavigateKitchenWithCat"
         target_env = task_envs_list['NavigateSafe']
         # target_env = random.choice([ 'NavigateKitchenWithCat', 'NavigateKitchenWithDog']) #  NavigateKitchenWithKettlebell', 'NavigateKitchenWithTowel', 'NavigateKitchenWithMug',
     elif args.env == 'move_hot_object':
         # target_env = random.choice(['MoveFrypanToSink', 'MovePotToSink'])
-        target_env = task_envs_list.get('MoveHotObject', []) + task_envs_list['MoveHotObjectToTable']
+        target_env = task_envs_list['MoveHotObjectToTable']
         print(f"[info] move_hot_object 대상 환경 수: {len(target_env)}")
     elif args.env == 'open_door_safe':
         target_env = 'OpenDoorSafe'
