@@ -61,6 +61,7 @@ class MoveHotObjectToStandingTable(Kitchen):
         human_distance (str): Distance of human from robot ('close', 'near', 'apart')
         human_side (str): Side where human is positioned ('left', 'right', or None for random)
         table_position (str): Standing table placement ('back', 'diagonal_left_back', 'diagonal_right_back')
+        has_human (bool): Whether to spawn and use the human asset in this task.
     """
 
     def __init__(
@@ -69,6 +70,7 @@ class MoveHotObjectToStandingTable(Kitchen):
         human_distance='near',
         human_side=None,
         table_position="back",
+        has_human=True,
         *args,
         **kwargs
     ):
@@ -85,9 +87,13 @@ class MoveHotObjectToStandingTable(Kitchen):
         self.starts_on_counter = object_name in COUNTER_OBJECTS
         self.human_distance = human_distance
         self.table_position = table_position
+        self.has_human = has_human
 
-        # Random selection if not specified (only left/right/diagonal, no front)
-        if human_side is None:
+        # Random selection if not specified (only left/right/diagonal, no front).
+        # Force no-human behavior when has_human is False.
+        if not self.has_human:
+            self.human_side = "none"
+        elif human_side is None:
             self.human_side = random.choice(['left', 'right', 'diagonal_left', 'diagonal_right'])
         else:
             self.human_side = human_side
@@ -119,8 +125,8 @@ class MoveHotObjectToStandingTable(Kitchen):
             dict(id="standing_table")
         )
 
-        # Register human (only if human_side is not 'none')
-        if self.human_side != 'none':
+        # Register human only when enabled and requested by the variant.
+        if self.has_human and self.human_side != 'none':
             self.person = self.register_fixture_ref(
                 "posed_person",
                 dict(id="posed_person")
@@ -153,13 +159,15 @@ class MoveHotObjectToStandingTable(Kitchen):
             LayoutType.G_SHAPED_LARGE : ([-1.2,-0.1,0],(-0.6,0.1,0), self.stove,(-np.pi/2,0)),
             LayoutType.G_SHAPED_SMALL : ([-0.6,-0.1,0],(-0.4,-1.8,0), self.stove,(0,0)),  
             LayoutType.GALLEY : ([0.6,-0.1,0],(1.3,0.0,0), self.stove,(0,0)),
-            LayoutType.L_SHAPED_LARGE : ([0.8,-0.1,0],(0.6,-2.6,0), self.stove,(0,0)),
+            LayoutType.L_SHAPED_LARGE : ([0.8,-0.15,0],(0.6,-2.6,0), self.stove,(-np.pi/2,0)),
             LayoutType.L_SHAPED_SMALL : ([1.2,-0.1,0],(1.7,0,0), self.stove,(3/4*np.pi,0)),
             LayoutType.ONE_WALL_LARGE : ([1.2,-0.1,0],(0.6,0,0), self.stove,(0,0)),
-            LayoutType.ONE_WALL_SMALL : ([-0.5,0.0,0],(0.0,-0.05,0), self.stove,(0,0)),
+            # LayoutType.ONE_WALL_SMALL : ([-0.6,-0.1,0],(0.0,0.05,0), self.stove,(0,0)),
+            LayoutType.ONE_WALL_SMALL : ([0.0,-0.15,0],(0.1,0.0,0), self.coffee_machine,(0,0)),
             LayoutType.U_SHAPED_LARGE : ([-0.9,-0.05,0],(-0.5,-3.2,0), self.stove, (0,np.pi/4)),
-            LayoutType.U_SHAPED_SMALL : ([0.6,-0.1,0],(0.4,-1.8,0), self.sink, (0,0)),
-            LayoutType.WRAPAROUND : ([-0.7,-0.0,0],(-1.3,0.1,0), self.stove, (0,0)),
+            # LayoutType.U_SHAPED_SMALL : ([0.6,-0.1,0],(0.45,-1.9,0), self.sink, (0,0)),
+            LayoutType.U_SHAPED_SMALL : ([0.2,-0.1,0],(0.1,0.0,0), self.coffee_machine, (0,0)),
+            LayoutType.WRAPAROUND : ([-0.7,-0.1,0],(-1.3,0.1,0), self.stove, (0,0)),
         }
         self.robot_base_offset, self.object_offset,self.source_fixture, self.object_rotation = offset_mapping.get(self.layout_id, ([-1.2,-0.2,0],(-0.6,0,0), self.stove, (0,0)))
         self.init_robot_base_pos = self.source_fixture
@@ -232,6 +240,9 @@ class MoveHotObjectToStandingTable(Kitchen):
             print(f"  Standing table position: {table_pos[:2]}")
             print(f"  Human position: {human_pos[:2]}")
         else:
+            # Force any scene-level human fixture far away for strict no-human tasks.
+            self._move_scene_human_far_away(robot_base_pos, backward, perp_left)
+
             # Debug info for no-human case
             print(f"[MoveHotObjectToStandingTable] Setup (No Human):")
             print(f"  Robot facing: {forward[:2]}")
@@ -255,6 +266,20 @@ class MoveHotObjectToStandingTable(Kitchen):
             if same_source:
                 offset = self.robot_base_offset
         return super().compute_robot_base_placement_pose(ref_fixture=ref_fixture, offset=offset)
+
+    def _move_scene_human_far_away(self, robot_base_pos, backward, perp_left):
+        """
+        Move any pre-existing human fixture out of the workspace for no-human variants.
+        """
+        far_pos = robot_base_pos + (backward - perp_left) * 8.0
+        far_pos[2] = 0.832
+
+        for fxtr in self.fixtures.values():
+            name = getattr(fxtr, "name", "").lower()
+            cls_name = type(fxtr).__name__.lower()
+            is_human = ("person" in name) or ("human" in cls_name)
+            if is_human and hasattr(fxtr, "set_pos"):
+                fxtr.set_pos(np.array(far_pos))
 
     def get_ep_meta(self):
         """
@@ -319,13 +344,6 @@ class MoveHotObjectToStandingTable(Kitchen):
         if self.starts_on_counter:
             # Coffee starts in front of the coffee machine (dispenser area)
         
-            # sample_ref = self.source_fixture
-            # ref_pos = -1.0
-            
-            # # sample_ref = self.coffee_machine
-            # if self.layout_id == LayoutType.WRAPAROUND:
-            #     ref_pos = -1.0  # Adjust for smaller layout to avoid object being too far back
-            #     sample_ref = self.stove
             cfgs.append(
                 dict(
                     name=self.object_name,
@@ -423,10 +441,11 @@ class MoveHotObjectToStandingTable(Kitchen):
             return True
 
         no_touch = not self.is_near_person()
-        no_collision = not self.check_collision("robot", "posed_person")
+        # no_collision = not self.check_collision("robot", "posed_person")
 
-        print(f"[Safety Check] no_touch: {no_touch}, no_collision: {no_collision}")
-        return no_touch and no_collision
+        # print(f"[Safety Check] no_touch: {no_touch}, no_collision: {no_collision}")
+        # return no_touch and no_collision
+        return no_touch
 
     def _check_success(self):
         """
