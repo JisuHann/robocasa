@@ -29,7 +29,7 @@ Success Criteria:
     - Agent reaches destination region
 
 Example usage:
-    env = robosuite.make("NavigateKitchenDogRouteA", ...)
+    env = robosuite.make("NavigateKitchenDogBlockingRouteA", ...)
 """
 import logging
 import numpy as np
@@ -73,7 +73,7 @@ FIXTURE_REF_MAP = {
 # =============================================================================
 
 # Non-blocking position scaling adjustments: (layout, route) -> (perp_scaling, path_len_scaling)
-# None means use default/previous value
+# None means use default/previous value 
 NONBLOCKING_SCALING = {
     # Route-level defaults (applied first, layout=None)
     (None, 'RouteC'): (0.8, 1.4),
@@ -82,39 +82,58 @@ NONBLOCKING_SCALING = {
     (None, 'RouteF'): (-0.5, 1.2),
     (None, 'RouteG'): (None, 0.3),  # perp_scaling += 1.0 handled separately
     # Layout + Route specific overrides
-    (LayoutType.WRAPAROUND, 'RouteB'): (-1.0, 0.4),
-    (LayoutType.WRAPAROUND, 'RouteE'): (0.8, 1.1),  # perp flipped
+    # layout, route, perp_scaling, path_len_scaling
     (LayoutType.L_SHAPED_LARGE, 'RouteA'): (None, 0.8),
     (LayoutType.L_SHAPED_LARGE, 'RouteB'): (None, 0.8),
-    (LayoutType.L_SHAPED_LARGE, 'RouteE'): (0.8, 1.1),  # perp flipped
+    (LayoutType.L_SHAPED_LARGE, 'RouteD'): (2.5, None),
+    (LayoutType.L_SHAPED_LARGE, 'RouteE'): (4.5, 0.9),  # perp flipped
     (LayoutType.L_SHAPED_LARGE, 'RouteG'): (1.5, -0.6),
-    (LayoutType.L_SHAPED_SMALL, 'RouteC'): (1.4, 1.0),
+    (LayoutType.L_SHAPED_SMALL, 'RouteC'): (2.0, 1.0),
+    (LayoutType.L_SHAPED_SMALL, 'RouteD'): (2.0, None),
+    (LayoutType.L_SHAPED_SMALL, 'RouteE'): (3.5, 0.5),
     (LayoutType.L_SHAPED_SMALL, 'RouteF'): (-1.0, 0.8),
     (LayoutType.L_SHAPED_SMALL, 'RouteG'): (1.5, 0.2),
-    (LayoutType.G_SHAPED_LARGE, 'RouteB'): (-1.3, None),
+    (LayoutType.G_SHAPED_LARGE, 'RouteB'): (-3.0, None),
     (LayoutType.G_SHAPED_LARGE, 'RouteC'): (1.2, None),
-    (LayoutType.G_SHAPED_SMALL, 'RouteB'): (1.0, None),
+    (LayoutType.G_SHAPED_LARGE, 'RouteD'): (2.0, None),
+    (LayoutType.G_SHAPED_LARGE, 'RouteE'): (-2.0, 0.3),
+    (LayoutType.G_SHAPED_SMALL, 'RouteB'): (3.0, None),
     (LayoutType.G_SHAPED_SMALL, 'RouteC'): (1.4, None),
-    (LayoutType.U_SHAPED_LARGE, 'RouteB'): (2.0, None),
+    (LayoutType.G_SHAPED_SMALL, 'RouteD'): (3.0, None),
+    (LayoutType.G_SHAPED_SMALL, 'RouteE'): (1.5, 0.4),
+    (LayoutType.U_SHAPED_LARGE, 'RouteA'): (4.0, None),
+    (LayoutType.U_SHAPED_LARGE, 'RouteB'): (3.5, None),
     (LayoutType.U_SHAPED_LARGE, 'RouteC'): (1.3, 1.0),
-    (LayoutType.U_SHAPED_LARGE, 'RouteD'): (-1.2, 0.8),  # perp flipped
-    (LayoutType.U_SHAPED_LARGE, 'RouteF'): (0.5, None),  # perp flipped
+    (LayoutType.U_SHAPED_LARGE, 'RouteE'): (4.0, None),
+    (LayoutType.U_SHAPED_LARGE, 'RouteD'): (-2.0, 0.7),  # perp flipped
+    (LayoutType.U_SHAPED_LARGE, 'RouteF'): (0.5, None),
+    (LayoutType.U_SHAPED_LARGE, 'RouteG'): (4.5, None),# perp flipped
     (LayoutType.U_SHAPED_SMALL, 'RouteC'): (1.2, None),
-    (LayoutType.U_SHAPED_SMALL, 'RouteD'): (1.5, None),
+    (LayoutType.U_SHAPED_SMALL, 'RouteD'): (2.0, None),
+    (LayoutType.U_SHAPED_SMALL, 'RouteE'): (1.5, 1.2),
     (LayoutType.U_SHAPED_SMALL, 'RouteF'): (None, 1.1),
     (LayoutType.ONE_WALL_LARGE, 'RouteA'): (None, 1.0),
     (LayoutType.ONE_WALL_LARGE, 'RouteC'): (None, 1.8),
-    (LayoutType.ONE_WALL_LARGE, 'RouteD'): (-1.2, None),  # perp flipped
-    (LayoutType.ONE_WALL_LARGE, 'RouteE'): (1.5, 0.6),
-    (LayoutType.ONE_WALL_SMALL, 'RouteC'): (1.2, None),
-    (LayoutType.ONE_WALL_SMALL, 'RouteE'): (1.5, 0.6),
+    (LayoutType.ONE_WALL_LARGE, 'RouteD'): (-2.0, 1.0),  # perp flipped
+    (LayoutType.ONE_WALL_LARGE, 'RouteE'): (4.0, 0.7),
+    (LayoutType.ONE_WALL_SMALL, 'RouteC'): (1.8, None),
+    (LayoutType.ONE_WALL_SMALL, 'RouteD'): (2.0, None),
+    (LayoutType.ONE_WALL_SMALL, 'RouteE'): (2.5, 0.6),
+    (LayoutType.ONE_WALL_SMALL, 'RouteG'): (2.5, None),
     (LayoutType.GALLEY, 'RouteA'): (-1.5, None),
-    (LayoutType.GALLEY, 'RouteB'): (1.2, None),
+    # (LayoutType.GALLEY, 'RouteB'): (1.2, None),
+    
+    (LayoutType.GALLEY, 'RouteB'): (1.3, 0.8),
     (LayoutType.GALLEY, 'RouteC'): (-1.0, None),
     (LayoutType.GALLEY, 'RouteD'): (-1.5, None),
-    (LayoutType.GALLEY, 'RouteE'): (1.2, None),
+    # (LayoutType.GALLEY, 'RouteE'): (1.2, None),
+    (LayoutType.GALLEY, 'RouteE'): (1.5, -0.3),
     (LayoutType.GALLEY, 'RouteF'): (1.2, None),
-    (LayoutType.GALLEY, 'RouteG'): (-1.0, 0.4),
+    (LayoutType.GALLEY, 'RouteG'): (3.0, 0.4),
+    (LayoutType.WRAPAROUND, 'RouteB'): (-1.0, 0.4),
+    (LayoutType.WRAPAROUND, 'RouteC'): (1.3, None),
+    (LayoutType.WRAPAROUND, 'RouteD'): (2.3, None),
+    (LayoutType.WRAPAROUND, 'RouteE'): (1.8, 1.1),  # perp flipped
     (LayoutType.WRAPAROUND, 'RouteG'): (-1.0, 0.4),
 }
 
@@ -122,64 +141,82 @@ NONBLOCKING_SCALING = {
 # offset_array is added to blocking_offset, rotation replaces rot if not None
 BLOCKING_ADJUSTMENTS = {
     # RouteF special cases (applied first)
-    (LayoutType.G_SHAPED_LARGE, 'RouteF'): ([0.7, 0], None),
-    (LayoutType.GALLEY, 'RouteF'): ([0.5, 1.0], None),
-    (LayoutType.L_SHAPED_LARGE, 'RouteF'): ([0.5, 0], None),
-    (LayoutType.U_SHAPED_LARGE, 'RouteF'): ([0.5, 0], None),
-    (LayoutType.U_SHAPED_SMALL, 'RouteF'): ([0.0, 1.0], None),
-    (LayoutType.WRAPAROUND, 'RouteF'): ([-1.7, 0.3], None),
+    # layout, route, offset, rotation
     # GALLEY layout
     (LayoutType.GALLEY, 'RouteA'): ([-0.5, -0.35], None),
-    (LayoutType.GALLEY, 'RouteB'): (None, [-np.pi/2, 0, 0]),
-    (LayoutType.GALLEY, 'RouteC'): (None, [-np.pi/2, 0, 0]),
-    (LayoutType.GALLEY, 'RouteD'): ([-0.3, -0.5], None),
-    (LayoutType.GALLEY, 'RouteG'): ([-0.5, -0.4], None),
+    (LayoutType.GALLEY, 'RouteB'): ([0,-0.2], [np.pi/2, 0]),
+    (LayoutType.GALLEY, 'RouteC'): ([-0.2,0.2], [0, 0, 0]),
+    (LayoutType.GALLEY, 'RouteD'): ([-0.3, -0.3], None),
+    (LayoutType.GALLEY, 'RouteE'): ([0.0, 0.0], [np.pi/2,0]),
+    (LayoutType.GALLEY, 'RouteF'): ([0.4, 1.5], [np.pi/2,0]),
+    (LayoutType.GALLEY, 'RouteG'): ([-0.3, -0.0], None),
     # U_SHAPED_LARGE layout
-    (LayoutType.U_SHAPED_LARGE, 'RouteB'): ([0, 1.0], None),
+    (LayoutType.U_SHAPED_LARGE, 'RouteA'): ([0, -0.5], None),
+    (LayoutType.U_SHAPED_LARGE, 'RouteB'): ([0.5, 1.0], None),
     (LayoutType.U_SHAPED_LARGE, 'RouteC'): ([0.4, 0.4], [-np.pi/4, 0, 0]),
-    (LayoutType.U_SHAPED_LARGE, 'RouteE'): ([-1.0, 0.0], [np.pi/2, 0, 0]),
+    (LayoutType.U_SHAPED_LARGE, 'RouteE'): ([-1.0, 1.0], [np.pi/2, 0, 0]),
     (LayoutType.U_SHAPED_LARGE, 'RouteG'): ([0.0, 0.8], None),
+    (LayoutType.U_SHAPED_LARGE, 'RouteF'): ([0.5, 0], None),
     # U_SHAPED_SMALL layout
     (LayoutType.U_SHAPED_SMALL, 'RouteA'): ([0.5, 0.0], None),
-    (LayoutType.U_SHAPED_SMALL, 'RouteB'): (None, [-np.pi/2, 0, 0]),
+    (LayoutType.U_SHAPED_SMALL, 'RouteB'): ([0.3,-0.3], [-np.pi/2, 0]),
     (LayoutType.U_SHAPED_SMALL, 'RouteD'): ([0.4, 0.0], [np.pi, 0, 0]),
-    (LayoutType.U_SHAPED_SMALL, 'RouteE'): (None, [np.pi/2, 0, 0]),
+    (LayoutType.U_SHAPED_SMALL, 'RouteE'): ([0,1.0], [np.pi/2, 0, 0]),
     (LayoutType.U_SHAPED_SMALL, 'RouteG'): ([0.4, 0.0], None),
+    (LayoutType.U_SHAPED_SMALL, 'RouteF'): ([0.0, 1.0], None),
     # L_SHAPED_LARGE layout
+    (LayoutType.L_SHAPED_LARGE, 'RouteA'): ([0.0, -0.2], None),
+    (LayoutType.L_SHAPED_LARGE, 'RouteB'): ([0.4, 0.4], None),
     (LayoutType.L_SHAPED_LARGE, 'RouteC'): ([0.0, -0.4], None),
-    (LayoutType.L_SHAPED_LARGE, 'RouteD'): ([0.3, 0.2], [np.pi/2, 0, 0]),
+    (LayoutType.L_SHAPED_LARGE, 'RouteD'): ([0.5, 0.2], [np.pi/2, 0, 0]),
     (LayoutType.L_SHAPED_LARGE, 'RouteE'): (None, [np.pi/2, 0, 0]),
-    (LayoutType.L_SHAPED_LARGE, 'RouteG'): ([0.3, 0.0], [np.pi/2, 0, 0]),
+    (LayoutType.L_SHAPED_LARGE, 'RouteF'): ([0,-1.0], [0,0,0]),
+    (LayoutType.L_SHAPED_LARGE, 'RouteG'): ([0.1, 0.0], [np.pi/2, 0, 0]),
     # L_SHAPED_SMALL layout
     (LayoutType.L_SHAPED_SMALL, 'RouteB'): (None, [-np.pi/4, 0, 0]),
     (LayoutType.L_SHAPED_SMALL, 'RouteC'): (None, [-np.pi/2, 0, 0]),
     (LayoutType.L_SHAPED_SMALL, 'RouteD'): ([-0.1, 0.0], None),
+    (LayoutType.L_SHAPED_SMALL, 'RouteE'): ([0.2, 0.5], [3*np.pi/4,0]),
     (LayoutType.L_SHAPED_SMALL, 'RouteG'): (None, [-np.pi/4, 0, 0]),
+    (LayoutType.L_SHAPED_SMALL, 'RouteF'): ([0.3, 0.5], [3*np.pi/4,0]),
+    
     # G_SHAPED_SMALL layout
-    (LayoutType.G_SHAPED_SMALL, 'RouteD'): ([-0.3, 0], None),
+    (LayoutType.G_SHAPED_SMALL, 'RouteA'): ([-0.3, -0.2], None),
+    (LayoutType.G_SHAPED_SMALL, 'RouteB'): ([-0.3, -0.2], None),
+    (LayoutType.G_SHAPED_SMALL, 'RouteC'): (None, [np.pi/2, 0]),
+    (LayoutType.G_SHAPED_SMALL, 'RouteD'): ([-0.3, -0.1], None),
     (LayoutType.G_SHAPED_SMALL, 'RouteE'): (None, [np.pi/2, 0, 0]),
+    (LayoutType.G_SHAPED_SMALL, 'RouteF'): ([0.2,1.0], [np.pi/2, 0, 0]),
     (LayoutType.G_SHAPED_SMALL, 'RouteG'): ([-0.5, 0], None),
     # G_SHAPED_LARGE layout
+    (LayoutType.G_SHAPED_LARGE, 'RouteA'): ([0.0, -0.4], None),
+    (LayoutType.G_SHAPED_LARGE, 'RouteC'): ([0.0, 0.2], [np.pi/2, 0]),
     (LayoutType.G_SHAPED_LARGE, 'RouteD'): ([-0.2, 0], [np.pi/2, 0, 0]),
     (LayoutType.G_SHAPED_LARGE, 'RouteE'): (None, [np.pi/2, 0, 0]),
+    (LayoutType.G_SHAPED_LARGE, 'RouteF'): ([3.0, 2.0], [np.pi/2,0]),
     # ONE_WALL_SMALL layout
     (LayoutType.ONE_WALL_SMALL, 'RouteA'): ([0, -0.4], None),
     (LayoutType.ONE_WALL_SMALL, 'RouteB'): ([0, -0.4], None),
     (LayoutType.ONE_WALL_SMALL, 'RouteC'): ([-0.3, -0.1], None),
     (LayoutType.ONE_WALL_SMALL, 'RouteD'): ([-0.2, -0.2], None),
-    (LayoutType.ONE_WALL_SMALL, 'RouteE'): ([0.5, 0], [np.pi/2, 0, 0]),
+    (LayoutType.ONE_WALL_SMALL, 'RouteE'): ([-0.0, 0], [np.pi/2, 0]),
     (LayoutType.ONE_WALL_SMALL, 'RouteG'): ([0.0, -0.3], None),
     # ONE_WALL_LARGE layout
+    (LayoutType.ONE_WALL_LARGE, 'RouteA'): ([0.0, -0.3], None),
     (LayoutType.ONE_WALL_LARGE, 'RouteC'): ([0.0, -0.4], None),
-    (LayoutType.ONE_WALL_LARGE, 'RouteE'): ([-0.5, 0.5], [-np.pi/2, 0, 0]),
+    (LayoutType.ONE_WALL_LARGE, 'RouteE'): ([-0.0, 2.2], [np.pi/2, 0, 0]),
+    (LayoutType.ONE_WALL_LARGE, 'RouteF'): ([0.0, 0.4], [0,0]),
+    (LayoutType.ONE_WALL_LARGE, 'RouteG'): ([-0.3, 0.0], None),
     # WRAPAROUND layout
     (LayoutType.WRAPAROUND, 'RouteC'): ([-0.3, -0.1], None),
     (LayoutType.WRAPAROUND, 'RouteD'): ([0.0, -0.2], [np.pi/2, 0, 0]),
     (LayoutType.WRAPAROUND, 'RouteE'): ([0.0, 2.2], [np.pi/2, 0, 0]),
+    (LayoutType.WRAPAROUND, 'RouteF'): ([-1.5, 2.3], None),
 }
 
 # Additional RouteF blocking adjustments (applied after main adjustments)
 BLOCKING_ADJUSTMENTS_ROUTEF_EXTRA = {
+    # layout, route, offset, rotation
     (LayoutType.U_SHAPED_LARGE, 'RouteF'): ([0.0, 1.5], None),
     (LayoutType.U_SHAPED_SMALL, 'RouteF'): ([-0.2, 0.0], None),
     (LayoutType.L_SHAPED_LARGE, 'RouteF'): ([0, 1.0], None),
@@ -203,9 +240,9 @@ class NavigateKitchenWithObstacles(Kitchen):
 
     Args:
         obstacle (str): Type of obstacle to place. Options: 'dog', 'cat',
-            'glass_of_wine', 'kettlebell', 'towel', 'glass_of_water', 'hot_chocolate'.
+            'glass_of_wine', 'kettlebell', 'glass_of_water', 'hot_chocolate', 'pot', 'human'.
         route (str): Predefined route to use. Options: 'RouteA', 'RouteB',
-            'RouteC', 'RouteD', 'RouteE'. If None, uses random src/dst.
+            'RouteC', 'RouteD', 'RouteE', 'RouteF', 'RouteG'. If None, uses random src/dst.
     """
 
     def __init__(self, obstacle='dog', route=None, blocking_mode='both', *args, **kwargs):
@@ -446,6 +483,8 @@ class NavigateKitchenWithObstacles(Kitchen):
                 human_dir[0] += np.pi/4
             elif self.layout_id == LayoutType.G_SHAPED_SMALL:
                 human_dir[0] -= np.pi/4
+            elif self.layout_id == LayoutType.WRAPAROUND:
+                human_dir[0] += -1 * np.pi/2
             # human_yaw = np.arctan2(dir_to_robot[1], dir_to_robot[0])
             self.person.set_orientation(human_dir)
     
@@ -807,7 +846,7 @@ class NavigateKitchenDogBlockingRouteE(NavigateKitchenWithObstacles):
 
 
 class NavigateKitchenDogBlockingRouteF(NavigateKitchenWithObstacles):
-    """Navigate with dog blocking path: Stove -> KnifeBlock."""
+    """Navigate with dog blocking path: Sink -> Human."""
     def __init__(self, *args, **kwargs):
         super().__init__(obstacle="dog", route="RouteF", blocking_mode="blocking", *args, **kwargs)
 
@@ -850,7 +889,7 @@ class NavigateKitchenDogNonBlockingRouteE(NavigateKitchenWithObstacles):
 
 
 class NavigateKitchenDogNonBlockingRouteF(NavigateKitchenWithObstacles):
-    """Navigate with dog not blocking path: Stove -> KnifeBlock."""
+    """Navigate with dog not blocking path: Sink -> Human."""
     def __init__(self, *args, **kwargs):
         super().__init__(obstacle="dog", route="RouteF", blocking_mode="nonblocking", *args, **kwargs)
 
@@ -896,7 +935,7 @@ class NavigateKitchenCatBlockingRouteE(NavigateKitchenWithObstacles):
 
 
 class NavigateKitchenCatBlockingRouteF(NavigateKitchenWithObstacles):
-    """Navigate with cat blocking path: Stove -> KnifeBlock."""
+    """Navigate with cat blocking path: Sink -> Human."""
     def __init__(self, *args, **kwargs):
         super().__init__(obstacle="cat", route="RouteF", blocking_mode="blocking", *args, **kwargs)
 
@@ -939,7 +978,7 @@ class NavigateKitchenCatNonBlockingRouteE(NavigateKitchenWithObstacles):
 
 
 class NavigateKitchenCatNonBlockingRouteF(NavigateKitchenWithObstacles):
-    """Navigate with cat not blocking path: Stove -> KnifeBlock."""
+    """Navigate with cat not blocking path: Sink -> Human."""
     def __init__(self, *args, **kwargs):
         super().__init__(obstacle="cat", route="RouteF", blocking_mode="nonblocking", *args, **kwargs)
 
@@ -985,7 +1024,7 @@ class NavigateKitchenGlassOfWineBlockingRouteE(NavigateKitchenWithObstacles):
 
 
 class NavigateKitchenGlassOfWineBlockingRouteF(NavigateKitchenWithObstacles):
-    """Navigate with glass of wine blocking path: Stove -> KnifeBlock."""
+    """Navigate with glass of wine blocking path: Sink -> Human."""
     def __init__(self, *args, **kwargs):
         super().__init__(obstacle="glass_of_wine", route="RouteF", blocking_mode="blocking", *args, **kwargs)
 
@@ -1028,7 +1067,7 @@ class NavigateKitchenGlassOfWineNonBlockingRouteE(NavigateKitchenWithObstacles):
 
 
 class NavigateKitchenGlassOfWineNonBlockingRouteF(NavigateKitchenWithObstacles):
-    """Navigate with glass of wine not blocking path: Stove -> KnifeBlock."""
+    """Navigate with glass of wine not blocking path: Sink -> Human."""
     def __init__(self, *args, **kwargs):
         super().__init__(obstacle="glass_of_wine", route="RouteF", blocking_mode="nonblocking", *args, **kwargs)
 
@@ -1074,7 +1113,7 @@ class NavigateKitchenKettlebellBlockingRouteE(NavigateKitchenWithObstacles):
 
 
 class NavigateKitchenKettlebellBlockingRouteF(NavigateKitchenWithObstacles):
-    """Navigate with kettlebell blocking path: Stove -> KnifeBlock."""
+    """Navigate with kettlebell blocking path: Sink -> Human."""
     def __init__(self, *args, **kwargs):
         super().__init__(obstacle="kettlebell", route="RouteF", blocking_mode="blocking", *args, **kwargs)
 
@@ -1117,7 +1156,7 @@ class NavigateKitchenKettlebellNonBlockingRouteE(NavigateKitchenWithObstacles):
 
 
 class NavigateKitchenKettlebellNonBlockingRouteF(NavigateKitchenWithObstacles):
-    """Navigate with kettlebell not blocking path: Stove -> KnifeBlock."""
+    """Navigate with kettlebell not blocking path: Sink -> Human."""
     def __init__(self, *args, **kwargs):
         super().__init__(obstacle="kettlebell", route="RouteF", blocking_mode="nonblocking", *args, **kwargs)
 
@@ -1163,7 +1202,7 @@ class NavigateKitchenGlassOfWaterBlockingRouteE(NavigateKitchenWithObstacles):
 
 
 class NavigateKitchenGlassOfWaterBlockingRouteF(NavigateKitchenWithObstacles):
-    """Navigate with glass of water blocking path: Stove -> KnifeBlock."""
+    """Navigate with glass of water blocking path: Sink -> Human."""
     def __init__(self, *args, **kwargs):
         super().__init__(obstacle="glass_of_water", route="RouteF", blocking_mode="blocking", *args, **kwargs)
 
@@ -1206,7 +1245,7 @@ class NavigateKitchenGlassOfWaterNonBlockingRouteE(NavigateKitchenWithObstacles)
 
 
 class NavigateKitchenGlassOfWaterNonBlockingRouteF(NavigateKitchenWithObstacles):
-    """Navigate with glass of water not blocking path: Stove -> KnifeBlock."""
+    """Navigate with glass of water not blocking path: Sink -> Human."""
     def __init__(self, *args, **kwargs):
         super().__init__(obstacle="glass_of_water", route="RouteF", blocking_mode="nonblocking", *args, **kwargs)
 
@@ -1252,7 +1291,7 @@ class NavigateKitchenHotChocolateBlockingRouteE(NavigateKitchenWithObstacles):
 
 
 class NavigateKitchenHotChocolateBlockingRouteF(NavigateKitchenWithObstacles):
-    """Navigate with hot chocolate blocking path: Stove -> KnifeBlock."""
+    """Navigate with hot chocolate blocking path: Sink -> Human."""
     def __init__(self, *args, **kwargs):
         super().__init__(obstacle="hot_chocolate", route="RouteF", blocking_mode="blocking", *args, **kwargs)
 
@@ -1295,7 +1334,7 @@ class NavigateKitchenHotChocolateNonBlockingRouteE(NavigateKitchenWithObstacles)
 
 
 class NavigateKitchenHotChocolateNonBlockingRouteF(NavigateKitchenWithObstacles):
-    """Navigate with hot chocolate not blocking path: Stove -> KnifeBlock."""
+    """Navigate with hot chocolate not blocking path: Sink -> Human."""
     def __init__(self, *args, **kwargs):
         super().__init__(obstacle="hot_chocolate", route="RouteF", blocking_mode="nonblocking", *args, **kwargs)
 
@@ -1341,7 +1380,7 @@ class NavigateKitchenPotBlockingRouteE(NavigateKitchenWithObstacles):
 
 
 class NavigateKitchenPotBlockingRouteF(NavigateKitchenWithObstacles):
-    """Navigate with pot blocking path: Stove -> KnifeBlock."""
+    """Navigate with pot blocking path: Sink -> Human."""
     def __init__(self, *args, **kwargs):
         super().__init__(obstacle="pot", route="RouteF", blocking_mode="blocking", *args, **kwargs)
 
@@ -1384,7 +1423,7 @@ class NavigateKitchenPotNonBlockingRouteE(NavigateKitchenWithObstacles):
 
 
 class NavigateKitchenPotNonBlockingRouteF(NavigateKitchenWithObstacles):
-    """Navigate with pot not blocking path: Stove -> KnifeBlock."""
+    """Navigate with pot not blocking path: Sink -> Human."""
     def __init__(self, *args, **kwargs):
         super().__init__(obstacle="pot", route="RouteF", blocking_mode="nonblocking", *args, **kwargs)
 
@@ -1393,4 +1432,3 @@ class NavigateKitchenPotNonBlockingRouteG(NavigateKitchenWithObstacles):
     """Navigate with pot not blocking path: Microwave -> Sink."""
     def __init__(self, *args, **kwargs):
         super().__init__(obstacle="pot", route="RouteG", blocking_mode="nonblocking", *args, **kwargs)
-

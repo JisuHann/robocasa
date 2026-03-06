@@ -1,0 +1,365 @@
+"""
+Run environments without teleoperation in parallel (offscreen recording).
+Refined to follow run_env_no_teleop.py behavior while keeping multiprocessing.
+"""
+
+import os
+import numpy as np
+import imageio
+import argparse
+from multiprocessing import Pool, cpu_count
+from termcolor import colored
+from tqdm import tqdm
+
+import robosuite
+from robosuite.controllers import load_composite_controller_config
+
+from robocasa.environments import ALL_KITCHEN_ENVIRONMENTS
+from robocasa.models.scenes.scene_registry import LayoutType, StyleType, LAYOUT_GROUPS_TO_IDS
+import task_listup
+
+
+ENV_CATEGORIES = {
+    "handover": task_listup.handover_tasks,
+    "navigate_safe": task_listup.navigate_safe_tasks,
+    "move_hot_object": task_listup.move_hot_object_to_table_tasks,
+    "open_door_safe": ["OpenDoorSafe"],
+    "close_door_safe": ["CloseDoorSafeCenter", "CloseDoorSafeThreshold", "CloseDoorSafeEdge"],
+}
+
+def create_env_offscreen(
+    env_name,
+    robots="PandaOmron",
+    camera_names=[
+        "robot0_agentview_left",
+        "robot0_agentview_right",
+        "robot0_eye_in_hand",
+        "robot0_frontview",
+    ],
+    camera_widths=128,
+    camera_heights=128,
+    seed=None,
+    render_camera="topview",
+    layout_ids=None,
+    style_ids=None,
+    has_human=True,
+    gpu_id=0,
+):
+    """Create environment in offscreen mode only."""
+    controller_config = load_composite_controller_config(
+        controller=None,
+        robot=robots if isinstance(robots, str) else robots[0],
+    )
+
+    env_kwargs = dict(
+        env_name=env_name,
+        robots=robots,
+        controller_configs=controller_config,
+        has_renderer=False,
+        has_offscreen_renderer=True,
+        render_camera=render_camera,
+        ignore_done=True,
+        use_object_obs=True,
+        use_camera_obs=False,
+        camera_names=camera_names,
+        camera_widths=camera_widths,
+        camera_heights=camera_heights,
+        camera_depths=False,
+        seed=seed,
+        layout_ids=layout_ids,
+        style_ids=style_ids,
+        translucent_robot=False,
+        render_gpu_device_id=gpu_id,
+    )
+    if "Door" in env_name and "NoHuman" not in env_name:
+        env_kwargs['has_human'] = has_human
+    env = robosuite.make(**env_kwargs)
+    return env
+
+
+def run_simulation(
+    env,
+    horizon=100,
+    record_path=None,
+    camera_name="topview",
+    render_height=1024,
+    render_width=1536,
+    action_mode="zero",
+    check_success_interval=10,
+):
+    """
+    Run simulation with random or zero actions.
+
+    Args:
+        env: robosuite environment
+        horizon: number of steps to run
+        record_path: path to save video (if None, no recording)
+        camera_name: camera to render from
+        render_height: height of rendered frames
+        render_width: width of rendered frames
+        action_mode: "random" for random actions, "zero" for no movement
+
+    Returns:
+        dict with simulation results
+    """
+    writer = imageio.get_writer(record_path, fps=20) if record_path else None
+
+    low, high = env.action_spec
+    obs = env.reset()
+
+    if writer is not None:
+        frame = env.sim.render(height=render_height, width=render_width, camera_name=camera_name)[::-1]
+        writer.append_data(frame)
+
+    success = False
+    success_step = None
+
+    for t in range(horizon):
+        if action_mode == "random":
+            action = np.random.uniform(low, high)
+        else:
+            action = np.zeros_like(high)
+
+        obs, reward, done, info = env.step(action)
+
+        if writer is not None:
+            frame = env.sim.render(height=render_height, width=render_width, camera_name=camera_name)[::-1]
+            writer.append_data(frame)
+
+        if (t % check_success_interval) == 0:
+            try:
+                if env._check_success() and not success:
+                    success = True
+                    success_step = t
+            except Exception:
+                pass
+
+    if writer is not None:
+        writer.close()
+        print(colored(f"Video saved: {record_path}", "green"))
+
+    return {
+        "success": success,
+        "success_step": success_step,
+        "total_steps": horizon,
+    }
+
+
+def run_single_task(task_config):
+    """
+    Worker function to run a single simulation task.
+
+    Args:
+        task_config: dict containing all parameters for the task
+
+    Returns:
+        dict with task results
+    """
+    env_name = task_config["env_name"]
+    layout_id = task_config["layout_id"]
+    style_id = task_config["style_id"]
+    record_path = task_config["record_path"]
+    horizon = task_config["horizon"]
+    seed = task_config["seed"]
+    has_human = task_config["has_human"]
+    gpu_id = task_config.get("gpu_id", 0)
+    action_mode = task_config.get("action_mode", "zero")
+
+    try:
+        env = create_env_offscreen(
+            env_name=env_name,
+            seed=seed,
+            layout_ids=[layout_id],
+            style_ids=[style_id],
+            render_camera="topview",
+            has_human=has_human,
+            gpu_id=gpu_id,
+        )
+
+        sim_result = run_simulation(
+            env,
+            horizon=horizon,
+            record_path=record_path,
+            action_mode=action_mode,
+        )
+
+        env.close()
+
+        return {
+            "env_name": env_name,
+            "layout_id": layout_id,
+            "style_id": style_id,
+            "record_path": record_path,
+            "status": "success",
+            **sim_result,
+        }
+    except Exception as e:
+        return {
+            "env_name": env_name,
+            "layout_id": layout_id,
+            "style_id": style_id,
+            "record_path": record_path,
+            "status": "error",
+            "error": str(e),
+        }
+
+
+def run_parallel_simulations(tasks, num_workers=None):
+    """Run pre-built task configs in parallel."""
+    if num_workers is None:
+        num_workers = min(cpu_count(), 4)
+
+    print(f"[info] Running {len(tasks)} simulations with {num_workers} workers")
+
+    results = []
+    with Pool(processes=num_workers) as pool:
+        for result in tqdm(
+            pool.imap_unordered(run_single_task, tasks),
+            total=len(tasks),
+            desc="Running simulations"
+        ):
+            results.append(result)
+            if result["status"] == "success":
+                print(colored(f"  [done] {result['env_name']} - {LayoutType(result['layout_id']).name}", "black"))
+            else:
+                print(colored(f"  [error] {result['env_name']} - {result.get('error', 'unknown')}", "red"))
+
+    return results
+
+
+def determine_target_envs(args):
+    if args.specific_env is not None:
+        target_envs = [args.specific_env]
+    elif args.env == "custom":
+        if args.env_names is None:
+            raise ValueError("--env_names required when --env custom")
+        target_envs = args.env_names
+    else:
+        target_envs = ENV_CATEGORIES.get(args.env, [])
+    print(f"Before filtering, {len(target_envs)} environments")
+    if args.filter_env_keyword:
+        print(f"[info] Filtering environments with keyword: {args.filter_env_keyword}")
+        target_envs = [env for env in target_envs if args.filter_env_keyword.lower() in env.lower()]
+
+    # Keep parity with run_env_no_teleop.py.
+    target_envs = [env for env in target_envs if "coffee" not in env.lower()]
+
+    if args.filter_out_keyword:
+        print(f"[info] Filtering out environments with keyword: {args.filter_out_keyword}")
+        target_envs = [env for env in target_envs if args.filter_out_keyword.lower() not in env.lower()]
+
+    valid_envs = []
+    for env_name in target_envs:
+        if env_name in ALL_KITCHEN_ENVIRONMENTS:
+            valid_envs.append(env_name)
+        else:
+            print(colored(f"[warn] Environment '{env_name}' not found in registry, skipping", "yellow"))
+    return valid_envs
+
+
+def determine_layout_ids(layout_arg):
+    if layout_arg == "all":
+        return LAYOUT_GROUPS_TO_IDS[LayoutType.ALL]
+    if layout_arg is not None:
+        return [LayoutType[layout_arg].value]
+    return [LayoutType.ONE_WALL_SMALL.value, LayoutType.L_SHAPED_SMALL.value]
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run environments in parallel without teleoperation")
+    parser.add_argument("--env", type=str, default="move_hot_object",
+                        choices=list(ENV_CATEGORIES.keys()) + ["custom"],
+                        help="Environment category to run")
+    parser.add_argument("--env_names", type=str, nargs="+", default=None,
+                        help="Specific environment names (for custom mode)")
+    parser.add_argument("--specific_env", type=str, default=None,
+                        help="Specify a single specific environment name")
+    parser.add_argument("--filter_env_keyword", type=str, default=None,
+                        help="Keyword to filter environment names")
+    parser.add_argument("--filter_out_keyword", type=str, default=None,
+                        help="Keyword to filter out environment names")
+    parser.add_argument("--record_path", type=str, required=True,
+                        help="Directory to save recorded videos")
+    parser.add_argument("--horizon", type=int, default=5,
+                        help="Number of simulation steps")
+    parser.add_argument("--seed", type=int, default=0,
+                        help="Random seed")
+    parser.add_argument("--num_workers", type=int, default=None,
+                        help="Number of parallel workers (default: min(cpu_count, 4))")
+    parser.add_argument("--layout", type=str, default=None,
+                        choices=[lt.name for lt in LayoutType] + ["all"],
+                        help="Specific layout to test")
+    parser.add_argument("--no-human", action="store_true",
+                        help="Disable human in the environment")
+    parser.add_argument("--action_mode", type=str, default="zero",
+                        choices=["zero", "random"],
+                        help="Action mode: zero (stationary) or random")
+    parser.add_argument("--gpu_id", type=int, default=0,
+                        help="GPU device ID for rendering")
+    parser.add_argument("--skip-existing", action="store_true",
+                        help="Skip recording if file already exists")
+
+    args = parser.parse_args()
+
+    env_names = determine_target_envs(args)
+    if not env_names:
+        print(colored("[error] No valid environments to run", "red"))
+        exit(1)
+
+    layout_ids = determine_layout_ids(args.layout)
+    style_ids = [StyleType.MEDITERRANEAN.value]
+    os.makedirs(args.record_path, exist_ok=True)
+
+    print(f"[info] Environments: {env_names}")
+    print(f"[info] Layouts: {[LayoutType(lid).name for lid in layout_ids]}")
+    print(f"[info] Has human: {not args.no_human}")
+    print(f"[info] Action mode: {args.action_mode}")
+
+    tasks = []
+    for env_name in env_names:
+        for layout_id in layout_ids:
+            for style_id in style_ids:
+                layout_name = LayoutType(layout_id).name
+                style_name = StyleType(style_id).name
+                record_path = os.path.join(args.record_path, f"{env_name}_{layout_name}_{style_name}.mp4")
+                if args.skip_existing and os.path.exists(record_path):
+                    print(f"[info] Skipping (already exists): {record_path}")
+                    continue
+                tasks.append({
+                    "env_name": env_name,
+                    "layout_id": layout_id,
+                    "style_id": style_id,
+                    "record_path": record_path,
+                    "horizon": args.horizon,
+                    "seed": args.seed,
+                    "has_human": not args.no_human,
+                    "gpu_id": args.gpu_id,
+                    "action_mode": args.action_mode,
+                })
+
+    if not tasks:
+        print("[info] No tasks to run (all skipped or filtered).")
+        exit(0)
+
+    print(f"[info] Output directory: {args.record_path}")
+    results = run_parallel_simulations(tasks=tasks, num_workers=args.num_workers)
+
+    # Summary
+    print("\n" + "=" * 60)
+    print("SUMMARY")
+    print("=" * 60)
+    success_count = sum(1 for r in results if r["status"] == "success")
+    error_count = sum(1 for r in results if r["status"] == "error")
+    task_success_count = sum(1 for r in results if r.get("success", False))
+    print(f"Total tasks: {len(results)}")
+    print(f"Successful: {success_count}")
+    print(f"Errors: {error_count}")
+    print(f"Task successes: {task_success_count}")
+
+    if error_count > 0:
+        print("\nErrors:")
+        for r in results:
+            if r["status"] == "error":
+                print(f"  - {r['env_name']} ({LayoutType(r['layout_id']).name}): {r.get('error', 'unknown')}")
+
+    print("\nDone.")

@@ -230,7 +230,7 @@ left_group:
 
     - name: standing_table
       type: standing_table
-      pos: [-4.0, -2.5, 0.0]
+      pos: [-4.0, -2.5, 0.4]
       rot: 0    
 
 # fixtures on the right wall

@@ -66,16 +66,6 @@ class HandOver(Kitchen):
         
         
         super().__init__(*args, **kwargs)
-    def _load_model(self):
-        """
-        Loads an xml model, puts it in self.model
-        """
-        super()._load_model()
-
-        # Set robot base position
-        # robot_model = self.robots[0].robot_model
-        # robot_base_pos = [2.0, -1.1, 0.0]
-        # robot_model.set_base_xpos(robot_base_pos)
 
     def _setup_kitchen_references(self):
         """

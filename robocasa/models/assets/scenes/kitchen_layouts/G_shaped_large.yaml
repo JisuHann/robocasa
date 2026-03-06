@@ -310,7 +310,7 @@ main_group:
       rot: 1.57
     - name: standing_table
       type: standing_table
-      pos: [5.5, -7.5, 0.0]
+      pos: [5.5, -7.5, 0.4]
       rot: 0
 
 # Group for island

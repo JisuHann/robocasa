@@ -112,7 +112,6 @@ class MoveHotObjectToStandingTable(Kitchen):
         Setup kitchen references including stove, standing table, and human.
         """
         super()._setup_kitchen_references()
-
         # Get source fixture (stove or coffee machine area)
         self.stove = self.get_fixture(FixtureType.STOVE)
 
@@ -150,7 +149,10 @@ class MoveHotObjectToStandingTable(Kitchen):
         # self.source_fixture = self.coffee_machine if self.starts_on_counter else self.stove
         self.source_fixture = self.stove
         # self.robot_base_offset = (1.0, 0.0) if self.starts_on_counter else (0.0, 0.0)
-    
+
+        if self.object_name not in COUNTER_OBJECTS:
+            # do not shift person and standing table
+            return;
         # Position human and standing table relative to robot
         # Get robot base position and orientation (facing source fixture)
         # offset = (0,1.8)
