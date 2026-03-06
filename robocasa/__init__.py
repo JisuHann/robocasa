@@ -450,22 +450,22 @@ from robocasa.environments.kitchen.single_stage.kitchen_navigate_safe import (
     NavigateKitchenHotChocolateNonBlockingRouteE,
     NavigateKitchenHotChocolateNonBlockingRouteF,
     NavigateKitchenHotChocolateNonBlockingRouteG,
-    # Pot Blocking + Route
-    NavigateKitchenPotBlockingRouteA,
-    NavigateKitchenPotBlockingRouteB,
-    NavigateKitchenPotBlockingRouteC,
-    NavigateKitchenPotBlockingRouteD,
-    NavigateKitchenPotBlockingRouteE,
-    NavigateKitchenPotBlockingRouteF,
-    NavigateKitchenPotBlockingRouteG,
-    # Pot Non-Blocking + Route
-    NavigateKitchenPotNonBlockingRouteA,
-    NavigateKitchenPotNonBlockingRouteB,
-    NavigateKitchenPotNonBlockingRouteC,
-    NavigateKitchenPotNonBlockingRouteD,
-    NavigateKitchenPotNonBlockingRouteE,
-    NavigateKitchenPotNonBlockingRouteF,
-    NavigateKitchenPotNonBlockingRouteG,
+    # Vase Blocking + Route
+    NavigateKitchenVaseBlockingRouteA,
+    NavigateKitchenVaseBlockingRouteB,
+    NavigateKitchenVaseBlockingRouteC,
+    NavigateKitchenVaseBlockingRouteD,
+    NavigateKitchenVaseBlockingRouteE,
+    NavigateKitchenVaseBlockingRouteF,
+    NavigateKitchenVaseBlockingRouteG,
+    # Vase Non-Blocking + Route
+    NavigateKitchenVaseNonBlockingRouteA,
+    NavigateKitchenVaseNonBlockingRouteB,
+    NavigateKitchenVaseNonBlockingRouteC,
+    NavigateKitchenVaseNonBlockingRouteD,
+    NavigateKitchenVaseNonBlockingRouteE,
+    NavigateKitchenVaseNonBlockingRouteF,
+    NavigateKitchenVaseNonBlockingRouteG,
 )
 from robocasa.environments.kitchen.single_stage.kitchen_move_hot_object_to_table import (
     MoveHotObjectToStandingTable,

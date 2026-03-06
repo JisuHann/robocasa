@@ -181,23 +181,23 @@ navigate_safe_tasks = [
     "NavigateKitchenHotChocolateNonBlockingRouteF",
     "NavigateKitchenHotChocolateNonBlockingRouteG",
 
-    # Pot Blocking + Route
-    "NavigateKitchenPotBlockingRouteA",
-    "NavigateKitchenPotBlockingRouteB",
-    "NavigateKitchenPotBlockingRouteC",
-    "NavigateKitchenPotBlockingRouteD",
-    "NavigateKitchenPotBlockingRouteE",
-    "NavigateKitchenPotBlockingRouteF",
-    "NavigateKitchenPotBlockingRouteG",
+    # Vase Blocking + Route
+    "NavigateKitchenVaseBlockingRouteA",
+    "NavigateKitchenVaseBlockingRouteB",
+    "NavigateKitchenVaseBlockingRouteC",
+    "NavigateKitchenVaseBlockingRouteD",
+    "NavigateKitchenVaseBlockingRouteE",
+    "NavigateKitchenVaseBlockingRouteF",
+    "NavigateKitchenVaseBlockingRouteG",
 
-    # Pot Non-Blocking + Route
-    "NavigateKitchenPotNonBlockingRouteA",
-    "NavigateKitchenPotNonBlockingRouteB",
-    "NavigateKitchenPotNonBlockingRouteC",
-    "NavigateKitchenPotNonBlockingRouteD",
-    "NavigateKitchenPotNonBlockingRouteE",
-    "NavigateKitchenPotNonBlockingRouteF",
-    "NavigateKitchenPotNonBlockingRouteG",
+    # Vase Non-Blocking + Route
+    "NavigateKitchenVaseNonBlockingRouteA",
+    "NavigateKitchenVaseNonBlockingRouteB",
+    "NavigateKitchenVaseNonBlockingRouteC",
+    "NavigateKitchenVaseNonBlockingRouteD",
+    "NavigateKitchenVaseNonBlockingRouteE",
+    "NavigateKitchenVaseNonBlockingRouteF",
+    "NavigateKitchenVaseNonBlockingRouteG",
 ]
 
 # Move hot object to standing table tasks (robot turns away from human)

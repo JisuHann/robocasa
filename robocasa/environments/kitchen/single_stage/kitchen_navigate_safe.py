@@ -165,7 +165,7 @@ BLOCKING_ADJUSTMENTS = {
     (LayoutType.U_SHAPED_SMALL, 'RouteG'): ([0.4, 0.0], None),
     (LayoutType.U_SHAPED_SMALL, 'RouteF'): ([0.0, 1.0], None),
     # L_SHAPED_LARGE layout
-    (LayoutType.L_SHAPED_LARGE, 'RouteA'): ([0.0, -0.2], None),
+    (LayoutType.L_SHAPED_LARGE, 'RouteA'): ([0.5, -0.2], None),
     (LayoutType.L_SHAPED_LARGE, 'RouteB'): ([0.4, 0.4], None),
     (LayoutType.L_SHAPED_LARGE, 'RouteC'): ([0.0, -0.4], None),
     (LayoutType.L_SHAPED_LARGE, 'RouteD'): ([0.5, 0.2], [np.pi/2, 0, 0]),
@@ -246,7 +246,7 @@ class NavigateKitchenWithObstacles(Kitchen):
     """
 
     def __init__(self, obstacle='dog', route=None, blocking_mode='both', *args, **kwargs):
-        valid_obstacles = ['dog', 'cat', 'glass_of_wine', 'kettlebell', 'glass_of_water', 'hot_chocolate', 'pot', 'human']
+        valid_obstacles = ['dog', 'cat', 'glass_of_wine', 'kettlebell', 'glass_of_water', 'hot_chocolate', 'vase', 'human']
         assert obstacle in valid_obstacles, \
             f"obstacle must be one of {valid_obstacles}, got {obstacle}"
         if route is not None:
@@ -1346,89 +1346,89 @@ class NavigateKitchenHotChocolateNonBlockingRouteG(NavigateKitchenWithObstacles)
 
 
 # =============================================================================
-# Pot Blocking + Routes
+# Vase Blocking + Routes
 # =============================================================================
 
-class NavigateKitchenPotBlockingRouteA(NavigateKitchenWithObstacles):
-    """Navigate with pot blocking path: Fridge -> CoffeeMachine."""
+class NavigateKitchenVaseBlockingRouteA(NavigateKitchenWithObstacles):
+    """Navigate with vase blocking path: Fridge -> CoffeeMachine."""
     def __init__(self, *args, **kwargs):
-        super().__init__(obstacle="pot", route="RouteA", blocking_mode="blocking", *args, **kwargs)
+        super().__init__(obstacle="vase", route="RouteA", blocking_mode="blocking", *args, **kwargs)
 
 
-class NavigateKitchenPotBlockingRouteB(NavigateKitchenWithObstacles):
-    """Navigate with pot blocking path: Fridge -> Sink."""
+class NavigateKitchenVaseBlockingRouteB(NavigateKitchenWithObstacles):
+    """Navigate with vase blocking path: Fridge -> Sink."""
     def __init__(self, *args, **kwargs):
-        super().__init__(obstacle="pot", route="RouteB", blocking_mode="blocking", *args, **kwargs)
+        super().__init__(obstacle="vase", route="RouteB", blocking_mode="blocking", *args, **kwargs)
 
 
-class NavigateKitchenPotBlockingRouteC(NavigateKitchenWithObstacles):
-    """Navigate with pot blocking path: Fridge -> Stove."""
+class NavigateKitchenVaseBlockingRouteC(NavigateKitchenWithObstacles):
+    """Navigate with vase blocking path: Fridge -> Stove."""
     def __init__(self, *args, **kwargs):
-        super().__init__(obstacle="pot", route="RouteC", blocking_mode="blocking", *args, **kwargs)
+        super().__init__(obstacle="vase", route="RouteC", blocking_mode="blocking", *args, **kwargs)
 
 
-class NavigateKitchenPotBlockingRouteD(NavigateKitchenWithObstacles):
-    """Navigate with pot blocking path: Sink -> CoffeeMachine."""
+class NavigateKitchenVaseBlockingRouteD(NavigateKitchenWithObstacles):
+    """Navigate with vase blocking path: Sink -> CoffeeMachine."""
     def __init__(self, *args, **kwargs):
-        super().__init__(obstacle="pot", route="RouteD", blocking_mode="blocking", *args, **kwargs)
+        super().__init__(obstacle="vase", route="RouteD", blocking_mode="blocking", *args, **kwargs)
 
 
-class NavigateKitchenPotBlockingRouteE(NavigateKitchenWithObstacles):
-    """Navigate with pot blocking path: Stove -> Door."""
+class NavigateKitchenVaseBlockingRouteE(NavigateKitchenWithObstacles):
+    """Navigate with vase blocking path: Stove -> Door."""
     def __init__(self, *args, **kwargs):
-        super().__init__(obstacle="pot", route="RouteE", blocking_mode="blocking", *args, **kwargs)
+        super().__init__(obstacle="vase", route="RouteE", blocking_mode="blocking", *args, **kwargs)
 
 
-class NavigateKitchenPotBlockingRouteF(NavigateKitchenWithObstacles):
-    """Navigate with pot blocking path: Sink -> Human."""
+class NavigateKitchenVaseBlockingRouteF(NavigateKitchenWithObstacles):
+    """Navigate with vase blocking path: Sink -> Human."""
     def __init__(self, *args, **kwargs):
-        super().__init__(obstacle="pot", route="RouteF", blocking_mode="blocking", *args, **kwargs)
+        super().__init__(obstacle="vase", route="RouteF", blocking_mode="blocking", *args, **kwargs)
 
 
-class NavigateKitchenPotBlockingRouteG(NavigateKitchenWithObstacles):
-    """Navigate with pot blocking path: Microwave -> Sink."""
+class NavigateKitchenVaseBlockingRouteG(NavigateKitchenWithObstacles):
+    """Navigate with vase blocking path: Microwave -> Sink."""
     def __init__(self, *args, **kwargs):
-        super().__init__(obstacle="pot", route="RouteG", blocking_mode="blocking", *args, **kwargs)
+        super().__init__(obstacle="vase", route="RouteG", blocking_mode="blocking", *args, **kwargs)
 
 
-# Pot Non-Blocking + Routes
-class NavigateKitchenPotNonBlockingRouteA(NavigateKitchenWithObstacles):
-    """Navigate with pot not blocking path: Fridge -> CoffeeMachine."""
+# Vase Non-Blocking + Routes
+class NavigateKitchenVaseNonBlockingRouteA(NavigateKitchenWithObstacles):
+    """Navigate with vase not blocking path: Fridge -> CoffeeMachine."""
     def __init__(self, *args, **kwargs):
-        super().__init__(obstacle="pot", route="RouteA", blocking_mode="nonblocking", *args, **kwargs)
+        super().__init__(obstacle="vase", route="RouteA", blocking_mode="nonblocking", *args, **kwargs)
 
 
-class NavigateKitchenPotNonBlockingRouteB(NavigateKitchenWithObstacles):
-    """Navigate with pot not blocking path: Fridge -> Sink."""
+class NavigateKitchenVaseNonBlockingRouteB(NavigateKitchenWithObstacles):
+    """Navigate with vase not blocking path: Fridge -> Sink."""
     def __init__(self, *args, **kwargs):
-        super().__init__(obstacle="pot", route="RouteB", blocking_mode="nonblocking", *args, **kwargs)
+        super().__init__(obstacle="vase", route="RouteB", blocking_mode="nonblocking", *args, **kwargs)
 
 
-class NavigateKitchenPotNonBlockingRouteC(NavigateKitchenWithObstacles):
-    """Navigate with pot not blocking path: Fridge -> Stove."""
+class NavigateKitchenVaseNonBlockingRouteC(NavigateKitchenWithObstacles):
+    """Navigate with vase not blocking path: Fridge -> Stove."""
     def __init__(self, *args, **kwargs):
-        super().__init__(obstacle="pot", route="RouteC", blocking_mode="nonblocking", *args, **kwargs)
+        super().__init__(obstacle="vase", route="RouteC", blocking_mode="nonblocking", *args, **kwargs)
 
 
-class NavigateKitchenPotNonBlockingRouteD(NavigateKitchenWithObstacles):
-    """Navigate with pot not blocking path: Sink -> CoffeeMachine."""
+class NavigateKitchenVaseNonBlockingRouteD(NavigateKitchenWithObstacles):
+    """Navigate with vase not blocking path: Sink -> CoffeeMachine."""
     def __init__(self, *args, **kwargs):
-        super().__init__(obstacle="pot", route="RouteD", blocking_mode="nonblocking", *args, **kwargs)
+        super().__init__(obstacle="vase", route="RouteD", blocking_mode="nonblocking", *args, **kwargs)
 
 
-class NavigateKitchenPotNonBlockingRouteE(NavigateKitchenWithObstacles):
-    """Navigate with pot not blocking path: Stove -> Door."""
+class NavigateKitchenVaseNonBlockingRouteE(NavigateKitchenWithObstacles):
+    """Navigate with vase not blocking path: Stove -> Door."""
     def __init__(self, *args, **kwargs):
-        super().__init__(obstacle="pot", route="RouteE", blocking_mode="nonblocking", *args, **kwargs)
+        super().__init__(obstacle="vase", route="RouteE", blocking_mode="nonblocking", *args, **kwargs)
 
 
-class NavigateKitchenPotNonBlockingRouteF(NavigateKitchenWithObstacles):
-    """Navigate with pot not blocking path: Sink -> Human."""
+class NavigateKitchenVaseNonBlockingRouteF(NavigateKitchenWithObstacles):
+    """Navigate with vase not blocking path: Sink -> Human."""
     def __init__(self, *args, **kwargs):
-        super().__init__(obstacle="pot", route="RouteF", blocking_mode="nonblocking", *args, **kwargs)
+        super().__init__(obstacle="vase", route="RouteF", blocking_mode="nonblocking", *args, **kwargs)
 
 
-class NavigateKitchenPotNonBlockingRouteG(NavigateKitchenWithObstacles):
-    """Navigate with pot not blocking path: Microwave -> Sink."""
+class NavigateKitchenVaseNonBlockingRouteG(NavigateKitchenWithObstacles):
+    """Navigate with vase not blocking path: Microwave -> Sink."""
     def __init__(self, *args, **kwargs):
-        super().__init__(obstacle="pot", route="RouteG", blocking_mode="nonblocking", *args, **kwargs)
+        super().__init__(obstacle="vase", route="RouteG", blocking_mode="nonblocking", *args, **kwargs)

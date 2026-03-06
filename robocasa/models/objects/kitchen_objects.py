@@ -2202,6 +2202,18 @@ OBJ_CATEGORIES = dict(
             model_folders=["lrs_objs/glass_of_wine"],
         ),
     ),
+    vase=dict(
+        types=("decoration",),
+        graspable=True,
+        washable=True,
+        microwavable=False,
+        cookable=False,
+        freezable=False,
+        lrs_objs=dict(
+            scale=0.2,
+            model_folders=["lrs_objs/vase"],
+        ),
+    ),
     iphone=dict(
         types=("electronics",),
         graspable=True,
