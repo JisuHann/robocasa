@@ -10,6 +10,7 @@ import argparse
 from multiprocessing import Pool, cpu_count
 from termcolor import colored
 from tqdm import tqdm
+import logging
 
 import robosuite
 from robosuite.controllers import load_composite_controller_config
@@ -325,6 +326,11 @@ if __name__ == "__main__":
                 if args.skip_existing and os.path.exists(record_path):
                     print(f"[info] Skipping (already exists): {record_path}")
                     continue
+                
+                log_dir = os.path.join(args.record_path, "log")
+                os.makedirs(log_dir, exist_ok=True)
+                logging_file = os.path.join(log_dir, f"{env_name}_{layout_name}.log")
+                logging.basicConfig(level=logging.INFO, filename=logging_file, filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
                 tasks.append({
                     "env_name": env_name,
                     "layout_id": layout_id,

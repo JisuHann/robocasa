@@ -26,6 +26,7 @@ from tqdm import tqdm
 
 import robosuite
 from robosuite.controllers import load_composite_controller_config
+import logging
 
 from robocasa.environments import ALL_KITCHEN_ENVIRONMENTS
 from robocasa.models.scenes.scene_registry import LayoutType, StyleType, LAYOUT_GROUPS_TO_IDS
@@ -172,7 +173,8 @@ def run_simulation(
 
     if writer is not None:
         writer.close()
-        print(colored(f"Video saved: {record_path}", "green"))
+        logging.info(colored(f"Video saved: {record_path}", "green"))
+        
 
     return {
         "success": success,
@@ -229,35 +231,35 @@ def main():
 
     # Filter by keyword if provided
     if args.filter_env_keyword:
-        print(f"[info] Filtering environments with keyword: {args.filter_env_keyword}")
+        logging.info(f"Filtering environments with keyword: {args.filter_env_keyword}")
         target_envs = [env for env in target_envs if args.filter_env_keyword.lower() in env.lower()]
     # # Filter out coffee-related environment classes.
     target_envs = [env for env in target_envs if "coffee" not in env.lower()]
     # Filter out environments with the specified keyword
     if args.filter_out_keyword:
-        print(f"[info] Filtering out environments with keyword: {args.filter_out_keyword}")
+        logging.info(f"[info] Filtering out environments with keyword: {args.filter_out_keyword}")
         target_envs = [env for env in target_envs if args.filter_out_keyword.lower() not in env.lower()]
-    print(f"[info] Number of target environments: {len(target_envs)}")
-    
+    logging.info(f"[info] Number of target environments: {len(target_envs)}")
+
     # Validate environments
     valid_envs = []
     for env_name in target_envs:
         if env_name in ALL_KITCHEN_ENVIRONMENTS:
             valid_envs.append(env_name)
         else:
-            print(colored(f"[warn] Environment '{env_name}' not found in registry, skipping", "yellow"))
+            logging.warning(f"Environment '{env_name}' not found in registry, skipping")
 
     if not valid_envs:
-        print(colored("[error] No valid environments to run", "red"))
-        print(f"[info] Available environments in category '{args.env}':")
+        logging.error("[error] No valid environments to run")
+        logging.info(f"[info] Available environments in category '{args.env}':")
         for env in ENV_CATEGORIES.get(args.env, []):
             status = "OK" if env in ALL_KITCHEN_ENVIRONMENTS else "NOT REGISTERED"
-            print(f"  - {env}: {status}")
+            logging.info(f"  - {env}: {status}")
         return
 
     target_envs = valid_envs
-    print(f"[info] Target environments: {len(target_envs)} - {target_envs}")
-    print(f"[info] The number of tasks : {len(target_envs)}")
+    logging.info(f"[info] Target environments: {len(target_envs)} - {target_envs}")
+    logging.info(f"[info] The number of tasks : {len(target_envs)}")
     # import sys
     # sys.exit()
     # Determine layouts
@@ -272,9 +274,9 @@ def main():
             LayoutType.L_SHAPED_SMALL.value,
         ]
 
-    print(f"[info] Layouts: {[LayoutType(lid).name for lid in layout_ids]}")
-    print(f"[info] Action mode: {args.action_mode}")
-    print(f"[info] Has human: {not args.no_human}")
+    logging.info(f"[info] Layouts: {[LayoutType(lid).name for lid in layout_ids]}")
+    logging.info(f"[info] Action mode: {args.action_mode}")
+    logging.info(f"[info] Has human: {not args.no_human}")
 
     # Setup output directory
     if args.record_path:
@@ -284,20 +286,26 @@ def main():
     results = []
     for layout_id in layout_ids:
         layout_name = LayoutType(layout_id).name
-        print(f"\n[info] Testing layout: {layout_name}")
+        logging.info(f"\n[info] Testing layout: {layout_name}")
 
         for env_name in target_envs:
-            print(f"[info] Running: {env_name}")
+            logging.info(f"[info] Running: {env_name}")
 
             # Determine record path
             if args.record_path:
                 record_file = os.path.join(args.record_path, f"{env_name}_{layout_name}.mp4")
                 if args.skip_existing and os.path.exists(record_file):
-                    print(f"[info] Skipping (already exists): {record_file}")
+                    logging.info(f"[info] Skipping (already exists): {record_file}")
                     continue
             else:
                 record_file = None
-
+            if record_file is not None:
+                log_dir = os.path.join(args.record_path, "log")
+                os.makedirs(log_dir, exist_ok=True)
+                logging_file = os.path.join(log_dir, f"{env_name}_{layout_name}.log")
+                logging.basicConfig(level=logging.DEBUG, filename=logging_file, filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
+            else:
+                logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s", handlers=[logging.StreamHandler()])
             try:
                 # Create environment
                 env = create_env(
@@ -328,12 +336,12 @@ def main():
                 env.close()
 
                 if result['success']:
-                    print(colored(f"  [done] Task success at step {result['success_step']}", "green"))
+                    logging.info(f"  [done] Task success at step {result['success_step']}")
                 else:
-                    print(colored(f"  [done] Completed {result['total_steps']} steps", "blue"))
+                    logging.info(f"  [done] Completed {result['total_steps']} steps")
 
             except Exception as e:
-                print(colored(f"  [error] {env_name}: {str(e)}", "red"))
+                logging.error(f"  [error] {env_name}: {str(e)}")
                 results.append({
                     'env_name': env_name,
                     'layout': layout_name,
@@ -341,26 +349,26 @@ def main():
                     'error': str(e),
                 })
 
-    # Print summary
-    print("\n" + "=" * 60)
-    print("SUMMARY")
-    print("=" * 60)
+    # summary
+    logging.info("\n" + "=" * 60)
+    logging.info("SUMMARY")
+    logging.info("=" * 60)
     success_count = sum(1 for r in results if r.get('status') == 'success')
     error_count = sum(1 for r in results if r.get('status') == 'error')
     task_success_count = sum(1 for r in results if r.get('success', False))
 
-    print(f"Total runs: {len(results)}")
-    print(f"Successful runs: {success_count}")
-    print(f"Errors: {error_count}")
-    print(f"Task successes: {task_success_count}")
+    logging.info(f"Total runs: {len(results)}")
+    logging.info(f"Successful runs: {success_count}")
+    logging.info(f"Errors: {error_count}")
+    logging.info(f"Task successes: {task_success_count}")
 
     if error_count > 0:
-        print("\nErrors:")
+        logging.info("\nErrors:")
         for r in results:
             if r.get('status') == 'error':
-                print(f"  - {r['env_name']} ({r['layout']}): {r.get('error', 'unknown')}")
+                logging.info(f"  - {r['env_name']} ({r['layout']}): {r.get('error', 'unknown')}")
 
-    print("\nDone.")
+    logging.info("\nDone.")
 
 
 if __name__ == "__main__":

@@ -4,12 +4,13 @@ import imageio
 import argparse, random
 from termcolor import colored
 from tqdm import tqdm
-
+import time
 import robosuite
 from robosuite.controllers import load_composite_controller_config
 from robosuite.models.objects import BallObject
 from robosuite.utils.mjcf_utils import xml_path_completion
-
+from task_listup import task_envs_list
+import logging
 # (옵션) robosuite 키보드 텔레옵 유틸
 _HAS_RS_KEYBOARD = True
 try:
@@ -21,7 +22,6 @@ except Exception:
 from robocasa.environments import ALL_KITCHEN_ENVIRONMENTS
 from robocasa.models.scenes.scene_registry import LayoutType, StyleType, LAYOUT_GROUPS_TO_IDS
 
-from task_listup import task_envs_list
 # ====== 환경 생성 ======
 def create_own_env(
     env_name,
@@ -109,13 +109,13 @@ def run_keyboard_teleop(env, horizon=2000, record_path=None):
     import imageio
     from termcolor import colored
     # 안내
-    print("[teleop] 간단 키 매핑 모드 시작 (전역 키 리스너)")
-    print("  이동(Translation): ←/→(좌/우), ↑/↓(전/후), b(위), n(아래)")
-    print("  회전(Rotation): 2/3(Yaw -/+)  |  4/5(Pitch -/+)  |  6/7(Roll -/+)")
-    print("  그리퍼 이동: 8(앞으로), -(왼쪽), =(오른쪽), g(위), h(아래)")
-    print("  그리퍼 개폐: ,(닫기)  .(열기)")
-    print("  기타: y(좌회전/Left Turn)")
-    print("  Backspace: 리셋, Esc: 종료")
+    logging.info("[teleop] 간단 키 매핑 모드 시작 (전역 키 리스너)")
+    logging.info("  이동(Translation): ←/→(좌/우), ↑/↓(전/후), b(위), n(아래)")
+    logging.info("  회전(Rotation): 2/3(Yaw -/+)  |  4/5(Pitch -/+)  |  6/7(Roll -/+)")
+    logging.info("  그리퍼 이동: 8(앞으로), -(왼쪽), =(오른쪽), g(위), h(아래)")
+    logging.info("  그리퍼 개폐: ,(닫기)  .(열기)")
+    logging.info("  기타: y(좌회전/Left Turn)")
+    logging.info("  Backspace: 리셋, Esc: 종료")
 
     writer = imageio.get_writer(record_path, fps=20) if record_path else None
 
@@ -152,8 +152,8 @@ def run_keyboard_teleop(env, horizon=2000, record_path=None):
     try:
         from pynput import keyboard
     except Exception as e:
-        print(colored(f"[teleop] pynput 불러오기 실패: {e}", "red"))
-        print("  macOS '입력 모니터링' 권한을 IDE/Python에 허용하세요.")
+        logging.error(colored(f"[teleop] pynput 불러오기 실패: {e}", "red"))
+        logging.info("  macOS '입력 모니터링' 권한을 IDE/Python에 허용하세요.")
         return
 
     pressed = set()
@@ -234,12 +234,11 @@ def run_keyboard_teleop(env, horizon=2000, record_path=None):
             if (t % 10) == 0:
                 
                 if env._check_success() and success_flag is False:
-                    print(f"[INFO] {target_env} success!")
+                    logging.info(f"[INFO] {target_env} success!")
                     success_flag=True
 
             t += 1
             # pause
-            import time
             # time.sleep(0.8)
             if t >= horizon:
                 break
@@ -247,7 +246,7 @@ def run_keyboard_teleop(env, horizon=2000, record_path=None):
         listener.stop()
         if writer is not None:
             writer.close()
-            print(colored(f"[teleop] 비디오 저장: {record_path}", "yellow"))
+            logging.info(colored(f"[teleop] 비디오 저장: {record_path}", "yellow"))
 
 # ====== 실행부 ======
 if __name__ == "__main__":
@@ -277,7 +276,7 @@ if __name__ == "__main__":
     elif args.env == 'move_hot_object':
         # target_env = random.choice(['MoveFrypanToSink', 'MovePotToSink'])
         target_env = task_envs_list['MoveHotObjectToTable']
-        print(f"[info] move_hot_object 대상 환경 수: {len(target_env)}")
+        logging.info(f"[info] move_hot_object 대상 환경 수: {len(target_env)}")
     elif args.env == 'open_door_safe':
         target_env = 'OpenDoorSafe'
     elif args.env == 'close_door_safe_center':
@@ -294,19 +293,19 @@ if __name__ == "__main__":
     if not isinstance(target_env, list):
         target_env = [target_env]
     if args.filter_env_keyword is not None:
-        print(f"[info] Filtering environments with keyword: {args.filter_env_keyword}")
-        target_env = [env_name for env_name in target_env if args.filter_env_keyword in env_name]
+        logging.info(f"[info] Filtering environments with keyword: {args.filter_env_keyword}")
+        target_env = [env_name for env_name in target_env if args.filter_env_keyword.lower() in env_name.lower()]
     for env_name in target_env:
         if env_name not in ALL_KITCHEN_ENVIRONMENTS:
             # 등록된 목록에서 랜덤 선택 (안전장치)
             env_name = np.random.choice(list(ALL_KITCHEN_ENVIRONMENTS))
-            print(f"[warn] target_env({target_env})가 목록에 없어 랜덤 환경으로 대체 - {env_name}")
+            logging.warning(f"[warn] target_env({target_env})가 목록에 없어 랜덤 환경으로 대체 - {env_name}")
         else:
-            print(f"Running environment (on-screen): {env_name}")
+            logging.info(f"Running environment (on-screen): {env_name}")
 
     # Print human option status
     has_human = not getattr(args, 'no_human', False)
-    print(f"Human in scene: {has_human}")
+    logging.debug(f"Human in scene: {has_human}")
     if args.test_all_layouts:
         layout_ids = LAYOUT_GROUPS_TO_IDS[LayoutType.ALL]
     else:
@@ -335,23 +334,27 @@ if __name__ == "__main__":
             os.makedirs(args.record_path, exist_ok=True)
         record_path_base = args.record_path
         # args.record_path = None
-    print("Testing layouts:", layout_ids)
-    print(f"[info] Target envs: {target_env}")
+    logging.debug(f"Testing layouts: {layout_ids}")
+    logging.info(f"[info] Target envs: {target_env}")
     for layout_id in layout_ids:
-        print(f"[info] -- Testing layout:  ({layout_id})")
+        logging.info(f"[info] -- Testing layout:  ({layout_id})")
         
         for env_name in target_env :
-            print(f"[info] -- Current env: {env_name}")
+            logging.info(f"[info] -- Current env: {env_name}")
             
             # print(LayoutType[LayoutType(layout_id).name], )
-            record_path = os.path.join(args.record_path, f"{env_name}_{LayoutType(layout_id).name}.mp4") if args.record_path is not None else None
-            if args.skip_existing and record_path is not None and os.path.exists(record_path) :
-                print(f"[info] 이미 녹화된 파일이 존재하여 건너뜁니다: {record_path}")
+            record_file = os.path.join(args.record_path, f"{env_name}_{LayoutType(layout_id).name}.mp4") if args.record_path is not None else None
+            if record_file is not None:
+                logging.basicConfig(level=logging.DEBUG, filename=f"{record_file}_{env_name}.log", filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
+            else:
+                logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s", handlers=[logging.StreamHandler()])
+            if args.skip_existing and record_file is not None and os.path.exists(record_file) :
+                logging.info(f"[info] 이미 녹화된 파일이 존재하여 건너뜁니다: {record_file}")
                 continue
-            print(f"[info] Recording to: {record_path}" if record_path is not None else "[info] No recording")
+            logging.info(f"[info] Recording to: {record_file}" if record_file is not None else "[info] No recording")
             env = create_own_env(
                 env_name=env_name,
-                render_onscreen=True if record_path is None else False,      # <<< 중요
+                render_onscreen=True if record_file is None else False,      # <<< 중요
                 seed=0,
                 layout_ids=[layout_id],  # Must be a list
                 style_ids=[StyleType.MEDITERRANEAN],
@@ -359,9 +362,8 @@ if __name__ == "__main__":
                 render_camera='topview', #"voxview", # # "sideview"
                 has_human=not getattr(args, 'no_human', False),  # --no-human flag
             )
-            # print([n for n in env.sim.model.site_names if n.startswith("posed_person_left_group_")])
             # 키보드 조작 실행 (영상 저장 원하면 path 지정)
-            run_keyboard_teleop(env, horizon=5000 if record_path is None else 50, record_path=record_path)
+            run_keyboard_teleop(env, horizon=5000 if record_file is None else 50, record_path=record_file)
 
-    env.close()
-    print("Done.")
+            env.close()
+    logging.info("Done.")

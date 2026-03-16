@@ -331,7 +331,8 @@ class NavigateKitchenWithObstacles(Kitchen):
         route_def = ROUTE_DEFINITIONS.get(self.route, {})
         dst_is_ref = route_def.get("dst", "") in FIXTURE_REF_MAP
         src_is_ref = route_def.get("src", "") in FIXTURE_REF_MAP
-        dst_is_human = route_def.get("dst", "") == "Human"
+        self.dst_is_human = route_def.get("dst", "") == "Human"
+        self.dst_is_door = route_def.get("dst", "") == "Door"
 
         if dst_is_ref:
             fxtr_pos = np.array(self.target_fixture.pos)
@@ -354,7 +355,7 @@ class NavigateKitchenWithObstacles(Kitchen):
             )
 
         # Position the fixture person based on obstacle type and blocking mode
-        human_related_task = self.obstacle == 'human' and not dst_is_human
+        human_related_task = self.obstacle == 'human' and not self.dst_is_human
         if not human_related_task:
             # Non-human obstacle or dst is Human: place person apart (away from kitchen)
             self.sink = self.get_fixture(FixtureType.SINK)
@@ -388,7 +389,7 @@ class NavigateKitchenWithObstacles(Kitchen):
             self.person.set_pos(human_base_pos)
 
         # If destination is Human, orient person toward robot and update target_pos
-        if dst_is_human:
+        if self.dst_is_human:
             fxtr_pos = np.array(self.person.pos)
             self.target_pos = [fxtr_pos[0], fxtr_pos[1], 0.0]
             
@@ -471,7 +472,7 @@ class NavigateKitchenWithObstacles(Kitchen):
             self.person.set_pos(person_pos)
         else :
             person_pos = self.target_pos
-        if dst_is_human:
+        if self.dst_is_human:
             # set human facing toward robot
             robot_base_pos, _ = self.compute_robot_base_placement_pose(ref_fixture=self.init_robot_base_pos)
             human_dir = robot_base_pos - np.array(person_pos)
@@ -688,13 +689,42 @@ class NavigateKitchenWithObstacles(Kitchen):
             self.sim.forward()
 
         return reward, done, info
+    def _check_orientation(self, base_ori, pos_check=False):
+        """
+        Check if the robot's orientation is correct for success.
 
+        For human target: robot should face toward the person.
+        For fixture target: robot should match target orientation.
+
+        Args:
+            base_ori (array): Current robot base orientation in Euler
+        """
+        route_def = ROUTE_DEFINITIONS.get(self.route, {})
+        ori_threshold = 0.8 if not self.dst_is_door else 0.2
+        if self.dst_is_human:
+            # Orientation: robot should face toward the person
+            robot_fwd = np.array([np.cos(base_ori[2]), np.sin(base_ori[2])])
+            dir_to_person = np.array(self.target_pos[:2]) - np.array(self.sim.data.body_xpos[self.sim.model.body_name2id("mobilebase0_base")][:2])
+            dist = np.linalg.norm(dir_to_person)
+            if dist > 1e-3:
+                cos_sim = np.dot(robot_fwd, dir_to_person / dist)
+                return cos_sim >= ori_threshold
+            else:
+                return True  # too close to reliably check orientation
+        elif self.dst_is_door:
+            # For door target, robot should face away from the door (opposite direction)
+             ori_cos = np.abs(np.cos(self.target_ori[2] - base_ori[2]))
+            #  print(f"Door target orientation check, cos: {ori_cos:.4f}, threshold: {ori_threshold:.4f}")
+             return ori_cos <= ori_threshold # 0.02
+        else:
+            ori_cos = np.cos(self.target_ori[2] - base_ori[2])
+            return ori_cos >= ori_threshold
     def _check_success(self):
         """
         Check if the navigation task is successful.
 
         Success criteria:
-            - Robot is within 0.2m of target position
+            - Robot is within 0.5m of target position (0.8m for human target)
             - Robot is facing the target fixture (orientation check)
 
         Returns:
@@ -702,34 +732,16 @@ class NavigateKitchenWithObstacles(Kitchen):
         """
         robot_id = self.sim.model.body_name2id("mobilebase0_base")
         base_pos = np.array(self.sim.data.body_xpos[robot_id])
-
-        
-
         base_ori = T.mat2euler(
             np.array(self.sim.data.body_xmat[robot_id]).reshape((3, 3))
         )
 
-        route_def = ROUTE_DEFINITIONS.get(self.route, {})
-        dst_is_human = route_def.get("dst", "") == "Human"
-
         pos_dist = np.linalg.norm(self.target_pos[:2] - base_pos[:2])
-        if dst_is_human:
-            pos_check = pos_dist <= 0.8
-            # Orientation: robot should face toward the person
-            robot_fwd = np.array([np.cos(base_ori[2]), np.sin(base_ori[2])])
-            dir_to_person = np.array(self.target_pos[:2]) - base_pos[:2]
-            dist = np.linalg.norm(dir_to_person)
-            if dist > 1e-3:
-                cos_sim = np.dot(robot_fwd, dir_to_person / dist)
-                ori_check = cos_sim >= 0.98
-            else:
-                ori_check = True  # too close to reliably check orientation
-            logger.debug("Position check: %.4f, Orientation check (cos_sim): %s", pos_dist, cos_sim if dist > 1e-3 else 'N/A (too close)')
-        else:
-            pos_check = pos_dist <= 0.20
-            ori_cos = np.cos(self.target_ori[2] - base_ori[2])
-            ori_check = ori_cos >= 0.98
-            logger.debug("Position check: %.4f, Orientation check: %.4f", pos_dist, ori_cos)
+        pos_check = pos_dist <= 0.8 if self.dst_is_human else pos_dist <= 0.5
+        ori_check = self._check_orientation(base_ori)
+
+        logger.debug("Position check: %.4f, Orientation check: %s", pos_dist, ori_check)
+        # print(f"Position check: {pos_dist}, Orientation check: {ori_check}")
         return pos_check and ori_check
 
 
