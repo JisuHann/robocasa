@@ -234,7 +234,7 @@ def run_keyboard_teleop(env, horizon=2000, record_path=None):
             if (t % 10) == 0:
                 
                 if env._check_success() and success_flag is False:
-                    logging.info(f"[INFO] {target_env} success!")
+                    logging.info(f" {target_env} success!")
                     success_flag=True
 
             t += 1
@@ -263,6 +263,14 @@ if __name__ == "__main__":
     args.add_argument("--no-human", action="store_true", help="Disable human in the environment (for door tasks)")
     args.add_argument("--skip-existing", action="store_true", help="Skip recording if the file already exists")
     args = args.parse_args()
+    
+    
+    if args.record_path is not None:
+        logging.basicConfig(level=logging.DEBUG, filename=f"{args.record_path}/debugging.log", filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
+    else:
+        logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s", handlers=[logging.StreamHandler()])
+    
+    
     if args.layout == 'all':
         args.test_all_layouts = True
     if args.test_all_layouts is True:
@@ -276,7 +284,7 @@ if __name__ == "__main__":
     elif args.env == 'move_hot_object':
         # target_env = random.choice(['MoveFrypanToSink', 'MovePotToSink'])
         target_env = task_envs_list['MoveHotObjectToTable']
-        logging.info(f"[info] move_hot_object 대상 환경 수: {len(target_env)}")
+        logging.info(f" move_hot_object 대상 환경 수: {len(target_env)}")
     elif args.env == 'open_door_safe':
         target_env = 'OpenDoorSafe'
     elif args.env == 'close_door_safe_center':
@@ -293,7 +301,7 @@ if __name__ == "__main__":
     if not isinstance(target_env, list):
         target_env = [target_env]
     if args.filter_env_keyword is not None:
-        logging.info(f"[info] Filtering environments with keyword: {args.filter_env_keyword}")
+        logging.info(f" Filtering environments with keyword: {args.filter_env_keyword}")
         target_env = [env_name for env_name in target_env if args.filter_env_keyword.lower() in env_name.lower()]
     for env_name in target_env:
         if env_name not in ALL_KITCHEN_ENVIRONMENTS:
@@ -335,23 +343,19 @@ if __name__ == "__main__":
         record_path_base = args.record_path
         # args.record_path = None
     logging.debug(f"Testing layouts: {layout_ids}")
-    logging.info(f"[info] Target envs: {target_env}")
+    logging.info(f" Target envs: {target_env}")
     for layout_id in layout_ids:
-        logging.info(f"[info] -- Testing layout:  ({layout_id})")
+        logging.info(f" -- Testing layout:  ({layout_id})")
         
         for env_name in target_env :
-            logging.info(f"[info] -- Current env: {env_name}")
+            logging.info(f" -- Current env: {env_name}")
             
             # print(LayoutType[LayoutType(layout_id).name], )
             record_file = os.path.join(args.record_path, f"{env_name}_{LayoutType(layout_id).name}.mp4") if args.record_path is not None else None
-            if record_file is not None:
-                logging.basicConfig(level=logging.DEBUG, filename=f"{record_file}_{env_name}.log", filemode="a", format="%(asctime)s - %(levelname)s - %(message)s")
-            else:
-                logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s", handlers=[logging.StreamHandler()])
             if args.skip_existing and record_file is not None and os.path.exists(record_file) :
-                logging.info(f"[info] 이미 녹화된 파일이 존재하여 건너뜁니다: {record_file}")
+                logging.info(f" 이미 녹화된 파일이 존재하여 건너뜁니다: {record_file}")
                 continue
-            logging.info(f"[info] Recording to: {record_file}" if record_file is not None else "[info] No recording")
+            logging.info(f" Recording to: {record_file}" if record_file is not None else " No recording")
             env = create_own_env(
                 env_name=env_name,
                 render_onscreen=True if record_file is None else False,      # <<< 중요

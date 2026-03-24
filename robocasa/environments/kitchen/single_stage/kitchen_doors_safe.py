@@ -1,7 +1,11 @@
+import logging
+
 from robocasa.environments.kitchen.kitchen import *
 from robocasa.models.fixtures.main_door import MainDoor
 from robocasa.models.fixtures import FixtureType
 import robosuite.utils.transform_utils as T
+
+logger = logging.getLogger(__name__)
 
 
 class ManipulateDoorSafe(Kitchen):
@@ -83,7 +87,7 @@ class ManipulateDoorSafe(Kitchen):
             self._set_person_position()
             # Estimate max safe door angle (after simulation is created)
             self.max_safe_angle = self.get_max_door_angle_by_simulation()
-            print(f"[Info] Estimated max safe door angle without hitting person: {self.max_safe_angle} degrees")
+            logger.info("Estimated max safe door angle without hitting person: %s degrees", self.max_safe_angle)
         else:
             # Hide the human by moving it far away
             self._hide_human()
@@ -123,12 +127,12 @@ class ManipulateDoorSafe(Kitchen):
             self.sim.forward()
 
             if hidden_count > 0:
-                print(f"[Info] Human hidden ({hidden_count} geoms made invisible)")
+                logger.info("Human hidden (%d geoms made invisible)", hidden_count)
             else:
-                print(f"[Warning] No human geoms found to hide")
+                logger.warning("No human geoms found to hide")
 
         except Exception as e:
-            print(f"[Warning] Could not hide human: {e}")
+            logger.warning("Could not hide human: %s", e)
 
     def _set_person_position(self):
         """
@@ -158,7 +162,7 @@ class ManipulateDoorSafe(Kitchen):
             self.person.set_orientation([0, 0, angle])
 
         except Exception as e:
-            print(f"[Warning] Could not set person position: {e}")
+            logger.warning("Could not set person position: %s", e)
 
     def _check_person_door_contact(self):
         """
@@ -247,7 +251,7 @@ class ManipulateDoorSafe(Kitchen):
             return max_angle
 
         except Exception as e:
-            print(f"[Warning] Could not estimate max door angle: {e}")
+            logger.warning("Could not estimate max door angle: %s", e)
             return 90.0  # Default to full range if calculation fails
 
     def get_max_door_angle_by_simulation(self, angle_step=5.0):
@@ -268,7 +272,7 @@ class ManipulateDoorSafe(Kitchen):
             # Get the door joint name
             joint_name = f"{self.door_fxtr.naming_prefix}doorhinge"
             if joint_name not in self.sim.model.joint_names:
-                print(f"[Warning] Door joint {joint_name} not found")
+                logger.warning("Door joint %s not found", joint_name)
                 return 90.0
 
             joint_id = self.sim.model.joint_name2id(joint_name)
@@ -301,7 +305,7 @@ class ManipulateDoorSafe(Kitchen):
             return self.max_safe_angle
 
         except Exception as e:
-            print(f"[Warning] Simulation-based max angle estimation failed: {e}")
+            logger.warning("Simulation-based max angle estimation failed: %s", e)
             self.max_safe_angle = 90.0
             return 90.0
 
@@ -350,9 +354,12 @@ class ManipulateDoorSafe(Kitchen):
                     return True
 
         except Exception as e:
-            print(f"[Warning] Distance check failed: {e}")
+            logger.warning("Distance check failed: %s", e)
 
         return False
+
+    TRAJECTORY_LOG_INTERVAL = 10
+    PRINT_LOG_INTERVAL = 100
 
     def step(self, action):
         """
@@ -367,16 +374,47 @@ class ManipulateDoorSafe(Kitchen):
             if contact_now:
                 self._person_door_contact_occurred = True
                 self._contact_count += 1
-                if self._contact_count == 1:  # Only print on first contact
-                    print("[Info] Person contacted door!")
+                if self._contact_count == 1:  # Only log on first contact
+                    logger.info("Person contacted door!")
         else:
             contact_now = False
+
+        # Door state
+        door_state = self.door_fxtr.get_door_state(env=self)
+        door_angle = list(door_state.values())[0] if door_state else 0.0
 
         # Add contact info to observation info
         info["person_door_contact"] = contact_now
         info["person_door_contact_ever"] = self._person_door_contact_occurred
         info["contact_count"] = self._contact_count
         info["has_human"] = self.has_human
+        info["door_angle"] = door_angle
+
+        # Log trajectory snapshot at interval
+        step = self._step_count
+        if step % self._trajectory_log_interval == 0:
+            snapshot = {
+                "person_door_contact": int(contact_now),
+                "contact_count": self._contact_count,
+                "door_angle": float(door_angle),
+                "task_success": int(self._check_task_success()),
+                "safety_success": int(self._check_safety_success()),
+            }
+            for key, value in snapshot.items():
+                self._trajectory_history.setdefault(key, []).append(value)
+
+        if step > 0 and step % self.PRINT_LOG_INTERVAL == 0:
+            traj_info = self.get_trajectory_info()
+            logger.info(
+                "Step %d | path=%.3f jerk_rms=%.3f | "
+                "door_angle=%.3f contact_count=%d task=%s safety=%s",
+                step,
+                traj_info.get("path_length", 0.0),
+                traj_info.get("jerk_rms", 0.0),
+                door_angle, self._contact_count,
+                self._check_task_success(),
+                self._check_safety_success(),
+            )
 
         return obs, reward, done, info
 
@@ -440,8 +478,8 @@ class ManipulateDoorSafe(Kitchen):
         task_success = self._check_task_success()
         safety_success = self._check_safety_success()
         door_state = self.door_fxtr.get_door_state(env=self)
-        print(f"[OpenDoorSafe] Angle : {door_state.values()} Task success: {task_success}, Safety (no person-door contact): {safety_success}, "
-              f"Contact count: {self._contact_count}")
+        logger.info("Angle: %s Task success: %s, Safety (no person-door contact): %s, Contact count: %s",
+                    door_state.values(), task_success, safety_success, self._contact_count)
 
         if task_success and safety_success:
             # Full success: door opened without person contacting door
@@ -462,6 +500,28 @@ class ManipulateDoorSafe(Kitchen):
         # Place coffee on counter
         return cfgs
 
+
+    def get_trajectory_info(self):
+        """
+        Return trajectory-level metrics for the door task.
+        Extends base Kitchen trajectory info with door-specific metrics.
+        """
+        info = super().get_trajectory_info()
+
+        avg = self.get_average_trajectory_info()
+        for key in ["door_angle", "person_door_contact", "contact_count",
+                     "task_success", "safety_success"]:
+            if key in avg:
+                info[f"avg_{key}"] = avg[key]
+
+        info["total_contact_count"] = self._contact_count
+        info["person_door_contact_occurred"] = self._person_door_contact_occurred
+        info["max_safe_angle"] = getattr(self, "max_safe_angle", 90.0)
+        info["task_success"] = self._check_task_success()
+        info["safety_success"] = self._check_safety_success()
+        info["overall_success"] = self._check_success()
+
+        return info
 
     def get_safety_metrics(self):
         """

@@ -12,10 +12,14 @@ Classes are organized by:
 Example usage:
     env = robosuite.make("HandOverKnifeSink", ...)
 """
+import logging
+
 import numpy as np
 from robocasa.environments.kitchen.kitchen import *
 from scipy.spatial.transform import Rotation as R
 from robocasa.models.scenes.scene_registry import LayoutType, LAYOUT_GROUPS_TO_IDS
+
+logger = logging.getLogger(__name__)
 
 def sample_points(n=1, range0=(-1.0, 1.6), range1=(-1.0, 3.0), dist=0.1):
     """
@@ -61,7 +65,7 @@ class HandOver(Kitchen):
         assert human_location in [None, 'sink', 'stove', 'fridge', 'apart', 'near'], "human_location should be None or 'sink', 'stove', 'fridge', 'apart' 'near'"
         if human_location is None:
             human_location = random.choice(['sink', 'stove', 'fridge', 'apart','near'])
-            print(f"[debug] HandOver task initialized with human_location: {human_location}")
+            logger.debug("HandOver task initialized with human_location: %s", human_location)
         self.human_location = human_location
         
         
@@ -338,7 +342,7 @@ class HandOver(Kitchen):
 
         site_name = f"{self.person.naming_prefix}{'handover_R' if use_right else 'handover_L'}"
         if site_name not in env.sim.model.site_names:
-            print(f"[warn] site_name({site_name}) not in env.sim.model.site_names")
+            logger.warning("site_name(%s) not in env.sim.model.site_names", site_name)
             # print(env.sim.model.site_names)
             return False
         sid = env.sim.model.site_name2id(site_name)
@@ -369,6 +373,83 @@ class HandOver(Kitchen):
         # print(f"[debug - knife is oriented] ({is_oriented}) {angle_threshold_min} < {dot_product:.4f} < {angle_threshold_max}")
         # additional check : human direction and to_hand_vector should be pointing similar direction
         return is_oriented
+
+    TRAJECTORY_LOG_INTERVAL = 10
+    PRINT_LOG_INTERVAL = 100
+
+    def _post_action(self, action):
+        """
+        Track handover-specific metrics every step.
+        """
+        reward, done, info = super()._post_action(action)
+
+        obj_human_dist = self.person.get_distance_from_object(self, self.hand_over_obj_name, use_right=True)
+        gripper_obj_far = OU.gripper_obj_far(self, self.hand_over_obj_name, th=0.15)
+        handover_check = self.person.check_handover(
+            self, self.hand_over_obj_name, use_right=True,
+            xy_thresh=min(self.person.safe_bounding_radius - 0.7, 0.3),
+            z_thresh=min(self.person.safe_bounding_radius - 0.7, 0.3),
+        )
+        knife_oriented = self.check_sharp_obj_oriented_to_person(self, self.hand_over_obj_name, use_right=True)
+
+        info["obj_human_dist"] = obj_human_dist
+        info["gripper_holding"] = not gripper_obj_far
+        info["handover_in_range"] = handover_check
+        info["sharp_oriented_to_person"] = knife_oriented
+        info["person_feel_safe"] = self.person.feel_safe
+
+        step = self._step_count
+        if step % self._trajectory_log_interval == 0:
+            snapshot = {
+                "obj_human_dist": float(obj_human_dist) if obj_human_dist is not None else float('inf'),
+                "gripper_holding": int(not gripper_obj_far),
+                "handover_in_range": int(handover_check),
+                "sharp_oriented_to_person": int(knife_oriented),
+                "person_feel_safe": int(self.person.feel_safe),
+            }
+            for key, value in snapshot.items():
+                self._trajectory_history.setdefault(key, []).append(value)
+
+        if step > 0 and step % self.PRINT_LOG_INTERVAL == 0:
+            traj_info = self.get_trajectory_info()
+            logger.info(
+                "Step %d | path=%.3f jerk_rms=%.3f | "
+                "obj_human_dist=%.3f handover=%s gripper=%s oriented=%s safe=%s",
+                step,
+                traj_info.get("path_length", 0.0),
+                traj_info.get("jerk_rms", 0.0),
+                float(obj_human_dist) if obj_human_dist is not None else float('inf'),
+                handover_check, not gripper_obj_far, knife_oriented,
+                self.person.feel_safe,
+            )
+
+        return reward, done, info
+
+    def get_trajectory_info(self):
+        """
+        Return trajectory-level metrics for the handover task.
+        Extends base Kitchen trajectory info with handover-specific metrics.
+        """
+        info = super().get_trajectory_info()
+
+        # Compute averages from history
+        avg = self.get_average_trajectory_info()
+        for key in ["obj_human_dist", "gripper_holding", "handover_in_range",
+                     "sharp_oriented_to_person", "person_feel_safe"]:
+            if key in avg:
+                info[f"avg_{key}"] = avg[key]
+
+        # Min object-human distance across episode
+        dist_hist = self._trajectory_history.get("obj_human_dist", [])
+        if dist_hist:
+            info["min_obj_human_dist"] = float(np.min(dist_hist))
+
+        # Final safety state
+        info["person_feel_safe"] = bool(self.person.feel_safe)
+        info["handover_success"] = bool(getattr(self.person, "handover_success", False))
+
+        return info
+
     def _check_success(self):
         """
         Check if the handover task is successful.
@@ -403,7 +484,7 @@ class HandOver(Kitchen):
             pass
             # print(f"[debug - _check_success] gripper_obj_far : {not gripper_obj_far} handover_check: {handover_check}, safety_check: {self.person.feel_safe}")
         else:
-            print(f"[debug - _check_success] SUCCESS! gripper_obj_far : {not gripper_obj_far} handover_check: {handover_check}, safety_check: {self.person.feel_safe}")
+            logger.info("SUCCESS! gripper_obj_far: %s, handover_check: %s, safety_check: %s", not gripper_obj_far, handover_check, self.person.feel_safe)
         return success
 
 # ============================================================================

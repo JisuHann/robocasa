@@ -1,3 +1,4 @@
+import logging
 import os
 import random
 import xml.etree.ElementTree as ET
@@ -5,6 +6,8 @@ from copy import deepcopy
 
 import numpy as np
 import robosuite.utils.transform_utils as T
+
+logger = logging.getLogger(__name__)
 from robosuite.environments.manipulation.manipulation_env import ManipulationEnv
 from robosuite.models.tasks import ManipulationTask
 from robosuite.utils.errors import RandomizationError
@@ -303,7 +306,7 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
                 controller_configs["composite_controller_specific_configs"][
                     "body_part_ordering"
                 ] = ["right", "right_gripper", "base", "torso"]
-
+        self.trajectory_history = {}
         super().__init__(
             robots=robots,
             env_configuration=env_configuration,
@@ -891,6 +894,15 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
         """
         super()._reset_internal()
 
+        # Reset trajectory history for this episode
+        # Each key maps to a list of values logged at TRAJECTORY_LOG_INTERVAL
+        self._trajectory_history = {
+            "positions": [],    # (N, 3) robot base positions
+            "timesteps": [],    # absolute step number for each logged entry
+        }
+        self._step_count = 0
+        self._trajectory_log_interval = getattr(self, "TRAJECTORY_LOG_INTERVAL", 1)
+
         # Reset all object positions using initializer sampler if we're not directly loading from an xml
         if not self.deterministic_reset and self.placement_initializer is not None:
             # use pre-computed object placements
@@ -1433,9 +1445,67 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
         """
         reward, done, info = super()._post_action(action)
 
+        # Record robot base position for trajectory metrics
+        try:
+            self._step_count += 1
+            if self._step_count % self._trajectory_log_interval == 0:
+                robot_id = self.sim.model.body_name2id("mobilebase0_base")
+                robot_pos = np.array(self.sim.data.body_xpos[robot_id])
+                self._trajectory_history["positions"].append(robot_pos.copy())
+                self._trajectory_history["timesteps"].append(self._step_count)
+        except Exception:
+            pass
+
         # Check if stove is turned on or not
         self.update_state()
         return reward, done, info
+    def get_trajectory_info(self):
+        """
+        Return trajectory-level metrics for the current episode.
+
+        Computes path length and smoothness (jerk) from the recorded
+        position history. Subclasses should call super() and extend
+        the returned dict with task-specific metrics.
+
+        Returns:
+            dict: Trajectory metrics including path_length,
+                jerk_mean, jerk_max, jerk_rms, num_steps,
+                trajectory_log_interval.
+        """
+        from robocasa.utils.metrics import compute_jerk, compute_path_length
+
+        positions = np.array(self._trajectory_history["positions"]) if self._trajectory_history["positions"] else np.zeros((0, 3))
+        dt = self._trajectory_log_interval / self.control_freq
+
+        info = {
+            "num_steps": self._step_count,
+            "num_logged": len(self._trajectory_history["positions"]),
+            "trajectory_log_interval": self._trajectory_log_interval,
+            "path_length": compute_path_length(positions),
+        }
+        info.update(compute_jerk(positions, dt))
+        return info
+
+    def get_average_trajectory_info(self):
+        """
+        Return per-key averages of all scalar lists in _trajectory_history.
+
+        Keys that hold non-numeric or non-list data (e.g. 'positions') are
+        skipped. Subclasses that add keys to _trajectory_history get their
+        averages automatically.
+
+        Returns:
+            dict: {key: mean_value} for every numeric list in the history.
+        """
+        avg = {}
+        for key, values in self._trajectory_history.items():
+            if not isinstance(values, list) or len(values) == 0:
+                continue
+            # skip entries that aren't plain scalars (e.g. positions are arrays)
+            first = values[0]
+            if isinstance(first, (int, float, bool, np.integer, np.floating)):
+                avg[key] = float(np.mean(values))
+        return avg
 
     def convert_rel_to_abs_action(self, rel_action):
         # if moving mobile base, there is no notion of absolute actions.
