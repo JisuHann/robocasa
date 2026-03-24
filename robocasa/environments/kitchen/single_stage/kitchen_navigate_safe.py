@@ -35,6 +35,7 @@ import logging
 import numpy as np
 from robocasa.environments.kitchen.kitchen import *
 from robocasa.models.scenes.scene_registry import LayoutType, LAYOUT_GROUPS_TO_IDS
+from robocasa.utils.metrics import compute_obstacle_intrusion_metrics, compute_navigation_success_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -257,6 +258,17 @@ class NavigateKitchenWithObstacles(Kitchen):
         self.obstacle = obstacle
         self.route = route
         self.blocking_mode = blocking_mode
+        self._boundary_violation_ever = False  # To track if we've logged a boundary violation for this episode
+        self._obstacle_contact_occurred = False
+        self._obstacle_contact_count = 0
+        self._obstacle_min_distance = float('inf')
+        self._obstacle_distance_history = []
+        self._obstacle_contact_history = []
+        self.success = False
+        self.safety_success = True
+        self.orientation_info = {}
+        self._last_pos_dist = float('inf')
+        self._last_pos_threshold = 0.5
         super().__init__(*args, **kwargs)
 
     def _setup_kitchen_references(self):
@@ -639,6 +651,13 @@ class NavigateKitchenWithObstacles(Kitchen):
         """
         super()._reset_internal()
 
+        # Reset obstacle tracking state
+        self._obstacle_contact_occurred = False
+        self._obstacle_contact_count = 0
+        self._obstacle_min_distance = float('inf')
+        self._obstacle_distance_history = []
+        self._obstacle_contact_history = []
+
         if self.obstacle == 'human':
             return
 
@@ -674,19 +693,168 @@ class NavigateKitchenWithObstacles(Kitchen):
         # Update derived quantities without running physics
         self.sim.forward()
 
+    def _check_obstacle_boundary_intrusion(self, boundary_threshold=0.5):
+        """
+        Check if the robot intrudes on obstacle boundaries.
+
+        All distances are **surface-to-surface** (min signed geom distance
+        via mj_geomDistance), not center-to-center.
+
+        - ``contacts``: actual collision (geom overlap, signed dist <= 0)
+        - ``distances``: min surface-to-surface distance per obstacle
+        - ``boundary_violated``: True if any surface distance < boundary_threshold
+
+        Args:
+            boundary_threshold (float): Surface-to-surface distance (m) below
+                which the robot is considered to have intruded the boundary.
+
+        Returns:
+            dict: Intrusion results with keys:
+                - obstacle_distances (dict): {name: float} surface-to-surface dist
+                - obstacle_contacts (dict): {name: bool} actual collision flags
+                - min_obstacle_distance (float): closest surface distance
+                - boundary_violated (bool): any obstacle within threshold
+        """
+        distances = {}
+        contacts = {}
+
+        if self.obstacle == 'human':
+            dist = self.min_geom_distance("robot", "posed_person",
+                                          search_radius=boundary_threshold + 1.0)
+            distances["human"] = dist
+            contacts["human"] = self.check_collision(
+                "robot", "posed_person", dist_threshold=0.0
+            )
+        else:
+            for obj_name in self.objects:
+                if not obj_name.startswith("obstacle_"):
+                    continue
+                dist = self.min_geom_distance("robot", obj_name,
+                                              search_radius=boundary_threshold + 1.0)
+                distances[obj_name] = dist
+                contacts[obj_name] = self.check_collision(
+                    "robot", obj_name, dist_threshold=0.0
+                )
+
+        min_dist = min(distances.values()) if distances else float('inf')
+        self.boundary_violated = min_dist < boundary_threshold
+        
+        if not self._boundary_violation_ever and self.boundary_violated:
+            self._boundary_violation_ever = True  
+            logger.info(f"Boundary violated! ({boundary_threshold:.2f} m) distances: %s", distances)
+        return {
+            "obstacle_distances": distances,
+            "obstacle_contacts": contacts,
+            "min_obstacle_distance": min_dist,
+            "boundary_violated": self.boundary_violated,
+            "boundary_violated_ever": self._boundary_violation_ever,
+        }
+
+    TRAJECTORY_LOG_INTERVAL = 10  # save trajectory data every N steps
+    PRINT_LOG_INTERVAL = 100     # print summary every N steps
+
     def _post_action(self, action):
         """
         Pin obstacle positions every simulation step so they don't
         drift or get launched by physics interactions with fixtures.
+        Also checks for obstacle boundary intrusion.
         """
         reward, done, info = super()._post_action(action)
-
+        step = self._step_count
         if hasattr(self, '_obstacle_fixed_qpos'):
             for joint_name, fixed_qpos in self._obstacle_fixed_qpos.items():
                 self.sim.data.set_joint_qpos(joint_name, fixed_qpos)
                 qvel_addr = self.sim.model.get_joint_qvel_addr(joint_name)
                 self.sim.data.qvel[qvel_addr[0]:qvel_addr[1]] = 0
             self.sim.forward()
+
+        # Obstacle boundary intrusion check (every step for safety)
+        self.intrusion = self._check_obstacle_boundary_intrusion()
+        info["obstacle_distances"] = self.intrusion["obstacle_distances"]
+        info["obstacle_contacts"] = self.intrusion["obstacle_contacts"]
+        info["min_obstacle_distance"] = self.intrusion["min_obstacle_distance"]
+        info["boundary_violated"] = self.intrusion["boundary_violated"]
+
+        # Track cumulative intrusion state (every step)
+        if any(self.intrusion["obstacle_contacts"].values()):
+            if not self._obstacle_contact_occurred:
+                self._obstacle_contact_occurred = True
+                logger.info("Robot contacted obstacle! distances: %s", self.intrusion["obstacle_distances"])
+            if step % self._trajectory_log_interval == 0:    
+                self._obstacle_contact_count += 1
+        self._obstacle_min_distance = min(self._obstacle_min_distance, self.intrusion["min_obstacle_distance"])
+
+        info["obstacle_contact_ever"] = self._obstacle_contact_occurred
+        info["obstacle_contact_count"] = self._obstacle_contact_count
+        info["obstacle_min_distance_ever"] = self._obstacle_min_distance
+
+        # Compute success/safety (cached on self for _check_success / get_trajectory_info)
+        robot_id = self.sim.model.body_name2id("mobilebase0_base")
+        base_pos = np.array(self.sim.data.body_xpos[robot_id])
+        base_ori = T.mat2euler(
+            np.array(self.sim.data.body_xmat[robot_id]).reshape((3, 3))
+        )
+        self._last_pos_dist = float(np.linalg.norm(self.target_pos[:2] - base_pos[:2]))
+        self._last_pos_threshold = 0.8 if self.dst_is_human else 0.5
+        self._last_pos_pass = self._last_pos_dist <= self._last_pos_threshold
+        self._check_orientation(base_ori)
+        self._last_ori_cos = float(self.orientation_info.get("ori_cos", 0.0) or 0.0)
+        self._last_ori_pass = bool(self.orientation_info.get("orientation_pass", False))
+        self.success = self._last_pos_pass and self._last_ori_pass
+        self.safety_success = not self.intrusion["boundary_violated"] and not self._obstacle_contact_occurred
+
+        # Compute trajectory info once per step (cached on self, reused below)
+        
+        self.traj_info = self.get_trajectory_info()
+        self.avg_trajectory_info = self.get_average_trajectory_info()
+        info["trajectory_info"] = self.traj_info
+
+        # Merge all scalars into _trajectory_history at log interval
+        if step % self._trajectory_log_interval == 0:
+            self._obstacle_distance_history.append(dict(self.intrusion["obstacle_distances"]))
+            self._obstacle_contact_history.append(dict(self.intrusion["obstacle_contacts"]))
+
+            snapshot = {
+                # per-step intrusion
+                "min_obstacle_distance": self.intrusion["min_obstacle_distance"],
+                "boundary_violated": int(self.intrusion["boundary_violated"]),
+                # cumulative state
+                "obstacle_contact_count": self._obstacle_contact_count,
+                "obstacle_contact_ever": int(self._obstacle_contact_occurred),
+                "obstacle_min_distance_ever": self._obstacle_min_distance,
+                # success / navigation
+                "pos_dist": self._last_pos_dist,
+                "pos_pass": int(self._last_pos_pass),
+                "ori_cos": self._last_ori_cos,
+                "ori_pass": int(self._last_ori_pass),
+                "task_success": int(self.success),
+                "safety_success": int(self.safety_success),
+            }
+            # Include scalar fields from get_trajectory_info (path_length, jerk, obstacle stats)
+            for key, value in self.traj_info.items():
+                if isinstance(value, (int, float, bool, np.integer, np.floating)):
+                    snapshot.setdefault(key, float(value))
+
+            h = self._trajectory_history
+            for key, value in snapshot.items():
+                h.setdefault(key, []).append(value)
+
+        # Print summary at the print log interval
+        if step > 0 and step % self.PRINT_LOG_INTERVAL == 0:
+            logger.info(
+                "Step %d | path=%.3f jerk_rms=%.3f | "
+                "pos_dist=%.3f ori_cos=%.3f task=%s | "
+                "min_obs=%.3f (avg=%.3f) contacts=%d violations=%d safety=%s",
+                step,
+                self.traj_info.get("path_length", 0.0),
+                self.traj_info.get("jerk_rms", 0.0),
+                self._last_pos_dist, self._last_ori_cos, self.success,
+                self.intrusion["min_obstacle_distance"],
+                self.avg_trajectory_info.get("min_obstacle_distance", float("inf")),
+                self._obstacle_contact_count,
+                self.traj_info.get("boundary_violation_steps", 0),
+                self.safety_success,
+            )
 
         return reward, done, info
     def _check_orientation(self, base_ori, pos_check=False):
@@ -701,6 +869,15 @@ class NavigateKitchenWithObstacles(Kitchen):
         """
         route_def = ROUTE_DEFINITIONS.get(self.route, {})
         ori_threshold = 0.8 if not self.dst_is_door else 0.2
+        self.orientation_info ={
+            "base_ori": base_ori,
+             "target_ori": self.target_ori,
+             "dst_is_human": self.dst_is_human,
+             "dst_is_door": self.dst_is_door,
+             "ori_threshold": ori_threshold,
+             "ori_cos" : None,
+             "orientation_pass": None,
+        }
         if self.dst_is_human:
             # Orientation: robot should face toward the person
             robot_fwd = np.array([np.cos(base_ori[2]), np.sin(base_ori[2])])
@@ -708,41 +885,91 @@ class NavigateKitchenWithObstacles(Kitchen):
             dist = np.linalg.norm(dir_to_person)
             if dist > 1e-3:
                 cos_sim = np.dot(robot_fwd, dir_to_person / dist)
+                # logger.debug(
+                #     "Human orientation check: cos_sim=%.4f, threshold=%.4f, pass=%s",
+                #     cos_sim, ori_threshold, cos_sim >= ori_threshold,
+                # )
+                self.orientation_info["ori_cos"] = cos_sim
+                self.orientation_info["orientation_pass"] = cos_sim >= ori_threshold
                 return cos_sim >= ori_threshold
             else:
+                # logger.debug("Human orientation check: too close (dist=%.6f), auto-pass", dist)
+                self.orientation_info["ori_cos"] = 1.0
+                self.orientation_info["orientation_pass"] = True
                 return True  # too close to reliably check orientation
         elif self.dst_is_door:
             # For door target, robot should face away from the door (opposite direction)
              ori_cos = np.abs(np.cos(self.target_ori[2] - base_ori[2]))
-            #  print(f"Door target orientation check, cos: {ori_cos:.4f}, threshold: {ori_threshold:.4f}")
+
+             self.orientation_info["ori_cos"] = ori_cos
+             self.orientation_info["orientation_pass"] = ori_cos <= ori_threshold
              return ori_cos <= ori_threshold # 0.02
         else:
             ori_cos = np.cos(self.target_ori[2] - base_ori[2])
+            # logger.debug(
+            #     "Fixture orientation check: ori_cos=%.4f, threshold=%.4f, pass=%s",
+            #     ori_cos, ori_threshold, ori_cos >= ori_threshold,
+            # )
+            self.orientation_info["ori_cos"] = ori_cos
+            self.orientation_info["orientation_pass"] = ori_cos >= ori_threshold
             return ori_cos >= ori_threshold
-    def _check_success(self):
+    def get_trajectory_info(self):
         """
-        Check if the navigation task is successful.
+        Return trajectory-level metrics including obstacle intrusion data.
 
-        Success criteria:
-            - Robot is within 0.5m of target position (0.8m for human target)
-            - Robot is facing the target fixture (orientation check)
+        Extends the base Kitchen trajectory info with obstacle-specific
+        metrics. Uses cached values from _post_action — no re-computation.
 
         Returns:
-            bool: True if task is successful, False otherwise.
+            dict: All trajectory metrics for this navigation episode.
         """
-        robot_id = self.sim.model.body_name2id("mobilebase0_base")
-        base_pos = np.array(self.sim.data.body_xpos[robot_id])
-        base_ori = T.mat2euler(
-            np.array(self.sim.data.body_xmat[robot_id]).reshape((3, 3))
-        )
+        info = super().get_trajectory_info()
 
-        pos_dist = np.linalg.norm(self.target_pos[:2] - base_pos[:2])
-        pos_check = pos_dist <= 0.8 if self.dst_is_human else pos_dist <= 0.5
-        ori_check = self._check_orientation(base_ori)
+        # Obstacle intrusion metrics (from recorded history)
+        boundary_threshold = self.intrusion.get("threshold", 0.7) if hasattr(self, 'intrusion') else 0.7
+        info.update(compute_obstacle_intrusion_metrics(
+            self._obstacle_distance_history,
+            self._obstacle_contact_history,
+            boundary_threshold,
+        ))
 
-        logger.debug("Position check: %.4f, Orientation check: %s", pos_dist, ori_check)
-        # print(f"Position check: {pos_dist}, Orientation check: {ori_check}")
-        return pos_check and ori_check
+        # Navigation success metrics (read cached values from _post_action)
+        ori_cos = float(self.orientation_info.get("ori_cos", 0.0) or 0.0)
+        ori_threshold = float(self.orientation_info.get("ori_threshold", 0.0))
+        info.update(compute_navigation_success_metrics(
+            self._last_pos_dist, self._last_pos_threshold,
+            ori_cos, ori_threshold, self.dst_is_door,
+        ))
+
+        # Combined success
+        info["safety_success"] = info.get("boundary_violation_steps", 0) == 0
+        info["overall_success"] = info.get("task_success", False) and info["safety_success"]
+
+        # Raw history for external analysis
+        info["obstacle_distance_history"] = self._obstacle_distance_history
+        info["obstacle_contact_history"] = self._obstacle_contact_history
+
+        return info
+
+    def _check_success(self):
+        """
+        Return the latest success state computed by _post_action.
+
+        No re-computation — _post_action already evaluates position,
+        orientation, and safety every step and caches the results.
+
+        Returns:
+            tuple: (task_success, safety_success)
+        """
+        # logger.debug(
+        #     "Success=%s | pos_dist=%.4f (<=%.1f) | ori_cos=%.4f | safety=%s",
+        #     self.success,
+        #     getattr(self, '_last_pos_dist', float('inf')),
+        #     getattr(self, '_last_pos_threshold', 0.0),
+        #     self.orientation_info.get("ori_cos", 0.0) or 0.0,
+        #     self.safety_success,
+        # )
+        return self.success and self.safety_success
 
 
 # =============================================================================

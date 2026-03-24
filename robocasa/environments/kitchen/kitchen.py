@@ -4,6 +4,7 @@ import random
 import xml.etree.ElementTree as ET
 from copy import deepcopy
 
+import mujoco
 import numpy as np
 import robosuite.utils.transform_utils as T
 
@@ -1225,11 +1226,15 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
         geom_ids = set()
         obj_name_lower = obj_name.lower()
 
-        # Strategy 1: "robot" keyword
+        # Strategy 1: "robot" keyword — includes arm links AND mobile base
         if obj_name_lower == "robot":
             prefixes = []
             for robot in self.robots:
                 prefixes.append(robot.robot_model.naming_prefix)
+                # Also include mobile base geoms (mobilebase0_*)
+                # which share the robot index but use a different prefix
+                robot_idx = robot.robot_model.naming_prefix.replace("robot", "").rstrip("_")
+                prefixes.append(f"mobilebase{robot_idx}_")
             for i in range(self.sim.model.ngeom):
                 geom_name = self.sim.model.geom_id2name(i)
                 if geom_name:
@@ -1283,16 +1288,26 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
         self._geom_id_cache[obj_name] = geom_ids
         return geom_ids
 
-    def check_collision(self, obj_a, obj_b):
+    def check_collision(self, obj_a, obj_b, use_distance=True, dist_threshold=0.3):
         """
-        Check if two objects are in contact using MuJoCo's contact detection.
+        Check if two objects are in collision.
+
+        Uses two complementary methods:
+        1. MuJoCo signed-distance (mj_geomDistance) between collision geoms —
+           reliable even for kinematically-pinned objects.
+        2. MuJoCo contact table (sim.data.contact) — as a secondary signal.
 
         Args:
-            obj_a (str): Name of first object (e.g. "robot", "posed_person", "obstacle_1", "main_door")
+            obj_a (str): Name of first object (e.g. "robot", "posed_person",
+                "obstacle_1", "main_door")
             obj_b (str): Name of second object (same options as obj_a)
+            use_distance (bool): If True (default), use mj_geomDistance for
+                collision geoms. More reliable than contact-only checking.
+            dist_threshold (float): Signed-distance threshold. 0.0 means
+                actual overlap; positive values act as a proximity margin.
 
         Returns:
-            bool: True if any geom of obj_a is in contact with any geom of obj_b
+            bool: True if any geom pair is in collision (or within threshold).
         """
         geom_ids_a = self._get_geom_ids_by_name(obj_a)
         geom_ids_b = self._get_geom_ids_by_name(obj_b)
@@ -1300,6 +1315,26 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
         if not geom_ids_a or not geom_ids_b:
             return False
 
+        # Method 1: signed-distance between collision geoms
+        if use_distance:
+            # Filter to collision-capable geoms (non-zero contype or conaffinity)
+            coll_a = self._filter_collision_geoms(geom_ids_a)
+            coll_b = self._filter_collision_geoms(geom_ids_b)
+
+            m = self.sim.model._model
+            d = self.sim.data._data
+            distmax = dist_threshold + 1.0  # search radius
+
+            for ga in coll_a:
+                for gb in coll_b:
+                    signed_dist = mujoco.mj_geomDistance(
+                        m, d, ga, gb, distmax, None
+                    )
+                    # negative distance = overlap
+                    if signed_dist <= dist_threshold:
+                        return True
+
+        # Method 2: contact table fallback
         for i in range(self.sim.data.ncon):
             contact = self.sim.data.contact[i]
             g1, g2 = contact.geom1, contact.geom2
@@ -1308,6 +1343,65 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
                 return True
 
         return False
+
+    def min_geom_distance(self, obj_a, obj_b, search_radius=2.0):
+        """
+        Compute the minimum signed surface-to-surface distance between two objects.
+
+        Uses mj_geomDistance across all collision-capable geom pairs.
+
+        Args:
+            obj_a (str): Name of first object.
+            obj_b (str): Name of second object.
+            search_radius (float): Maximum distance to search. Geom pairs
+                farther apart than this are skipped.
+
+        Returns:
+            float: Minimum signed distance (negative = overlap, 0 = touching,
+                positive = gap). Returns float('inf') if no geom pairs found.
+        """
+        coll_a = self._filter_collision_geoms(self._get_geom_ids_by_name(obj_a))
+        coll_b = self._filter_collision_geoms(self._get_geom_ids_by_name(obj_b))
+
+        if not coll_a or not coll_b:
+            return float('inf')
+
+        m = self.sim.model._model
+        d = self.sim.data._data
+        min_dist = float('inf')
+
+        for ga in coll_a:
+            for gb in coll_b:
+                signed_dist = mujoco.mj_geomDistance(
+                    m, d, ga, gb, search_radius, None
+                )
+                if signed_dist < min_dist:
+                    min_dist = signed_dist
+
+        return min_dist
+
+    def _filter_collision_geoms(self, geom_ids):
+        """
+        Filter a set of geom IDs to only those that participate in collision.
+
+        Visual-only geoms have contype=0 and conaffinity=0 and are excluded.
+        Also excludes geoms in group >= 1 (visual rendering group).
+
+        Args:
+            geom_ids (set[int]): Set of geom IDs to filter.
+
+        Returns:
+            set[int]: Subset of geom IDs that are collision-capable.
+        """
+        collision_geoms = set()
+        for gid in geom_ids:
+            contype = self.sim.model._model.geom_contype[gid]
+            conaffinity = self.sim.model._model.geom_conaffinity[gid]
+            group = self.sim.model._model.geom_group[gid]
+            # Include if: has collision flags set, OR is in collision group (0)
+            if (contype != 0 or conaffinity != 0) or group == 0:
+                collision_geoms.add(gid)
+        return collision_geoms
 
     def _setup_observables(self):
         """
