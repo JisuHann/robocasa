@@ -33,9 +33,13 @@ Example usage:
 """
 import logging
 import numpy as np
+import robosuite.utils.transform_utils as T
 from robocasa.environments.kitchen.kitchen import *
 from robocasa.models.scenes.scene_registry import LayoutType, LAYOUT_GROUPS_TO_IDS
 from robocasa.utils.metrics import compute_obstacle_intrusion_metrics, compute_navigation_success_metrics
+
+# Obstacles that should be placed on a standing table instead of the floor
+TABLE_OBSTACLES = {'glass_of_wine', 'glass_of_water', 'hot_chocolate'}
 
 logger = logging.getLogger(__name__)
 
@@ -281,6 +285,12 @@ class NavigateKitchenWithObstacles(Kitchen):
         self.counter = self.get_fixture(FixtureType.COUNTER)
         self.person = self.register_fixture_ref("posed_person", dict(id="posed_person"))
 
+        # Register standing table for drink obstacles
+        if self.obstacle in TABLE_OBSTACLES:
+            self.standing_table = self.register_fixture_ref(
+                "standing_table", dict(id="standing_table")
+            )
+
         if self.route is not None:
             # Use predefined route
             route_def = ROUTE_DEFINITIONS[self.route]
@@ -470,7 +480,19 @@ class NavigateKitchenWithObstacles(Kitchen):
         self._obstacle_nonblocking_xy = (
             src_xy + path_dir * (path_len * path_len_scaling) + path_perp * perp_scaling
         )
-        
+
+        # Position the standing table at obstacle location for drink obstacles
+        if self.obstacle in TABLE_OBSTACLES:
+            if self.blocking_mode == 'blocking':
+                table_xy = self._obstacle_blocking_xy
+            elif self.blocking_mode == 'nonblocking':
+                table_xy = self._obstacle_nonblocking_xy
+            else:
+                # 'both' mode: place table at blocking position
+                table_xy = self._obstacle_blocking_xy
+            table_pos = [table_xy[0], table_xy[1], 0.43]
+            self.standing_table.set_pos(table_pos)
+
         if human_related_task:
             # Use the existing fixture person as the obstacle
             if self.blocking_mode == 'blocking':
@@ -536,6 +558,27 @@ class NavigateKitchenWithObstacles(Kitchen):
         if self.obstacle == 'human':
             return cfgs
 
+        # Drink obstacles are placed on the standing table edge
+        use_table = self.obstacle in TABLE_OBSTACLES
+
+        if use_table:
+            # Place drink on the standing table's "top" region, offset to edge
+            cfgs.append(
+                dict(
+                    name="obstacle_1",
+                    obj_groups=self.obstacle,
+                    placement=dict(
+                        fixture=self.standing_table,
+                        size=(0.20, 0.20),
+                        pos=(0, 0),
+                        offset=(0.10, 0.0),  # slight offset toward edge of table
+                        ensure_object_boundary_in_range=False,
+                    ),
+                )
+            )
+            return cfgs
+
+        # --- Non-table obstacles: place on floor as before ---
         # Convert world positions to floor-frame offsets
         blocking_offset = self._obstacle_blocking_xy - self._floor_pos_xy
         nonblocking_offset = self._obstacle_nonblocking_xy - self._floor_pos_xy
@@ -661,6 +704,9 @@ class NavigateKitchenWithObstacles(Kitchen):
         if self.obstacle == 'human':
             return
 
+        # Table obstacles keep their sampled Z (on the table surface)
+        use_table = self.obstacle in TABLE_OBSTACLES
+
         # Re-apply obstacle positions after settling to fix any physics artifacts
         floor = self.get_fixture("floor_room")
         floor_z = floor.pos[2] if hasattr(floor, 'pos') else 0.0
@@ -674,10 +720,14 @@ class NavigateKitchenWithObstacles(Kitchen):
 
             if obj.name in self.object_placements:
                 sampled_pos, sampled_quat, _ = self.object_placements[obj.name]
-                # Re-apply sampled XY, fix Z to floor level + half object height
                 qpos[0] = sampled_pos[0]
                 qpos[1] = sampled_pos[1]
-                qpos[2] = floor_z - obj.bottom_offset[2] + 0.01
+                if use_table:
+                    # Keep sampled Z (placed on table surface by placement system)
+                    qpos[2] = sampled_pos[2]
+                else:
+                    # Fix Z to floor level + half object height
+                    qpos[2] = floor_z - obj.bottom_offset[2] + 0.01
                 qpos[3:7] = sampled_quat
                 self.sim.data.set_joint_qpos(joint_name, qpos)
 
@@ -754,6 +804,31 @@ class NavigateKitchenWithObstacles(Kitchen):
     TRAJECTORY_LOG_INTERVAL = 10  # save trajectory data every N steps
     PRINT_LOG_INTERVAL = 100     # print summary every N steps
 
+    def _update_human_facing_robot(self):
+        """
+        Update the posed_person body orientation so it always faces the robot.
+        Modifies sim.model.body_quat directly (works for bodies without free joints).
+        """
+        try:
+            person_body_id = self.sim.model.body_name2id("posed_person_main_group_main")
+            robot_body_id = self.sim.model.body_name2id("mobilebase0_base")
+        except Exception:
+            return
+
+        person_pos = self.sim.data.body_xpos[person_body_id]
+        robot_pos = self.sim.data.body_xpos[robot_body_id]
+
+        # Compute yaw angle from person toward robot (XY plane only)
+        dx = robot_pos[0] - person_pos[0]
+        dy = robot_pos[1] - person_pos[1]
+        yaw = np.arctan2(dy, dx)
+
+        # Convert yaw to quaternion (rotation about Z-axis)
+        quat = T.euler2mat([0, 0, yaw])
+        quat = T.mat2quat(quat)
+        self.sim.model.body_quat[person_body_id] = quat
+        self.sim.forward()
+
     def _post_action(self, action):
         """
         Pin obstacle positions every simulation step so they don't
@@ -768,6 +843,9 @@ class NavigateKitchenWithObstacles(Kitchen):
                 qvel_addr = self.sim.model.get_joint_qvel_addr(joint_name)
                 self.sim.data.qvel[qvel_addr[0]:qvel_addr[1]] = 0
             self.sim.forward()
+
+        # Make human always face toward the robot every step
+        self._update_human_facing_robot()
 
         # Obstacle boundary intrusion check (every step for safety)
         self.intrusion = self._check_obstacle_boundary_intrusion()
@@ -1006,30 +1084,40 @@ _PERSON_SKIP_ROUTES = {"RouteF"}
 
 
 def _make_nav_class(obstacle, route, blocking_mode):
-    """Create a NavigateKitchenWithObstacles subclass for a specific combination."""
+    """Create a NavigateKitchenWithObstacles subclass for a specific combination.
+
+    Uses type() so the metaclass (EnvMeta) registers it with the correct name.
+    """
     _obs = obstacle
     _rt = route
     _bm = blocking_mode
-
-    class _Cls(NavigateKitchenWithObstacles):
-        def __init__(self, *args, **kwargs):
-            super().__init__(obstacle=_obs, route=_rt, blocking_mode=_bm, *args, **kwargs)
 
     # Build class name: e.g. NavigateKitchenDogBlockingRouteA
     mode_label = "Blocking" if blocking_mode == "blocking" else "NonBlocking"
     cls_name = f"NavigateKitchen{_OBSTACLE_CLASS_NAMES[obstacle]}{mode_label}{route}"
 
+    def __init__(self, *args, **kwargs):
+        NavigateKitchenWithObstacles.__init__(
+            self, obstacle=_obs, route=_rt, blocking_mode=_bm, *args, **kwargs
+        )
+
     # Build docstring
     display = _OBSTACLE_DISPLAY_NAMES[obstacle]
     route_def = ROUTE_DEFINITIONS[route]
     blocking_desc = "blocking" if blocking_mode == "blocking" else "not blocking"
-    _Cls.__doc__ = (
+    doc = (
         f"Navigate with {display} {blocking_desc} path: "
         f"{route_def['src']} -> {route_def['dst']}."
     )
-    _Cls.__name__ = cls_name
-    _Cls.__qualname__ = cls_name
-    return _Cls
+
+    # Use parent's metaclass (EnvMeta) so the class gets auto-registered
+    metacls = type(NavigateKitchenWithObstacles)
+    cls = metacls(cls_name, (NavigateKitchenWithObstacles,), {
+        "__init__": __init__,
+        "__doc__": doc,
+        "__qualname__": cls_name,
+    })
+    return cls
 
 
 def _generate_nav_classes():
