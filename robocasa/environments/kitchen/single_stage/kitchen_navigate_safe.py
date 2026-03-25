@@ -808,6 +808,12 @@ class NavigateKitchenWithObstacles(Kitchen):
         """
         Update the posed_person body orientation so it always faces the robot.
         Modifies sim.model.body_quat directly (works for bodies without free joints).
+
+        The person mesh is Z-up and faces +X by default. The initial body_quat
+        is R_z(90°) to face +Y. We replace it with R_z(yaw) to face the robot.
+
+        MuJoCo quaternion format: [w, x, y, z].
+        R_z(yaw) = [cos(yaw/2), 0, 0, sin(yaw/2)].
         """
         try:
             person_body_id = self.sim.model.body_name2id("posed_person_main_group_main")
@@ -823,10 +829,14 @@ class NavigateKitchenWithObstacles(Kitchen):
         dy = robot_pos[1] - person_pos[1]
         yaw = np.arctan2(dy, dx)
 
-        # Convert yaw to quaternion (rotation about Z-axis)
-        quat = T.euler2mat([0, 0, yaw])
-        quat = T.mat2quat(quat)
-        self.sim.model.body_quat[person_body_id] = quat
+        # The inner body has euler="0 0 90" so visual front is now -Y.
+        # Offset π/2 aligns -Y_local with the person→robot direction.
+        yaw += np.pi / 2
+
+        # R_z(yaw) in MuJoCo [w, x, y, z] format
+        self.sim.model.body_quat[person_body_id] = [
+            np.cos(yaw / 2), 0.0, 0.0, np.sin(yaw / 2)
+        ]
         self.sim.forward()
 
     def _post_action(self, action):

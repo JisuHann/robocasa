@@ -59,7 +59,7 @@
 
   <worldbody>
     <body>
-      <body name="object" pos="0 0 1.0">
+      <body name="object" pos="0 0 1.0" euler="0 0 1.5708">
         <inertial mass="1000" diaginertia="500 500 500" pos="0 0 0"/>
         <geom mesh="model_normalized_0_frame_vis"
               class="visual"
