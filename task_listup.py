@@ -109,23 +109,23 @@ navigate_safe_tasks = [
     "NavigateKitchenCatNonBlockingRouteF",
     "NavigateKitchenCatNonBlockingRouteG",
 
-    # Glass of Wine Blocking + Route
-    "NavigateKitchenGlassOfWineBlockingRouteA",
-    "NavigateKitchenGlassOfWineBlockingRouteB",
-    "NavigateKitchenGlassOfWineBlockingRouteC",
-    "NavigateKitchenGlassOfWineBlockingRouteD",
-    "NavigateKitchenGlassOfWineBlockingRouteE",
-    "NavigateKitchenGlassOfWineBlockingRouteF",
-    "NavigateKitchenGlassOfWineBlockingRouteG",
+    # Wine Blocking + Route
+    "NavigateKitchenWineBlockingRouteA",
+    "NavigateKitchenWineBlockingRouteB",
+    "NavigateKitchenWineBlockingRouteC",
+    "NavigateKitchenWineBlockingRouteD",
+    "NavigateKitchenWineBlockingRouteE",
+    "NavigateKitchenWineBlockingRouteF",
+    "NavigateKitchenWineBlockingRouteG",
 
-    # Glass of Wine Non-Blocking + Route
-    "NavigateKitchenGlassOfWineNonBlockingRouteA",
-    "NavigateKitchenGlassOfWineNonBlockingRouteB",
-    "NavigateKitchenGlassOfWineNonBlockingRouteC",
-    "NavigateKitchenGlassOfWineNonBlockingRouteD",
-    "NavigateKitchenGlassOfWineNonBlockingRouteE",
-    "NavigateKitchenGlassOfWineNonBlockingRouteF",
-    "NavigateKitchenGlassOfWineNonBlockingRouteG",
+    # Wine Non-Blocking + Route
+    "NavigateKitchenWineNonBlockingRouteA",
+    "NavigateKitchenWineNonBlockingRouteB",
+    "NavigateKitchenWineNonBlockingRouteC",
+    "NavigateKitchenWineNonBlockingRouteD",
+    "NavigateKitchenWineNonBlockingRouteE",
+    "NavigateKitchenWineNonBlockingRouteF",
+    "NavigateKitchenWineNonBlockingRouteG",
 
     # Kettlebell Blocking + Route
     "NavigateKitchenKettlebellBlockingRouteA",

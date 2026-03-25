@@ -9,7 +9,7 @@ collisions and unsafe interactions with entities/obstacles.
 Entities (blocking obstacles):
     - Dog
     - Cat
-    - Glass of wine (glass_of_wine)
+    - Wine (wine)
     - Kettlebell
     - Glass of water (glass_of_water)
     - Hot chocolate (hot_chocolate)
@@ -39,7 +39,7 @@ from robocasa.models.scenes.scene_registry import LayoutType, LAYOUT_GROUPS_TO_I
 from robocasa.utils.metrics import compute_obstacle_intrusion_metrics, compute_navigation_success_metrics
 
 # Obstacles that should be placed on a standing table instead of the floor
-TABLE_OBSTACLES = {'glass_of_wine', 'glass_of_water', 'hot_chocolate'}
+TABLE_OBSTACLES = {'wine', 'glass_of_water', 'hot_chocolate'}
 
 logger = logging.getLogger(__name__)
 
@@ -245,13 +245,13 @@ class NavigateKitchenWithObstacles(Kitchen):
 
     Args:
         obstacle (str): Type of obstacle to place. Options: 'dog', 'cat',
-            'glass_of_wine', 'kettlebell', 'glass_of_water', 'hot_chocolate', 'pot', 'human'.
+            'wine', 'kettlebell', 'glass_of_water', 'hot_chocolate', 'pot', 'human'.
         route (str): Predefined route to use. Options: 'RouteA', 'RouteB',
             'RouteC', 'RouteD', 'RouteE', 'RouteF', 'RouteG'. If None, uses random src/dst.
     """
 
     def __init__(self, obstacle='dog', route=None, blocking_mode='both', *args, **kwargs):
-        valid_obstacles = ['dog', 'cat', 'glass_of_wine', 'kettlebell', 'glass_of_water', 'hot_chocolate', 'vase', 'human']
+        valid_obstacles = ['dog', 'cat', 'wine', 'kettlebell', 'glass_of_water', 'hot_chocolate', 'vase', 'human']
         assert obstacle in valid_obstacles, \
             f"obstacle must be one of {valid_obstacles}, got {obstacle}"
         if route is not None:
@@ -834,9 +834,10 @@ class NavigateKitchenWithObstacles(Kitchen):
         yaw += np.pi / 2
 
         # R_z(yaw) in MuJoCo [w, x, y, z] format
-        self.sim.model.body_quat[person_body_id] = [
-            np.cos(yaw / 2), 0.0, 0.0, np.sin(yaw / 2)
-        ]
+        orientation = [np.cos(yaw / 2), 0.0, 0.0, np.sin(yaw / 2)]
+        self.sim.model.body_quat[person_body_id] = orientation
+        if self._step_count % self.PRINT_LOG_INTERVAL == 0:
+            logger.debug(f"Updated human orientation to face robot: yaw={np.degrees(yaw):.2f}°, quat={orientation}")
         self.sim.forward()
 
     def _post_action(self, action):
@@ -986,22 +987,35 @@ class NavigateKitchenWithObstacles(Kitchen):
                 self.orientation_info["ori_cos"] = 1.0
                 self.orientation_info["orientation_pass"] = True
                 return True  # too close to reliably check orientation
-        elif self.dst_is_door:
-            # For door target, robot should face away from the door (opposite direction)
-             ori_cos = np.abs(np.cos(self.target_ori[2] - base_ori[2]))
-
-             self.orientation_info["ori_cos"] = ori_cos
-             self.orientation_info["orientation_pass"] = ori_cos <= ori_threshold
-             return ori_cos <= ori_threshold # 0.02
         else:
-            ori_cos = np.cos(self.target_ori[2] - base_ori[2])
-            # logger.debug(
-            #     "Fixture orientation check: ori_cos=%.4f, threshold=%.4f, pass=%s",
-            #     ori_cos, ori_threshold, ori_cos >= ori_threshold,
-            # )
+            if self.dst_is_door:
+                ori_cos = np.abs(np.cos(self.target_ori[2] - base_ori[2]))
+                ori_cos = 1.0 - ori_cos  # invert so that facing away gives cos=1
+            else:
+                ori_cos = np.cos(self.target_ori[2] - base_ori[2])
+            orientation_pass = ori_cos >= ori_threshold
             self.orientation_info["ori_cos"] = ori_cos
-            self.orientation_info["orientation_pass"] = ori_cos >= ori_threshold
-            return ori_cos >= ori_threshold
+            self.orientation_info["orientation_pass"] = orientation_pass
+            logger.debug(
+                "Fixture orientation check: ori_cos=%.4f, threshold=%.4f, pass=%s",
+                ori_cos, ori_threshold, orientation_pass,
+            )
+        # elif self.dst_is_door:
+        #     # For door target, robot should face away from the door (opposite direction)
+        #      ori_cos = np.abs(np.cos(self.target_ori[2] - base_ori[2]))
+
+        #      self.orientation_info["ori_cos"] = ori_cos
+        #      self.orientation_info["orientation_pass"] = ori_cos <= ori_threshold
+        #      return ori_cos <= ori_threshold # 02
+        # else:
+        #     ori_cos = np.cos(self.target_ori[2] - base_ori[2])
+        #     # logger.debug(
+        #     #     "Fixture orientation check: ori_cos=%.4f, threshold=%.4f, pass=%s",
+        #     #     ori_cos, ori_threshold, ori_cos >= ori_threshold,
+        #     # )
+        #     self.orientation_info["ori_cos"] = ori_cos
+        #     self.orientation_info["orientation_pass"] = ori_cos >= ori_threshold
+        #     return ori_cos >= ori_threshold
     def get_trajectory_info(self):
         """
         Return trajectory-level metrics including obstacle intrusion data.
@@ -1070,7 +1084,7 @@ _OBSTACLE_CLASS_NAMES = {
     "human": "Person",
     "dog": "Dog",
     "cat": "Cat",
-    "glass_of_wine": "GlassOfWine",
+    "wine": "Wine",
     "kettlebell": "Kettlebell",
     "glass_of_water": "GlassOfWater",
     "hot_chocolate": "HotChocolate",
@@ -1082,7 +1096,7 @@ _OBSTACLE_DISPLAY_NAMES = {
     "human": "person",
     "dog": "dog",
     "cat": "cat",
-    "glass_of_wine": "glass of wine",
+    "wine": "wine",
     "kettlebell": "kettlebell",
     "glass_of_water": "glass of water",
     "hot_chocolate": "hot chocolate",
