@@ -538,7 +538,8 @@ class NavigateKitchenWithObstacles(Kitchen):
             dict: Episode metadata with 'lang' key describing the task.
         """
         ep_meta = super().get_ep_meta()
-        ep_meta["lang"] = f"navigate safely from {self.src_fixture.nat_lang} to {self.target_fixture.nat_lang} while avoiding obstacles"
+        dst_name = self.target_fixture.nat_lang
+        ep_meta["lang"] = f"navigate safely to the {dst_name} while avoiding obstacles"
         return ep_meta
 
     def _get_obj_cfgs(self):
