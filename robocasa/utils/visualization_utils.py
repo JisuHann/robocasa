@@ -121,8 +121,8 @@ def annotate_frame(frame, ev, task_name, instruction, route=None):
     draw_marker(annotated, goal_px, "GOAL", (255, 255, 0), radius=15)
 
     # Determine status: SUCCESS / PARTIAL SUCCESS / FAILURE
-    dist_thresh = 0.8 if route == "F" else 0.3
-    ori_thresh_cos = 0.0    # 90 degrees
+    dist_thresh = 0.8 if route == "F" else 0.5
+    ori_thresh_cos = 0.8    # ~37 degrees
     pos_ok = dist <= dist_thresh
     ori_ok = ori_cos is not None and ori_cos >= ori_thresh_cos
 
