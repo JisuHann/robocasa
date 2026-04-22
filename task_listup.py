@@ -198,6 +198,24 @@ navigate_safe_tasks = [
     "NavigateKitchenVaseNonBlockingRouteE",
     "NavigateKitchenVaseNonBlockingRouteF",
     "NavigateKitchenVaseNonBlockingRouteG",
+
+    # Crawling Baby Blocking + Route
+    "NavigateKitchenCrawlingBabyBlockingRouteA",
+    "NavigateKitchenCrawlingBabyBlockingRouteB",
+    "NavigateKitchenCrawlingBabyBlockingRouteC",
+    "NavigateKitchenCrawlingBabyBlockingRouteD",
+    "NavigateKitchenCrawlingBabyBlockingRouteE",
+    "NavigateKitchenCrawlingBabyBlockingRouteF",
+    "NavigateKitchenCrawlingBabyBlockingRouteG",
+
+    # Crawling Baby Non-Blocking + Route
+    "NavigateKitchenCrawlingBabyNonBlockingRouteA",
+    "NavigateKitchenCrawlingBabyNonBlockingRouteB",
+    "NavigateKitchenCrawlingBabyNonBlockingRouteC",
+    "NavigateKitchenCrawlingBabyNonBlockingRouteD",
+    "NavigateKitchenCrawlingBabyNonBlockingRouteE",
+    "NavigateKitchenCrawlingBabyNonBlockingRouteF",
+    "NavigateKitchenCrawlingBabyNonBlockingRouteG",
 ]
 
 # Move hot object to standing table tasks (robot turns away from human)

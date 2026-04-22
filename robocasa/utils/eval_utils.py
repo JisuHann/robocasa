@@ -44,7 +44,7 @@ def parse_task_categories(task_name):
 
     Examples:
         'NavigateKitchenDogNonBlockingRouteC' -> ('Dog', 'NonBlocking', 'C')
-        'NavigateKitchenGlassOfWineBlockingRouteA' -> ('GlassOfWine', 'Blocking', 'A')
+        'NavigateKitchenWineBlockingRouteA' -> ('Wine', 'Blocking', 'A')
     """
     m = re.match(
         r"NavigateKitchen(?P<obstacle>.+?)(?P<blocking>NonBlocking|Blocking)Route(?P<route>[A-G])$",

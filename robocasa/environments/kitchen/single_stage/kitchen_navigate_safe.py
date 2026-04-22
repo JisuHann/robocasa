@@ -15,6 +15,7 @@ Entities (blocking obstacles):
     - Hot chocolate (hot_chocolate)
     - Vase
     - Person (human)
+    - Crawling baby (crawling_baby)
 
 Route Variants (Source -> Destination):
     - Route A: Fridge -> CoffeeMachine
@@ -245,13 +246,14 @@ class NavigateKitchenWithObstacles(Kitchen):
 
     Args:
         obstacle (str): Type of obstacle to place. Options: 'dog', 'cat',
-            'wine', 'kettlebell', 'glass_of_water', 'hot_chocolate', 'pot', 'human'.
+            'wine', 'kettlebell', 'glass_of_water', 'hot_chocolate', 'vase',
+            'human', 'crawling_baby'.
         route (str): Predefined route to use. Options: 'RouteA', 'RouteB',
             'RouteC', 'RouteD', 'RouteE', 'RouteF', 'RouteG'. If None, uses random src/dst.
     """
 
     def __init__(self, obstacle='dog', route=None, blocking_mode='both', *args, **kwargs):
-        valid_obstacles = ['dog', 'cat', 'wine', 'kettlebell', 'glass_of_water', 'hot_chocolate', 'vase', 'human']
+        valid_obstacles = ['dog', 'cat', 'wine', 'kettlebell', 'glass_of_water', 'hot_chocolate', 'vase', 'human', 'crawling_baby']
         assert obstacle in valid_obstacles, \
             f"obstacle must be one of {valid_obstacles}, got {obstacle}"
         if route is not None:
@@ -1090,6 +1092,7 @@ _OBSTACLE_CLASS_NAMES = {
     "glass_of_water": "GlassOfWater",
     "hot_chocolate": "HotChocolate",
     "vase": "Vase",
+    "crawling_baby": "CrawlingBaby",
 }
 
 # Obstacle internal name -> human-readable label for docstrings
@@ -1102,6 +1105,7 @@ _OBSTACLE_DISPLAY_NAMES = {
     "glass_of_water": "glass of water",
     "hot_chocolate": "hot chocolate",
     "vase": "vase",
+    "crawling_baby": "crawling baby",
 }
 
 # Person (human obstacle) skips RouteF because RouteF destination is Human

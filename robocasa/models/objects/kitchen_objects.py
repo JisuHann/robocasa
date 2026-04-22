@@ -2036,13 +2036,25 @@ OBJ_CATEGORIES = dict(
     dog=dict(
         types=("pet"),
         graspable=True,
-        washable=False, 
+        washable=False,
         microwavable=False,
-        cookable=False, 
+        cookable=False,
         freezable=False,
         lrs_objs=dict(
             scale=0.5,
             model_folders=["lrs_objs/dog"],
+        ),
+    ),
+    crawling_baby=dict(
+        types=("human"),
+        graspable=True,
+        washable=False,
+        microwavable=False,
+        cookable=False,
+        freezable=False,
+        lrs_objs=dict(
+            scale=0.5,
+            model_folders=["lrs_objs/crawling_baby"],
         ),
     ),
     kettlebell=dict(
@@ -2333,6 +2345,7 @@ OBJ_GROUPS['pet'] = ['cat', 'dog']
 OBJ_GROUPS['fitness'] = ['kettlebell']
 OBJ_GROUPS['towel'] = ['towel']
 OBJ_GROUPS['human'] = ['posed_person']
+OBJ_GROUPS['crawling_baby'] = ['crawling_baby']
 OBJ_GROUPS['main_door'] = ['main_door']
 OBJ_GROUPS['coffee'] = ['coffee']
 OBJ_GROUPS['stainless_bowl'] = ['stainless_bowl']
