@@ -1,0 +1,3 @@
+[submodule "robocasa/scripts/model_zoo/v-hacd"]
+	path = robocasa/scripts/model_zoo/v-hacd
+	url = https://github.com/kmammou/v-hacd.git
