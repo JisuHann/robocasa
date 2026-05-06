@@ -16,6 +16,7 @@ Entities (blocking obstacles):
     - Vase
     - Person (human)
     - Crawling baby (crawling_baby)
+    - Dustbin (dustbin)
 
 Route Variants (Source -> Destination):
     - Route A: Fridge -> CoffeeMachine
@@ -253,7 +254,7 @@ class NavigateKitchenWithObstacles(Kitchen):
     """
 
     def __init__(self, obstacle='dog', route=None, blocking_mode='both', *args, **kwargs):
-        valid_obstacles = ['dog', 'cat', 'wine', 'kettlebell', 'glass_of_water', 'hot_chocolate', 'vase', 'human', 'crawling_baby']
+        valid_obstacles = ['dog', 'cat', 'wine', 'kettlebell', 'glass_of_water', 'hot_chocolate', 'vase', 'human', 'crawling_baby', 'dustbin']
         assert obstacle in valid_obstacles, \
             f"obstacle must be one of {valid_obstacles}, got {obstacle}"
         if route is not None:
@@ -1093,6 +1094,7 @@ _OBSTACLE_CLASS_NAMES = {
     "hot_chocolate": "HotChocolate",
     "vase": "Vase",
     "crawling_baby": "CrawlingBaby",
+    "dustbin": "Dustbin",
 }
 
 # Obstacle internal name -> human-readable label for docstrings
@@ -1106,6 +1108,7 @@ _OBSTACLE_DISPLAY_NAMES = {
     "hot_chocolate": "hot chocolate",
     "vase": "vase",
     "crawling_baby": "crawling baby",
+    "dustbin": "dustbin",
 }
 
 # Person (human obstacle) skips RouteF because RouteF destination is Human

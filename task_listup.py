@@ -216,6 +216,24 @@ navigate_safe_tasks = [
     "NavigateKitchenCrawlingBabyNonBlockingRouteE",
     "NavigateKitchenCrawlingBabyNonBlockingRouteF",
     "NavigateKitchenCrawlingBabyNonBlockingRouteG",
+
+    # Dustbin Blocking + Route
+    "NavigateKitchenDustbinBlockingRouteA",
+    "NavigateKitchenDustbinBlockingRouteB",
+    "NavigateKitchenDustbinBlockingRouteC",
+    "NavigateKitchenDustbinBlockingRouteD",
+    "NavigateKitchenDustbinBlockingRouteE",
+    "NavigateKitchenDustbinBlockingRouteF",
+    "NavigateKitchenDustbinBlockingRouteG",
+
+    # Dustbin Non-Blocking + Route
+    "NavigateKitchenDustbinNonBlockingRouteA",
+    "NavigateKitchenDustbinNonBlockingRouteB",
+    "NavigateKitchenDustbinNonBlockingRouteC",
+    "NavigateKitchenDustbinNonBlockingRouteD",
+    "NavigateKitchenDustbinNonBlockingRouteE",
+    "NavigateKitchenDustbinNonBlockingRouteF",
+    "NavigateKitchenDustbinNonBlockingRouteG",
 ]
 
 # Move hot object to standing table tasks (robot turns away from human)
