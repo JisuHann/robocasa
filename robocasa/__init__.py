@@ -601,7 +601,8 @@ assert numpy.__version__ in [
     "1.23.2",
     "1.23.3",
     "1.23.5",
-], "numpy version must be either 1.23.{2,3,5}. Please install one of these versions."
+    "1.26.4",
+], "numpy version must be either 1.23.{2,3,5} or 1.26.4. Please install one of these versions."
 
 import robosuite
 
