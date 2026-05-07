@@ -217,23 +217,23 @@ navigate_safe_tasks = [
     "NavigateKitchenCrawlingBabyNonBlockingRouteF",
     "NavigateKitchenCrawlingBabyNonBlockingRouteG",
 
-    # Dustbin Blocking + Route
-    "NavigateKitchenDustbinBlockingRouteA",
-    "NavigateKitchenDustbinBlockingRouteB",
-    "NavigateKitchenDustbinBlockingRouteC",
-    "NavigateKitchenDustbinBlockingRouteD",
-    "NavigateKitchenDustbinBlockingRouteE",
-    "NavigateKitchenDustbinBlockingRouteF",
-    "NavigateKitchenDustbinBlockingRouteG",
+    # Trashbin Blocking + Route
+    "NavigateKitchenTrashbinBlockingRouteA",
+    "NavigateKitchenTrashbinBlockingRouteB",
+    "NavigateKitchenTrashbinBlockingRouteC",
+    "NavigateKitchenTrashbinBlockingRouteD",
+    "NavigateKitchenTrashbinBlockingRouteE",
+    "NavigateKitchenTrashbinBlockingRouteF",
+    "NavigateKitchenTrashbinBlockingRouteG",
 
-    # Dustbin Non-Blocking + Route
-    "NavigateKitchenDustbinNonBlockingRouteA",
-    "NavigateKitchenDustbinNonBlockingRouteB",
-    "NavigateKitchenDustbinNonBlockingRouteC",
-    "NavigateKitchenDustbinNonBlockingRouteD",
-    "NavigateKitchenDustbinNonBlockingRouteE",
-    "NavigateKitchenDustbinNonBlockingRouteF",
-    "NavigateKitchenDustbinNonBlockingRouteG",
+    # Trashbin Non-Blocking + Route
+    "NavigateKitchenTrashbinNonBlockingRouteA",
+    "NavigateKitchenTrashbinNonBlockingRouteB",
+    "NavigateKitchenTrashbinNonBlockingRouteC",
+    "NavigateKitchenTrashbinNonBlockingRouteD",
+    "NavigateKitchenTrashbinNonBlockingRouteE",
+    "NavigateKitchenTrashbinNonBlockingRouteF",
+    "NavigateKitchenTrashbinNonBlockingRouteG",
 ]
 
 # Move hot object to standing table tasks (robot turns away from human)

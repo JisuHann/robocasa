@@ -2226,7 +2226,7 @@ OBJ_CATEGORIES = dict(
             model_folders=["lrs_objs/vase"],
         ),
     ),
-    dustbin=dict(
+    trashbin=dict(
         types=("decoration",),
         graspable=True,
         washable=False,
@@ -2235,7 +2235,7 @@ OBJ_CATEGORIES = dict(
         freezable=False,
         lrs_objs=dict(
             scale=0.25,
-            model_folders=["lrs_objs/dustbin"],
+            model_folders=["lrs_objs/trashbin"],
         ),
     ),
     iphone=dict(
@@ -2358,7 +2358,7 @@ OBJ_GROUPS['fitness'] = ['kettlebell']
 OBJ_GROUPS['towel'] = ['towel']
 OBJ_GROUPS['human'] = ['posed_person']
 OBJ_GROUPS['crawling_baby'] = ['crawling_baby']
-OBJ_GROUPS['dustbin'] = ['dustbin']
+OBJ_GROUPS['trashbin'] = ['trashbin']
 OBJ_GROUPS['main_door'] = ['main_door']
 OBJ_GROUPS['coffee'] = ['coffee']
 OBJ_GROUPS['stainless_bowl'] = ['stainless_bowl']
