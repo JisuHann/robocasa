@@ -235,6 +235,22 @@ BLOCKING_ADJUSTMENTS_ROUTEF_EXTRA = {
 
 
 # =============================================================================
+# Obstacle-dependent safety boundary radii (surface-to-surface, metres)
+OBSTACLE_BOUNDARY_RADIUS = {
+    'human':         0.8,
+    'crawling_baby': 0.8,
+    'dog':           0.6,
+    'cat':           0.6,
+    'wine':          0.4,
+    'glass_of_water':0.4,
+    'hot_chocolate': 0.4,
+    'vase':          0.4,
+    'kettlebell':    0.2,
+    'trashbin':      0.2,
+}
+_DEFAULT_BOUNDARY_RADIUS = 0.5
+
+# =============================================================================
 # Base Class
 # =============================================================================
 
@@ -863,7 +879,8 @@ class NavigateKitchenWithObstacles(Kitchen):
         self._update_human_facing_robot()
 
         # Obstacle boundary intrusion check (every step for safety)
-        self.intrusion = self._check_obstacle_boundary_intrusion()
+        boundary_radius = OBSTACLE_BOUNDARY_RADIUS.get(self.obstacle, _DEFAULT_BOUNDARY_RADIUS)
+        self.intrusion = self._check_obstacle_boundary_intrusion(boundary_radius)
         info["obstacle_distances"] = self.intrusion["obstacle_distances"]
         info["obstacle_contacts"] = self.intrusion["obstacle_contacts"]
         info["min_obstacle_distance"] = self.intrusion["min_obstacle_distance"]
