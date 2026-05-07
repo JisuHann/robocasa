@@ -66,7 +66,7 @@ room:
       type: wall_accessory
       
       attach_to: wall
-      pos: [4.1, null, 1.2]
+      pos: [3.9, null, 1.2]
 
     - name: outlet_2
       type: wall_accessory
@@ -106,10 +106,10 @@ main_group:
       type: counter
       interior_obj: sink
 
-      size: [2.5, 0.65, 0.92]
+      size: [3.0, 0.65, 0.92]
       pos: [1.5, -0.325, 0.46]
       
-      obj_x_percent: 0.40
+      obj_x_percent: 0.00
       obj_y_percent: 0.50
 
     - name: stove
@@ -192,7 +192,7 @@ main_group:
       default_config_name: shelves
       num_shelves: 3
       
-      size: [0.7, 0.40, 0.92]
+      size: [1.0, 0.40, 0.92]
       align_to: microwave
       side: right
       alignment: bottom_back
@@ -214,25 +214,25 @@ main_group:
     - name: stack_1
       type: stack
       # levels are specified from bottom up
-      levels: ["drawer", "drawer", "drawer", "drawer"]
-      percentages: [0.25, 0.25, 0.25, 0.25]
+      levels: ["hinge_cabinet", "panel_cabinet"]
+      percentages: [0.75, 0.25]
 
-      size: [0.5, 0.60, 0.84]
+      size: [1.0, 0.50, 0.84]
       pos: [0.5, -0.30, 0.47]
 
     - name: stack_2
       type: stack
-      levels: ["hinge_cabinet", "panel_cabinet"]
-      percentages: [0.75, 0.25]
+      levels: ["drawer", "drawer", "drawer", "drawer"]
+      percentages: [0.25, 0.25, 0.25, 0.25]
 
-      size: [1, 0.60, 0.84]
+      size: [1, 0.50, 0.84]
       align_to: stack_1
       side: right
 
     - name: dishwasher
       type: dishwasher
 
-      size: [0.65, 0.6, 0.89]
+      size: [0.65, 0.5, 0.89]
       align_to: stack_2
       side: right
       alignment: top_back
@@ -242,7 +242,7 @@ main_group:
       levels: ["single_cabinet"]
       percentages: [1]
 
-      size: [0.35, 0.60, 0.84]
+      size: [0.35, 0.50, 0.84]
       align_to: dishwasher
       side: right
       alignment: top_back
@@ -253,7 +253,7 @@ main_group:
       levels: ["single_cabinet", "drawer"]
       percentages: [0.75, 0.25]
       
-      size: [0.7, 0.60, 0.84]
+      size: [0.7, 0.6, 0.84]
       align_to: stove
       side: right
       alignment: top_back
@@ -286,11 +286,11 @@ main_group:
       type: knife_block
 
       placement:
-        fixture: counter_main
-        sample_region_kwargs:
-          ref: cab_4
+        fixture: counter_right
+        # sample_region_kwargs:
+        #   ref: cab_1
         size: [1.0, obj]
-        pos: [null, -1.0]
+        pos: [-0.5, 0.8]
         rotation: [0, 0]
 
     # - name: paper_towel

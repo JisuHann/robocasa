@@ -92,12 +92,19 @@ room:
 main_group:
   # Top row (cabinets and microwave)
   top_row:
+    - name: cab_0
+      type: hinge_cabinet
+      default_config_name: cab_top
+
+      size: [1, 0.4, 0.92]
+      pos: [1.05, -0.2, 1.85]
     - name: cab_1
       type: hinge_cabinet
       default_config_name: cab_top
 
       size: [1, 0.4, 0.92]
-      pos: [2.05, -0.2, 1.85]
+      align_to: cab_0
+      side: right
 
     - name: cab_2
       type: hinge_cabinet
@@ -138,11 +145,11 @@ main_group:
 
     - name: counter_main
       type: counter
-      interior_obj: sink
 
       size: [3, 0.65, 0.92]
-      pos: [3.05, -0.325, 0.46]
-      obj_x_percent: 0.5
+      pos: [2.05, -0.325, 0.46]
+      interior_obj: sink
+      obj_x_percent: 0.7
       obj_y_percent: 0.50
 
     - name: counter_corner_main
@@ -150,21 +157,40 @@ main_group:
       hollow: [false, false]
       overhang: 0
 
-      size: [0.65, 0.6, 0.92]
+      size: [1.65, 0.6, 0.92]
       align_to: counter_main
       side: right
       alignment: back
 
+
   # Cabinets built into counters
   bottom_row_cabinets:
-    - name: stack_1
+    - name: stack_0
       type: stack
       # levels are specified from bottom up
       levels: ["drawer", "drawer", "drawer", "drawer"]
       percentages: [0.25, 0.25, 0.25, 0.25]
 
-      size: [1, 0.6, 0.84]
-      pos: [2.05, -0.3, 0.47]
+      size: [0.5, 0.6, 0.84]
+      pos: [0.8, -0.3, 0.47]
+    - name: stack_1
+      type: stack
+      # levels are specified from bottom up
+      levels: ["drawer", "drawer"]
+      percentages: [0.5, 0.5]
+
+      size: [0.5, 0.6, 0.84]
+      # pos: [1.05, -0.3, 0.47]
+      align_to: stack_0
+      side: right
+      alignment: top_back
+
+    - name: dishwasher
+      type: dishwasher
+
+      size: [0.65, 0.6, 0.89]
+      align_to: stack_1
+      side: right
 
     - name: stack_2
       type: stack
@@ -177,18 +203,10 @@ main_group:
           panel_config:
             handle_vpos: center
 
-      size: [1, 0.6, 0.84]
-      align_to: stack_1
-      side: right
-
-    - name: dishwasher
-      type: dishwasher
-
-      size: [0.65, 0.6, 0.89]
-      align_to: stack_2
+      size: [1.0, 0.6, 0.84]
+      align_to: dishwasher
       side: right
       alignment: top_back
-
     - name: stack_3
       type: stack
 
@@ -196,7 +214,7 @@ main_group:
       percentages: [1]
 
       size: [0.35, 0.6, 0.84]
-      align_to: dishwasher
+      align_to: stack_2
       side: right
       alignment: top_back
 
@@ -206,9 +224,9 @@ main_group:
       type: plant
 
       placement:
-        fixture: counter_main
-        sample_region_kwargs:
-          ref: cab_1_main_group
+        fixture: counter_2
+        # sample_region_kwargs:
+        #   ref: cab_1_main_group
         size: [1.0, 0.25]
         pos: [null, 1.0]
         rotation: [0, 0]
@@ -248,7 +266,7 @@ main_group:
 
     - name: standing_table
       type: standing_table
-      pos: [1.0, -1.5, 0.4]
+      pos: [1.0, -2.5, 0.4]
       rot: 0
 
 # fixtures on the right wall
@@ -263,7 +281,7 @@ right_group:
     - name: counter_1
       type: counter
 
-      size: [0.5, 0.65, 0.92]
+      size: [2.5, 0.65, 0.92]
       pos: [0.25, -0.325, 0.46]
 
     - name: counter_corner_left
@@ -312,8 +330,8 @@ right_group:
       levels: ["single_cabinet", "drawer"]
       percentages: [0.75, 0.25]
 
-      size: [0.5, 0.6, 0.84]
-      pos: [0.25, -0.3, 0.47]
+      size: [1.5, 0.6, 0.84]
+      pos: [0.75, -0.3, 0.47]
 
     - name: stack_2
       type: stack
@@ -347,11 +365,18 @@ right_group:
       size: [0.5, 0.4, 0.92]
       pos: [0.25, -0.2, 1.85]
 
+    - name: cab_0
+      type: hinge_cabinet
+      default_config_name: cab_top
+
+      size: [1.0, 0.4, 0.92]
+      pos: [1.0, -0.2, 1.85]
+
     - name: microwave
       type: microwave
       size: [stove, 0.45, null]
 
-      align_to: cab_1
+      align_to: cab_0
       side: right
       alignment: bottom_back
 
@@ -412,8 +437,11 @@ right_group:
       type: coffee_machine
 
       placement:
-        fixture: counter_1
+        fixture: counter_main
+        sample_region_kwargs:
+          ref: cab_0_main_group
         size: [0.60, 0.52]
-        pos: [0.4, 1.8]
+        # pos: [0.4, 1.8]
+        pos: [0.4, 2.0]
         rotation: [0, 0]
         margin: 0.0

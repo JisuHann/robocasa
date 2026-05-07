@@ -261,7 +261,7 @@ main_group:
       placement:
         fixture: counter_main_main_group
         sample_region_kwargs:
-          ref: cab_1_main_group
+          ref: cab_main_main_group
         size: [1.0, 0.52]
         pos: [null, 1.8]
         rotation: [0, 0]
@@ -301,13 +301,13 @@ main_group:
     - name: posed_person
       type: posed_person
       pos : [2.5, -5.5, 0.832]
-      size: [0.5, 0.5, 0.8]
+      size: [0.45, 0.45, 0.72]
 
     - name: main_door
       type: main_door
       pos: [3.5, -7.0, 1.0]
       size: [1.2, 0.3, 2.0]
-      rot: 1.57
+      rot: 3.14 #1.57
     - name: standing_table
       type: standing_table
       pos: [5.5, -7.5, 0.4]
@@ -324,8 +324,8 @@ front_group:
       type: counter
       base_opening: [false, true]
 
-      size: [2.55, 0.65, 0.92]
-      pos: [0, 0, 0.46]
+      size: [1.85, 0.65, 0.92]
+      pos: [0.5, 0, 0.46]
 
     - name: counter_corner
       type: counter
@@ -337,23 +337,23 @@ front_group:
       side: right
 
   stools:
-    - name: stool_1
-      type: stool
+    # - name: stool_1
+    #   type: stool
 
-      # place flush to ground
-      pos: [-0.65, 0.40, 0.5]
+    #   # place flush to ground
+    #   pos: [-0.65, 0.40, 0.5]
 
     - name: stool_2
       type: stool
 
       # place flush to ground
-      pos: [0.0, 0.40, 0.5]
+      pos: [0.2, 0.40, 0.5]
 
     - name: stool_3
       type: stool
 
       # place flush to ground
-      pos: [0.65, 0.40, 0.5]
+      pos: [0.75, 0.40, 0.5]
 
 # fixtures on the left wall
 left_group:
@@ -377,7 +377,7 @@ left_group:
     - name: counter_1
       type: counter
       interior_obj: sink
-      obj_x_percent: 0.5
+      obj_x_percent: 0.15
       obj_y_percent: 0.15
 
       size: [3, 0.65, 0.92]
@@ -398,15 +398,6 @@ left_group:
     - name: stack_1
       type: stack
       # levels are specified from bottom up
-      levels: ["hinge_cabinet", ["drawer", "drawer"]]
-      percentages: [0.75, 0.25]
-
-      size: [1, 0.6, 0.84]
-      pos: [1.2, -0.3, 0.47]
-
-    - name: stack_2
-      type: stack
-      # levels are specified from bottom up
       levels: ["hinge_cabinet"]
       percentages: [1]
 
@@ -415,6 +406,15 @@ left_group:
           open_top: true
           panel_config:
             handle_vpos: center
+
+      size: [1, 0.6, 0.84]
+      pos: [1.2, -0.3, 0.47]
+
+    - name: stack_2
+      type: stack
+      # levels are specified from bottom up
+      levels: ["hinge_cabinet", ["drawer", "drawer"]]
+      percentages: [0.75, 0.25]
 
       size: [1, 0.6, 0.84]
       align_to: stack_1
@@ -471,7 +471,7 @@ left_group:
         fixture: counter_1_left_group
         sample_region_kwargs:
           ref: sink
-          loc: left
+          loc: right
         size: [0.4, 0.4]
         pos: [null, 1.0]
         rotation: [0, 0]
@@ -517,48 +517,6 @@ right_group:
       size: [0.5, 0.78, 2.26]
       pos: [0.2, -0.21, 1.18]
 
-    - name: fridge
-      type: fridge
-
-      size: [0.9, 0.8, 1.78]
-
-    - name: fridge_housing
-      type: housing_cabinet
-      padding: [[0.02, 0.02], [-0.04, 0.02], [0, 0.02]]
-
-      pos: [0.92, -0.21, 0.9]
-      interior_obj: fridge
-
-    - name: fridge_top
-      type: hinge_cabinet
-      size: [fridge_housing, 0.78, null]
-      align_to: fridge_housing
-      alignment: front
-      side: top
-      stack_height: 2.31
-      stack_fixtures: ["fridge_housing"]
-
-    - name: stack_right
-      type: stack
-      levels: ["single_cabinet", "single_cabinet"]
-      percentages: [0.5, 0.5]
-
-      configs:
-        single_cabinet_1:
-          panel_config:
-            handle_vpos: top
-          orientation: right
-
-        single_cabinet_2:
-          panel_config:
-            handle_vpos: bottom
-          orientation: right
-
-      size: [0.5, 0.78, 2.26]
-      align_to: fridge_top
-      side: right
-      alignment: top_back
-
     - name: cab_top_corner
       type: box
 
@@ -579,7 +537,8 @@ right_group:
       percentages: [0.5, 0.5]
       size: [0.8, 0.78, 0.6]
       # pos: [3.47, -0.21, 0.35]
-      align_to: stack_right
+      # align_to: stack_right
+      align_to: stack_left
       side: right
       alignment: bottom_back
 
@@ -635,3 +594,50 @@ right_group:
       align_to: bottom
       side: right
       alignment: bottom_back
+
+    - name: stack_right
+      type: stack
+      levels: ["single_cabinet", "single_cabinet"]
+      percentages: [0.5, 0.5]
+
+      configs:
+        single_cabinet_1:
+          panel_config:
+            handle_vpos: top
+          orientation: right
+
+        single_cabinet_2:
+          panel_config:
+            handle_vpos: bottom
+          orientation: right
+
+      size: [0.5, 0.78, 2.26]
+      align_to: side_bottom
+      side: right
+      alignment: bottom_back
+
+
+    - name: fridge
+      type: fridge
+
+      size: [0.9, 0.8, 1.78]
+
+    - name: fridge_housing
+      type: housing_cabinet
+      padding: [[0.02, 0.02], [-0.04, 0.02], [0, 0.02]]
+
+      pos: [3.22, -0.21, 0.9]
+      # align_to: micro_housing
+      # side: right
+      interior_obj: fridge
+
+    - name: fridge_top
+      type: hinge_cabinet
+      size: [fridge_housing, 0.78, null]
+      align_to: fridge_housing
+      alignment: front
+      side: top
+      stack_height: 2.31
+      stack_fixtures: ["fridge_housing"]
+      
+

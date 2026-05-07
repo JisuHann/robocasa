@@ -166,7 +166,7 @@ BLOCKING_ADJUSTMENTS = {
     (LayoutType.GALLEY, 'RouteF'): ([0.4, 1.5], [np.pi/2,0]),
     (LayoutType.GALLEY, 'RouteG'): ([-0.3, -0.0], None),
     # U_SHAPED_LARGE layout
-    (LayoutType.U_SHAPED_LARGE, 'RouteA'): ([0, -0.5], None),
+    (LayoutType.U_SHAPED_LARGE, 'RouteA'): ([0, 0.3], None),
     (LayoutType.U_SHAPED_LARGE, 'RouteB'): ([0.5, 1.0], None),
     (LayoutType.U_SHAPED_LARGE, 'RouteC'): ([0.4, 0.4], [-np.pi/4, 0, 0]),
     (LayoutType.U_SHAPED_LARGE, 'RouteE'): ([-1.0, 1.0], [np.pi/2, 0, 0]),
@@ -177,8 +177,8 @@ BLOCKING_ADJUSTMENTS = {
     (LayoutType.U_SHAPED_SMALL, 'RouteB'): ([0.3,-0.3], [-np.pi/2, 0]),
     (LayoutType.U_SHAPED_SMALL, 'RouteD'): ([0.4, 0.0], [np.pi, 0, 0]),
     (LayoutType.U_SHAPED_SMALL, 'RouteE'): ([0,1.0], [np.pi/2, 0, 0]),
-    (LayoutType.U_SHAPED_SMALL, 'RouteG'): ([0.4, 0.0], None),
     (LayoutType.U_SHAPED_SMALL, 'RouteF'): ([0.0, 1.0], None),
+    (LayoutType.U_SHAPED_SMALL, 'RouteG'): ([0.18, 0.2], None),
     # L_SHAPED_LARGE layout
     (LayoutType.L_SHAPED_LARGE, 'RouteA'): ([0.5, -0.2], None),
     (LayoutType.L_SHAPED_LARGE, 'RouteB'): ([0.4, 0.4], None),
@@ -192,14 +192,14 @@ BLOCKING_ADJUSTMENTS = {
     (LayoutType.L_SHAPED_SMALL, 'RouteC'): (None, [-np.pi/2, 0, 0]),
     (LayoutType.L_SHAPED_SMALL, 'RouteD'): ([-0.1, 0.0], None),
     (LayoutType.L_SHAPED_SMALL, 'RouteE'): ([0.2, 0.5], [3*np.pi/4,0]),
-    (LayoutType.L_SHAPED_SMALL, 'RouteG'): (None, [-np.pi/4, 0, 0]),
+    (LayoutType.L_SHAPED_SMALL, 'RouteG'): ([-0.2, 0.2], [-np.pi/4, 0, 0]),
     (LayoutType.L_SHAPED_SMALL, 'RouteF'): ([0.3, 0.5], [3*np.pi/4,0]),
     
     # G_SHAPED_SMALL layout
     (LayoutType.G_SHAPED_SMALL, 'RouteA'): ([-0.3, -0.2], None),
     (LayoutType.G_SHAPED_SMALL, 'RouteB'): ([-0.3, -0.2], None),
     (LayoutType.G_SHAPED_SMALL, 'RouteC'): (None, [np.pi/2, 0]),
-    (LayoutType.G_SHAPED_SMALL, 'RouteD'): ([-0.3, -0.1], None),
+    (LayoutType.G_SHAPED_SMALL, 'RouteD'): ([0.3, 0.05], None),
     (LayoutType.G_SHAPED_SMALL, 'RouteE'): (None, [np.pi/2, 0, 0]),
     (LayoutType.G_SHAPED_SMALL, 'RouteF'): ([0.2,1.0], [np.pi/2, 0, 0]),
     (LayoutType.G_SHAPED_SMALL, 'RouteG'): ([-0.5, 0], None),
@@ -224,7 +224,7 @@ BLOCKING_ADJUSTMENTS = {
     (LayoutType.ONE_WALL_LARGE, 'RouteG'): ([-0.3, 0.0], None),
     # WRAPAROUND layout
     (LayoutType.WRAPAROUND, 'RouteC'): ([-0.3, -0.1], None),
-    (LayoutType.WRAPAROUND, 'RouteD'): ([0.0, -0.2], [np.pi/2, 0, 0]),
+    (LayoutType.WRAPAROUND, 'RouteD'): ([0.0, 0.0], [np.pi/2, 0, 0]),
     (LayoutType.WRAPAROUND, 'RouteE'): ([0.0, 2.2], [np.pi/2, 0, 0]),
     (LayoutType.WRAPAROUND, 'RouteF'): ([-1.5, 2.3], None),
 }
@@ -239,8 +239,18 @@ BLOCKING_ADJUSTMENTS_ROUTEF_EXTRA = {
     (LayoutType.G_SHAPED_SMALL, 'RouteF'): ([0.0, 0.8], None),
     (LayoutType.ONE_WALL_SMALL, 'RouteF'): ([-1.0, 1.0], None),
     (LayoutType.ONE_WALL_LARGE, 'RouteF'): ([0.3, 1.0], [np.pi/2, 0, 0]),
-}
+    (LayoutType.L_SHAPED_LARGE, 'RouteA') : ([0.0, 1.2], None),
+    (LayoutType.L_SHAPED_LARGE, 'RouteB') : ([0.0, -0.2], None),
+    (LayoutType.L_SHAPED_LARGE, 'RouteC') : ([-0.05, 0.0], None),
+    (LayoutType.L_SHAPED_LARGE, 'RouteD') : ([0.1, -0.2], None),
+    (LayoutType.L_SHAPED_LARGE, 'RouteG') : ([0.1, 0.0], None),
 
+    (LayoutType.G_SHAPED_SMALL, 'RouteC'): ([0.2, -0.3], None),
+    (LayoutType.U_SHAPED_SMALL, 'RouteC'): ([-0.3, 0.0], None),
+
+    (LayoutType.G_SHAPED_LARGE, 'RouteD'): ([-0.3, 0.0], None),
+}
+#  _U_SHAPED_SMALL_seed0 # 
 
 # =============================================================================
 # Obstacle-dependent safety boundary radii (surface-to-surface, metres)
@@ -420,7 +430,7 @@ class NavigateKitchenWithObstacles(Kitchen):
                 human_base_pos[1] -= 1.5
             elif self.layout_id == LayoutType.U_SHAPED_SMALL:
                 human_base_pos[0] += 2.0
-                human_base_pos[1] -= 1.5
+                human_base_pos[1] -= 2.0
             elif self.layout_id == LayoutType.U_SHAPED_LARGE:
                 human_base_pos[1] -= 1.0
                 human_base_pos[0] += 2.0
@@ -469,6 +479,8 @@ class NavigateKitchenWithObstacles(Kitchen):
         scaling_factor = 0.5 if path_len < 2.0 else 0.6
         if self.route == 'RouteF':
             scaling_factor = 0.8
+        if self.route == 'RouteG' and self.layout_id in [LayoutType.L_SHAPED_SMALL]:
+            scaling_factor = 0.57
         logger.debug("path_len: %s scaling_factor: %s", path_len, scaling_factor)
         self._obstacle_blocking_xy = src_xy + path_dir * (path_len * scaling_factor)
         
@@ -510,26 +522,40 @@ class NavigateKitchenWithObstacles(Kitchen):
 
         # Position the standing table at obstacle location for drink obstacles
         if self.obstacle in TABLE_OBSTACLES:
-            if self.blocking_mode == 'blocking':
-                table_xy = self._obstacle_blocking_xy
-            elif self.blocking_mode == 'nonblocking':
-                table_xy = self._obstacle_nonblocking_xy
+            if self.blocking_mode in ('blocking', 'both'):
+                table_xy = self._obstacle_blocking_xy.copy()
+                # Apply the same BLOCKING_ADJUSTMENTS offset used for the obstacle object
+                key = (self.layout_id, self.route)
+                if key in BLOCKING_ADJUSTMENTS:
+                    offset_adj, _ = BLOCKING_ADJUSTMENTS[key]
+                    if offset_adj is not None:
+                        table_xy += np.array(offset_adj)
+                if key in BLOCKING_ADJUSTMENTS_ROUTEF_EXTRA:
+                    offset_adj, _ = BLOCKING_ADJUSTMENTS_ROUTEF_EXTRA[key]
+                    if offset_adj is not None:
+                        table_xy += np.array(offset_adj)
             else:
-                # 'both' mode: place table at blocking position
-                table_xy = self._obstacle_blocking_xy
+                table_xy = self._obstacle_nonblocking_xy.copy()
             table_pos = [table_xy[0], table_xy[1], 0.43]
             self.standing_table.set_pos(table_pos)
 
         if human_related_task:
             # Use the existing fixture person as the obstacle
-            if self.blocking_mode == 'blocking':
-                person_pos = [self._obstacle_blocking_xy[0], self._obstacle_blocking_xy[1], 0.832]
-            elif self.blocking_mode == 'nonblocking':
-                person_pos = [self._obstacle_nonblocking_xy[0], self._obstacle_nonblocking_xy[1], 0.832]
+            if self.blocking_mode in ('blocking', 'both'):
+                person_xy = self._obstacle_blocking_xy.copy()
+                # Apply the same adjustments used for non-human obstacle objects
+                key = (self.layout_id, self.route)
+                if key in BLOCKING_ADJUSTMENTS:
+                    offset_adj, _ = BLOCKING_ADJUSTMENTS[key]
+                    if offset_adj is not None:
+                        person_xy += np.array(offset_adj)
+                if key in BLOCKING_ADJUSTMENTS_ROUTEF_EXTRA:
+                    offset_adj, _ = BLOCKING_ADJUSTMENTS_ROUTEF_EXTRA[key]
+                    if offset_adj is not None:
+                        person_xy += np.array(offset_adj)
             else:
-                # 'both' mode: place person at blocking position
-                person_pos = [self._obstacle_blocking_xy[0], self._obstacle_blocking_xy[1], 0.832]
-
+                person_xy = self._obstacle_nonblocking_xy.copy()
+            person_pos = [person_xy[0], person_xy[1], 0.832]
             self.person.set_pos(person_pos)
         else :
             person_pos = self.target_pos
@@ -759,14 +785,9 @@ class NavigateKitchenWithObstacles(Kitchen):
                 qpos[3:7] = sampled_quat
                 self.sim.data.set_joint_qpos(joint_name, qpos)
 
-                # Zero out velocity
+                # Zero out velocity so obstacle starts at rest
                 qvel_addr = self.sim.model.get_joint_qvel_addr(joint_name)
                 self.sim.data.qvel[qvel_addr[0]:qvel_addr[1]] = 0
-
-                # Store fixed qpos for pinning in _post_action
-                if not hasattr(self, '_obstacle_fixed_qpos'):
-                    self._obstacle_fixed_qpos = {}
-                self._obstacle_fixed_qpos[joint_name] = qpos.copy()
 
         # Update derived quantities without running physics
         self.sim.forward()
@@ -898,12 +919,6 @@ class NavigateKitchenWithObstacles(Kitchen):
         """
         reward, done, info = super()._post_action(action)
         step = self._step_count
-        if hasattr(self, '_obstacle_fixed_qpos'):
-            for joint_name, fixed_qpos in self._obstacle_fixed_qpos.items():
-                self.sim.data.set_joint_qpos(joint_name, fixed_qpos)
-                qvel_addr = self.sim.model.get_joint_qvel_addr(joint_name)
-                self.sim.data.qvel[qvel_addr[0]:qvel_addr[1]] = 0
-            self.sim.forward()
 
         # Make human always face toward the robot every step
         self._update_human_facing_robot()

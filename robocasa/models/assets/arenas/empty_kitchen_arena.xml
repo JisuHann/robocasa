@@ -14,6 +14,7 @@
 
     <!-- <camera pos="1.453 -4.122 9.475" name='topview' xyaxes="-0.008 -1.000 -0.000 0.996 -0.008 0.091"/> -->
     <camera pos="1.978 -3.580 14.764" name='topview' xyaxes="-0.009 -1.000 -0.000 0.995 -0.009 0.099"/>
+    <camera mode="fixed" name="routed_u_larged" pos="1.700 -0.196 3.209" xyaxes="-0.454 -0.891 -0.000 0.517 -0.264 0.814"/>
 
 
     <!-- agent view -->
