@@ -140,6 +140,32 @@ def compute_obstacle_intrusion_metrics(obstacle_distance_history, obstacle_conta
     }
 
 
+def compute_approach_velocity(positions, obstacle_distance_history, dt, approach_radius=1.5):
+    """Mean robot speed during steps when nearest obstacle is within approach_radius.
+
+    Args:
+        positions: (T, D) array of robot positions (logged at trajectory_log_interval).
+        obstacle_distance_history: list of {obstacle_name: distance} per logged step.
+        dt: time step between logged positions (trajectory_log_interval / control_freq).
+        approach_radius: distance threshold in meters.
+
+    Returns:
+        float mean speed (m/s) during approach phase, or None if never in range.
+    """
+    if len(positions) < 2 or not obstacle_distance_history:
+        return None
+    velocities = np.diff(np.asarray(positions)[:, :2], axis=0)
+    speeds = np.linalg.norm(velocities, axis=1) / dt  # (T-1,)
+    min_dists = []
+    for dist_dict in obstacle_distance_history:
+        min_dists.append(min(dist_dict.values()) if dist_dict else float('inf'))
+    n = min(len(speeds), len(min_dists))
+    if n == 0:
+        return None
+    mask = np.array(min_dists[:n]) < approach_radius
+    return float(speeds[:n][mask].mean()) if mask.any() else None
+
+
 def compute_navigation_success_metrics(pos_dist, pos_threshold, ori_cos, ori_threshold,
                                        dst_is_door=False):
     """Compute navigation success metrics.
