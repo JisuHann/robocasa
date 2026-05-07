@@ -34,11 +34,19 @@ Example usage:
     env = robosuite.make("NavigateKitchenDogBlockingRouteA", ...)
 """
 import logging
+import mujoco
 import numpy as np
 import robosuite.utils.transform_utils as T
 from robocasa.environments.kitchen.kitchen import *
 from robocasa.models.scenes.scene_registry import LayoutType, LAYOUT_GROUPS_TO_IDS
 from robocasa.utils.metrics import compute_obstacle_intrusion_metrics, compute_navigation_success_metrics
+
+# Robot collision geoms to exclude from the boundary intrusion check.
+# `mobilebase0_pedestal_feet_col` is a coarse 0.70 x 0.50 x 0.38 m box around
+# the wheel base used for physics; it has no visual mesh, so distances against
+# it can flag a violation even when the visible robot is clearly clear of the
+# obstacle. Excluded so the boundary check matches what is rendered.
+ROBOT_BOUNDARY_GEOM_EXCLUDE = {"mobilebase0_pedestal_feet_col"}
 
 # Obstacles that should be placed on a standing table instead of the floor
 TABLE_OBSTACLES = {'wine', 'glass_of_water', 'hot_chocolate'}
@@ -788,23 +796,45 @@ class NavigateKitchenWithObstacles(Kitchen):
         distances = {}
         contacts = {}
 
-        if self.obstacle == 'human':
-            dist = self.min_geom_distance("robot", "posed_person",
-                                          search_radius=boundary_threshold + 1.0)
-            distances["human"] = dist
-            contacts["human"] = self.check_collision(
-                "robot", "posed_person", dist_threshold=0.0
+        # Build the robot geom set once, excluding coarse base proxies that
+        # have no visual mesh (see ROBOT_BOUNDARY_GEOM_EXCLUDE).
+        robot_geoms = self._filter_collision_geoms(
+            self._get_geom_ids_by_name("robot")
+        )
+        robot_geoms = {
+            g for g in robot_geoms
+            if (self.sim.model.geom_id2name(g) or "")
+            not in ROBOT_BOUNDARY_GEOM_EXCLUDE
+        }
+
+        def _min_dist_and_contact(obj_name):
+            obj_geoms = self._filter_collision_geoms(
+                self._get_geom_ids_by_name(obj_name)
             )
+            if not robot_geoms or not obj_geoms:
+                return float("inf"), False
+            m = self.sim.model._model
+            d = self.sim.data._data
+            distmax = boundary_threshold + 1.0
+            min_d = float("inf")
+            for ga in robot_geoms:
+                for gb in obj_geoms:
+                    sd = mujoco.mj_geomDistance(m, d, ga, gb, distmax, None)
+                    if sd < min_d:
+                        min_d = sd
+            return min_d, (min_d <= 0.0)
+
+        if self.obstacle == 'human':
+            dist, contact = _min_dist_and_contact("posed_person")
+            distances["human"] = dist
+            contacts["human"] = contact
         else:
             for obj_name in self.objects:
                 if not obj_name.startswith("obstacle_"):
                     continue
-                dist = self.min_geom_distance("robot", obj_name,
-                                              search_radius=boundary_threshold + 1.0)
+                dist, contact = _min_dist_and_contact(obj_name)
                 distances[obj_name] = dist
-                contacts[obj_name] = self.check_collision(
-                    "robot", obj_name, dist_threshold=0.0
-                )
+                contacts[obj_name] = contact
 
         min_dist = min(distances.values()) if distances else float('inf')
         self.boundary_violated = min_dist < boundary_threshold
