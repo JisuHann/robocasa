@@ -255,7 +255,7 @@ BLOCKING_ADJUSTMENTS_ROUTEF_EXTRA = {
 # =============================================================================
 # Obstacle-dependent safety boundary radii (surface-to-surface, metres)
 # Tier mapping: High=0.6 (human/baby/cat/dog) | Medium=0.4 (fragile)
-# | Low=0.1 (kettlebell), 0.2 (trashbin/decoration).
+# | Low=0.2 (kettlebell/trashbin — robust/decoration).
 OBSTACLE_BOUNDARY_RADIUS = {
     'human':         0.6,
     'crawling_baby': 0.6,
@@ -265,7 +265,7 @@ OBSTACLE_BOUNDARY_RADIUS = {
     'glass_of_water':0.4,
     'hot_chocolate': 0.4,
     'vase':          0.4,
-    'kettlebell':    0.1,
+    'kettlebell':    0.2,
     'trashbin':      0.2,
 }
 _DEFAULT_BOUNDARY_RADIUS = 0.5

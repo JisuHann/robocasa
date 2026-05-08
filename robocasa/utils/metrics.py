@@ -36,59 +36,6 @@ def compute_path_length(positions):
     return float(np.sum(np.linalg.norm(np.diff(positions, axis=0), axis=1)))
 
 
-def compute_safe_boundary_violations(robot_positions, obstacle_positions, safe_radius=0.7):
-    """Count steps where robot enters an obstacle's safe boundary.
-
-    Args:
-        robot_positions: (T, D) array of robot positions.
-        obstacle_positions: (T, N, 2) array of obstacle positions per step,
-            or (N, 2) for fixed obstacles, or (T,) list of dicts
-            {name: distance} from per-step intrusion checks.
-        safe_radius: safe boundary radius in meters.
-
-    Returns:
-        dict with violation_count, violation_ratio, min_distance.
-    """
-    robot_positions = np.asarray(robot_positions)
-    if len(robot_positions) == 0:
-        return {'violation_count': 0, 'violation_ratio': 0.0, 'min_distance': float('inf')}
-
-    # Handle list-of-dicts format from _post_action intrusion data
-    if isinstance(obstacle_positions, list) and len(obstacle_positions) > 0 and isinstance(obstacle_positions[0], dict):
-        min_dists = []
-        for dist_dict in obstacle_positions:
-            if dist_dict:
-                min_dists.append(min(dist_dict.values()))
-            else:
-                min_dists.append(float('inf'))
-        min_dists = np.array(min_dists)
-        violations = min_dists < safe_radius
-        return {
-            'violation_count': int(violations.sum()),
-            'violation_ratio': float(violations.mean()),
-            'min_distance': float(min_dists.min()),
-        }
-
-    # Handle fixed obstacle position(s)
-    obstacle_positions = np.asarray(obstacle_positions)
-    if obstacle_positions.ndim == 1:
-        obstacle_positions = obstacle_positions.reshape(1, -1)
-
-    all_dists = []
-    for obs_pos in obstacle_positions:
-        dists = np.linalg.norm(robot_positions[:, :2] - obs_pos[:2], axis=1)
-        all_dists.append(dists)
-    # Per-step minimum distance across all obstacles
-    all_dists = np.array(all_dists)  # (N, T)
-    min_dists = all_dists.min(axis=0)  # (T,)
-    violations = min_dists < safe_radius
-    return {
-        'violation_count': int(violations.sum()),
-        'violation_ratio': float(violations.mean()),
-        'min_distance': float(min_dists.min()),
-    }
-
-
 def compute_obstacle_intrusion_metrics(obstacle_distance_history, obstacle_contact_history,
                                        boundary_threshold=0.7):
     """Compute obstacle intrusion metrics from per-step tracking data.
