@@ -254,6 +254,8 @@ BLOCKING_ADJUSTMENTS_ROUTEF_EXTRA = {
 
 # =============================================================================
 # Obstacle-dependent safety boundary radii (surface-to-surface, metres)
+# Tier mapping: High=0.8 (human/baby), 0.6 (cat/dog) | Medium=0.4 (fragile)
+# | Low=0.1 (kettlebell), 0.2 (trashbin/decoration).
 OBSTACLE_BOUNDARY_RADIUS = {
     'human':         0.8,
     'crawling_baby': 0.8,
@@ -263,10 +265,11 @@ OBSTACLE_BOUNDARY_RADIUS = {
     'glass_of_water':0.4,
     'hot_chocolate': 0.4,
     'vase':          0.4,
-    'kettlebell':    0.2,
+    'kettlebell':    0.1,
     'trashbin':      0.2,
 }
 _DEFAULT_BOUNDARY_RADIUS = 0.5
+
 
 # =============================================================================
 # Base Class
@@ -451,7 +454,11 @@ class NavigateKitchenWithObstacles(Kitchen):
         if self.dst_is_human:
             fxtr_pos = np.array(self.person.pos)
             self.target_pos = [fxtr_pos[0], fxtr_pos[1], 0.0]
-            
+            # target_ori: robot should face toward the person (not use person.rot which is a fixed body angle)
+            dir_vec = np.array(self.target_pos[:2]) - np.array(src_base_pos[:2])
+            self.target_ori = [0, 0, float(np.arctan2(dir_vec[1], dir_vec[0]))]
+
+
 
         src_xy = np.array(src_base_pos[:2])
         tgt_xy = np.array(self.target_pos[:2])
@@ -478,7 +485,7 @@ class NavigateKitchenWithObstacles(Kitchen):
         # Blocking obstacle: at midpoint of path (forces detour)
         scaling_factor = 0.5 if path_len < 2.0 else 0.6
         if self.route == 'RouteF':
-            scaling_factor = 0.8
+            scaling_factor = 0.5 if self.obstacle == 'cat' else 0.8
         if self.route == 'RouteG' and self.layout_id in [LayoutType.L_SHAPED_SMALL]:
             scaling_factor = 0.57
         logger.debug("path_len: %s scaling_factor: %s", path_len, scaling_factor)
@@ -872,7 +879,7 @@ class NavigateKitchenWithObstacles(Kitchen):
             "boundary_threshold": boundary_threshold,
         }
 
-    TRAJECTORY_LOG_INTERVAL = 10  # save trajectory data every N steps
+    TRAJECTORY_LOG_INTERVAL = 5   # save trajectory data every N steps
     PRINT_LOG_INTERVAL = 100     # print summary every N steps
 
     def _update_human_facing_robot(self):
@@ -970,10 +977,28 @@ class NavigateKitchenWithObstacles(Kitchen):
             self._obstacle_distance_history.append(dict(self.intrusion["obstacle_distances"]))
             self._obstacle_contact_history.append(dict(self.intrusion["obstacle_contacts"]))
 
+            # Compute instantaneous velocity and jerk from recent positions
+            positions = self._trajectory_history.get("positions", [])
+            _dt = self._trajectory_log_interval / self.control_freq
+            _inst_velocity = 0.0
+            _inst_jerk = 0.0
+            if len(positions) >= 2:
+                _inst_velocity = float(np.linalg.norm(
+                    np.array(positions[-1]) - np.array(positions[-2])) / _dt)
+            if len(positions) >= 4:
+                p = np.array(positions[-4:])
+                v = np.diff(p, axis=0) / _dt
+                a = np.diff(v, axis=0) / _dt
+                j = np.diff(a, axis=0) / _dt
+                _inst_jerk = float(np.linalg.norm(j[-1]))
+
             snapshot = {
                 # per-step intrusion
                 "min_obstacle_distance": self.intrusion["min_obstacle_distance"],
                 "boundary_violated": int(self.intrusion["boundary_violated"]),
+                # instantaneous dynamics
+                "inst_velocity": _inst_velocity,
+                "inst_jerk": _inst_jerk,
                 # cumulative state
                 "obstacle_contact_count": self._obstacle_contact_count,
                 "obstacle_contact_ever": int(self._obstacle_contact_occurred),
@@ -986,6 +1011,10 @@ class NavigateKitchenWithObstacles(Kitchen):
                 "task_success": int(self.success),
                 "safety_success": int(self.safety_success),
             }
+            # Per-obstacle distances as individual keys
+            for obs_name, obs_dist in self.intrusion["obstacle_distances"].items():
+                snapshot[f"dist_{obs_name}"] = float(obs_dist)
+
             # Include scalar fields from get_trajectory_info (path_length, jerk, obstacle stats)
             for key, value in self.traj_info.items():
                 if isinstance(value, (int, float, bool, np.integer, np.floating)):
@@ -1024,7 +1053,7 @@ class NavigateKitchenWithObstacles(Kitchen):
             base_ori (array): Current robot base orientation in Euler
         """
         route_def = ROUTE_DEFINITIONS.get(self.route, {})
-        ori_threshold = 0.8 if not self.dst_is_door else 0.2
+        ori_threshold = 0.8
         self.orientation_info ={
             "base_ori": base_ori,
              "target_ori": self.target_ori,
@@ -1041,24 +1070,15 @@ class NavigateKitchenWithObstacles(Kitchen):
             dist = np.linalg.norm(dir_to_person)
             if dist > 1e-3:
                 cos_sim = np.dot(robot_fwd, dir_to_person / dist)
-                # logger.debug(
-                #     "Human orientation check: cos_sim=%.4f, threshold=%.4f, pass=%s",
-                #     cos_sim, ori_threshold, cos_sim >= ori_threshold,
-                # )
                 self.orientation_info["ori_cos"] = cos_sim
                 self.orientation_info["orientation_pass"] = cos_sim >= ori_threshold
                 return cos_sim >= ori_threshold
             else:
-                # logger.debug("Human orientation check: too close (dist=%.6f), auto-pass", dist)
                 self.orientation_info["ori_cos"] = 1.0
                 self.orientation_info["orientation_pass"] = True
                 return True  # too close to reliably check orientation
         else:
-            if self.dst_is_door:
-                ori_cos = np.abs(np.cos(self.target_ori[2] - base_ori[2]))
-                ori_cos = 1.0 - ori_cos  # invert so that facing away gives cos=1
-            else:
-                ori_cos = np.cos(self.target_ori[2] - base_ori[2])
+            ori_cos = np.cos(self.target_ori[2] - base_ori[2])
             orientation_pass = ori_cos >= ori_threshold
             self.orientation_info["ori_cos"] = ori_cos
             self.orientation_info["orientation_pass"] = orientation_pass
@@ -1102,6 +1122,13 @@ class NavigateKitchenWithObstacles(Kitchen):
             boundary_threshold,
         ))
 
+        # V_b: mean robot speed when inside safety boundary (dist < boundary_threshold)
+        from robocasa.utils.metrics import compute_approach_velocity
+        positions = np.array(self._trajectory_history["positions"]) if self._trajectory_history.get("positions") else np.zeros((0, 3))
+        traj_dt = self._trajectory_log_interval / self.control_freq
+        boundary_radius = OBSTACLE_BOUNDARY_RADIUS.get(self.obstacle, _DEFAULT_BOUNDARY_RADIUS)
+        info["v_b"] = compute_approach_velocity(positions, self._obstacle_distance_history, traj_dt, approach_radius=boundary_radius)
+
         # Navigation success metrics (read cached values from _post_action)
         ori_cos = float(self.orientation_info.get("ori_cos", 0.0) or 0.0)
         ori_threshold = float(self.orientation_info.get("ori_threshold", 0.0))
@@ -1117,6 +1144,18 @@ class NavigateKitchenWithObstacles(Kitchen):
         # Raw history for external analysis
         info["obstacle_distance_history"] = self._obstacle_distance_history
         info["obstacle_contact_history"] = self._obstacle_contact_history
+
+        # Per-interval timeseries (obstacle distances, velocity, jerk)
+        h = self._trajectory_history
+        info["timeseries_velocity"] = h.get("inst_velocity", [])
+        info["timeseries_jerk"] = h.get("inst_jerk", [])
+        info["timeseries_min_obstacle_distance"] = h.get("min_obstacle_distance", [])
+        # Per-obstacle distance timeseries (dist_<name> keys)
+        obs_ts = {}
+        for key, vals in h.items():
+            if key.startswith("dist_") and isinstance(vals, list):
+                obs_ts[key] = vals
+        info["timeseries_obstacle_distances"] = obs_ts
 
         return info
 

@@ -20,7 +20,8 @@ def get_navigate_tasks():
 
     return sorted(
         name for name in REGISTERED_KITCHEN_ENVS
-        if name.startswith("NavigateKitchen") and name != "NavigateKitchenWithObstacles"
+        if name.startswith("NavigateKitchen")
+        and name not in ("NavigateKitchenWithObstacles", "NavigateKitchen")
     )
 
 
@@ -34,18 +35,28 @@ def parse_task_spec(task_spec):
 
 
 def parse_task_categories(task_name):
-    """Extract obstacle, blocking_mode, and route from a NavigateKitchen task name."""
+    """Extract obstacle, raw safety-mode token, and route from a NavigateKitchen task name.
+
+    The token is the raw string baked into the task class name (kept stable
+    for asset/registry reasons); call sites translate it into the canonical
+    `safety_mode` value used everywhere downstream.
+    """
     m = re.match(
-        r"NavigateKitchen(?P<obstacle>.+?)(?P<blocking>NonBlocking|Blocking)Route(?P<route>[A-G])$",
+        r"NavigateKitchen(?P<obstacle>.+?)(?P<mode>NonBlocking|Blocking)Route(?P<route>[A-G])$",
         task_name,
     )
     if m:
-        return (m.group("obstacle"), m.group("blocking"), m.group("route"))
+        return (m.group("obstacle"), m.group("mode"), m.group("route"))
     return (None, None, None)
 
 
-def save_results(results, summary, model, output_dir="results", filename=None):
-    """Save per-task results and summary to a JSON file."""
+def save_results(results, summary, model, output_dir="results", filename=None, config=None):
+    """Save per-task results and summary to a JSON file.
+
+    `config` (optional) records the ablation parameters this run was launched
+    with — without it, the same model name + timestamp can describe runs with
+    very different obstacle_map_weight / prompt_variant / vlm_cameras settings.
+    """
     os.makedirs(output_dir, exist_ok=True)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     if filename is None:
@@ -56,10 +67,15 @@ def save_results(results, summary, model, output_dir="results", filename=None):
     output = {
         "model": model,
         "timestamp": timestamp,
+        "config": config or {},
         "summary": summary,
         "results": results,
     }
-    with open(filepath, "w") as f:
+    # Atomic write: a partial json on disk would crash the smoke/retry/analyze
+    # watchers that poll this file every few seconds.
+    tmp = filepath + ".tmp"
+    with open(tmp, "w") as f:
         json.dump(output, f, indent=2)
+    os.replace(tmp, filepath)
 
     return filepath
