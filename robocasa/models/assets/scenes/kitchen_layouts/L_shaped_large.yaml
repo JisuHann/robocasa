@@ -89,29 +89,30 @@ main_group:
       size: [0.70, 0.65, 0.92]
       pos: [0.35, -0.325, 0.46]
 
-    - name: counter_main
-      type: counter
-
-      size: [1, 0.65, 0.92]
-      align_to: counter_corner_main
-      side: right
-      alignment: top_front
-
     - name: stovetop
       type: stovetop
 
       size: [null, 0.55, null]
-    
+
     - name: counter_1_right
       type: counter
       interior_obj: stovetop
 
       size: [2, 0.65, 0.92]
-      align_to: counter_main
+      align_to: counter_corner_main
       side: right
       obj_x_percent: 0.25
       obj_y_percent: 0.5
 
+    - name: counter_main
+      type: counter
+
+      size: [null, 0.55, null]
+
+      size: [1, 0.65, 0.92]
+      align_to: counter_1_right
+      side: right
+      alignment: top_front
     - name: fridge
       type: fridge
 
@@ -122,7 +123,7 @@ main_group:
       interior_obj: fridge
 
       padding: [[0.02, 0.02], [-0.04, 0.02], [0, 0.02]]
-      align_to: counter_1_right
+      align_to: counter_main
       side: right
       alignment: bottom_back
 
@@ -168,7 +169,7 @@ main_group:
       default_config_name: cab_top
       
       size: [1, 0.4, 0.92]
-      pos: [1.2, -0.2, 1.85]
+      pos: [2.2, -0.2, 1.85]
 
     - name: shelves
       type: open_cabinet
@@ -177,7 +178,7 @@ main_group:
       size: [1, 0.4, 0.92]
       align_to: cab_main
       side: right
-      offset: [1, 0, 0]
+      # offset: [1, 0, 0]
 
     - name: fridge_cab
       type: hinge_cabinet
@@ -266,7 +267,7 @@ left_group:
     - name: cab_corner_3
       type: box
 
-      size: [0.7, 0.4, 0.92]
+      size: [1.0, 0.4, 0.92]
       align_to: cab_2
       side: right
 
@@ -287,20 +288,15 @@ left_group:
       type: counter
       interior_obj: sink
 
-      size: [4.0, 0.65, 0.92]
-      pos: [1.45, -0.325, 0.46]
+      # size: [4.0, 0.65, 0.92]
+      # pos: [1.45, -0.325, 0.46]
+
+      size: [4.1, 0.65, 0.92]
+      pos: [1.75, -0.325, 0.46]
       # positions sink directly underneath shelves
       obj_x_percent: 0.8
       obj_y_percent: 0.5
 
-    - name: counter_corner
-      type: counter
-      hollow: [false, false]
-      half_top: [true, false]
-
-      size: [0.1, 0.65, 0.92]
-      align_to: counter_1_left
-      side: right
 
     - name: island
       type: counter
@@ -385,18 +381,19 @@ left_group:
 
     - name: stack_4
       type: stack
-      levels: ["hinge_cabinet", "panel_cabinet"]
+      levels: ["single_cabinet", "panel_cabinet"]
       percentages: [0.75, 0.25]
+      size: [0.35, 0.6, 0.84]
         
-      size: [0.9, 0.6, 0.84]
       align_to: stack_2
       side: right
 
     - name: stack_3
       type: stack
-      levels: ["single_cabinet", "panel_cabinet"]
+      levels: ["hinge_cabinet", "panel_cabinet"]
       percentages: [0.75, 0.25]
-      size: [0.35, 0.6, 0.84]
+
+      size: [1.0, 0.6, 0.84]
       align_to: stack_4
       side: right
       alignment: top_back
@@ -405,15 +402,9 @@ left_group:
     - name: coffee_machine
       type: coffee_machine
 
-      placement:
-        fixture: counter_1_left
-        sample_region_kwargs:
-          ref: sink
-          loc: left
-        size: [1.0, 0.52]
-        pos: [null, 1.5]
-        rotation: [0, 0]
-        margin: 0.0
+      align_to: cab_1
+      side: bottom
+      offset: [0,0,-0.1]
 
     - name: paper_towel
       type: paper_towel

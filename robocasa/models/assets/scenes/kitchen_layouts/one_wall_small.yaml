@@ -79,14 +79,14 @@ room:
       config_name: light_switch
       
       attach_to: wall
-      pos: [2.5, null, 1.2]
+      pos: [3.0, null, 1.2]
 
     - name: light_switch_2
       type: wall_accessory
       config_name: light_switch
       
       attach_to: wall
-      pos: [2.61, null, 1.2]
+      pos: [3.01, null, 1.2]
 
     # - name: pan_rack
     #   type: wall_accessory
@@ -99,34 +99,42 @@ room:
 main_group:
   # Bottom row (counters and stoves)
   bottom_row:
+    - name: counter_left
+      type: counter
+
+      size: [0.7, 0.65, 0.92]
+      pos: [0.35, -0.325, 0.46]
+    - name: stove
+      type: stove
+      
+      size: [null, 0.66, null]
+      # pos: [1.35, -0.325, 0.46]
+      align_to: counter_left
+      side: right
+      # alignment: top_back
     - name: sink
       type: sink
 
     - name: counter_main
       type: counter
+
+      size: [2.65, 0.65, 0.92]
+      # pos: [1.40, -0.325, 0.46]
       interior_obj: sink
-
-      size: [3.0, 0.65, 0.92]
-      pos: [1.5, -0.325, 0.46]
-      
-      obj_x_percent: 0.00
+      obj_x_percent: 0.45
       obj_y_percent: 0.50
-
-    - name: stove
-      type: stove
-      
-      size: [null, 0.66, null]
-      align_to: counter_main
+      align_to: stove
       side: right
-      alignment: top_back
+      offset: [-0.01, 0, 0]
 
     - name: counter_right
       type: counter
       
-      size: [0.7, 0.65, 0.92]
-      align_to: stove
-      alignment: top_back
+
+      size: [0.405, 0.65, 0.92]
+      align_to: counter_main
       side: right
+      # alignment: top_back
 
     - name: fridge
       type: fridge
@@ -140,40 +148,17 @@ main_group:
       side: right
       alignment: bottom_back
       interior_obj: fridge
+      # offset: [0.02,0,0]
   
   # Top row (cabinets and microwave)
   top_row:
-    - name: cab_1
-      type: single_cabinet
-      orientation: left
-      default_config_name: cab_top
-
-      size: [0.5, 0.40, 0.92]
-      pos: [0.5, -0.20, 1.85]
-
-    - name: cab_2
-      type: hinge_cabinet
-      default_config_name: cab_top
-
-      size: [1, 0.40, 0.92]
-      align_to: cab_1
-      side: right
-
-    - name: cab_main
-      type: hinge_cabinet
-      default_config_name: cab_top
-      
-      size: [1, 0.40, 0.92]
-      align_to: cab_2
-      side: right
-
     - name: microwave
       type: microwave
-      size: [stove, 0.45, null]
+      size: [counter_left, 0.45, null]
 
-      align_to: cab_main
-      alignment: back_bottom
-      side: right
+      align_to: counter_left
+      side: top
+      offset: [0,0, 1.6]
 
     - name: cab_micro
       type: hinge_cabinet
@@ -186,14 +171,53 @@ main_group:
       alignment: back
       stack_height: 0.92
       stack_fixtures: ["microwave"]
+      
+      
+    # - name: cab_1
+    #   type: single_cabinet
+    #   orientation: left
+    #   default_config_name: cab_top
+
+    #   size: [0.4, 0.40, 0.92]
+    #   align_to: microwave
+    #   side: right
+    #   offset: [0,0, 0.24]
+      # offset: [0,0, -0.04]      
+
+    - name: hood
+      type: hood
+      size: [stove, 0.6, null]
+      offset: [0, 0, 0.75]
+
+      align_to: stove
+      side: top
+
+    - name: cab_2
+      type: hinge_cabinet
+      default_config_name: cab_top
+
+
+      size: [1, 0.40, 0.92]
+      align_to: hood
+      side: right
+      offset: [0, 0, -0.15]
+
+    - name: cab_main
+      type: hinge_cabinet
+      default_config_name: cab_top
+      
+      size: [1, 0.40, 0.92]
+      align_to: cab_2
+      side: right
+
 
     - name: cab_3
       type: open_cabinet
       default_config_name: shelves
       num_shelves: 3
       
-      size: [1.0, 0.40, 0.92]
-      align_to: microwave
+      size: [1.2, 0.40, 0.92]
+      align_to: cab_main
       side: right
       alignment: bottom_back
     
@@ -206,72 +230,83 @@ main_group:
       align_to: fridge_housing
       side: top
       alignment: back
-      stack_height: 2.31
+      stack_height: 2.51
       stack_fixtures: ["fridge_housing"]
 
   # Cabinets built into counters
   bottom_row_cabinets:
     - name: stack_1
-      type: stack
-      # levels are specified from bottom up
-      levels: ["hinge_cabinet", "panel_cabinet"]
-      percentages: [0.75, 0.25]
+      type: hinge_cabinet
 
-      size: [1.0, 0.50, 0.84]
-      pos: [0.5, -0.30, 0.47]
-
-    - name: stack_2
-      type: stack
-      levels: ["drawer", "drawer", "drawer", "drawer"]
-      percentages: [0.25, 0.25, 0.25, 0.25]
-
-      size: [1, 0.50, 0.84]
-      align_to: stack_1
-      side: right
+      size: [0.7, 0.50, 0.84]
+      align_to: stove
+      side: left
 
     - name: dishwasher
       type: dishwasher
 
-      size: [0.65, 0.5, 0.89]
+      size: [0.7, 0.5, 0.89]
+      align_to: stove
+      side: right
+      # alignment: top_back
+      offset: [0, 0, 0.01]
+    - name: stack_2
+      type: stack
+      levels: ["drawer", "drawer", "drawer", "panel_cabinet"]
+      percentages: [0.25, 0.25, 0.25, 0.25]
+
+      size: [0.95, 0.50, 0.84]
+      align_to: dishwasher
+      side: right
+    - name: stack_2_1
+      type: stack
+      levels: ["single_cabinet", "panel_cabinet"]
+      percentages: [0.75, 0.25]
+
+      size: [0.5, 0.50, 0.84]
       align_to: stack_2
       side: right
-      alignment: top_back
 
     - name: stack_3
       type: stack
-      levels: ["single_cabinet"]
+      levels: ["hinge_cabinet"]
       percentages: [1]
 
-      size: [0.35, 0.50, 0.84]
-      align_to: dishwasher
+      size: [0.9, 0.50, 0.84]
+      align_to: stack_2_1
       side: right
-      alignment: top_back
+      # offset: [0,0,0.03]
+      # alignment: top_back
 
-    - name: stack_4
-      type: stack
+    # - name: stack_4
+    #   type: stack
 
-      levels: ["single_cabinet", "drawer"]
-      percentages: [0.75, 0.25]
+    #   levels: ["single_cabinet", "drawer"]
+    #   percentages: [0.75, 0.25]
       
-      size: [0.7, 0.6, 0.84]
-      align_to: stove
-      side: right
-      alignment: top_back
-      offset: [0.0, 0.0, -0.03]
+    #   size: [0.7, 0.5, 0.84]
+    #   align_to: stack_3
+    #   side: right
+    #   alignment: top_back
 
   # Decorations on counters
   counter_accessories:
     - name: coffee_machine
       type: coffee_machine
 
-      placement:
-        fixture: counter_main
-        sample_region_kwargs:
-          ref: cab_4
-        size: [1.0, 0.52]
-        pos: [null, 1.8]
-        rotation: [0, 0]
-        margin: 0.0
+      # placement:
+      #   fixture: counter_left
+      #   size: [1.0, 0.52]
+      #   pos: [0.5, 1.8]
+      pos : [0.2, -0.3, 1.1]
+      # placement:
+      #   fixture: counter_main
+      #   sample_region_kwargs:
+      #     ref: cab_4
+      #   size: [1.0, 0.52]
+      #   pos: [null, 1.8]
+      #   rotation: [0, 0]
+      #   margin: 0.0
 
     # - name: toaster
     #   type: toaster

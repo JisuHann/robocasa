@@ -237,11 +237,7 @@ BLOCKING_ADJUSTMENTS_ROUTEF_EXTRA = {
     (LayoutType.L_SHAPED_LARGE, 'RouteF'): ([0, 1.0], None),
     (LayoutType.L_SHAPED_SMALL, 'RouteF'): ([0.4, 0.3], None),
     (LayoutType.G_SHAPED_SMALL, 'RouteF'): ([0.0, 0.8], None),
-    (LayoutType.ONE_WALL_SMALL, 'RouteF'): ([-1.0, 1.0], None),
     (LayoutType.ONE_WALL_LARGE, 'RouteF'): ([0.3, 1.0], [np.pi/2, 0, 0]),
-    (LayoutType.L_SHAPED_LARGE, 'RouteA') : ([0.0, 1.2], None),
-    (LayoutType.L_SHAPED_LARGE, 'RouteB') : ([0.0, -0.2], None),
-    (LayoutType.L_SHAPED_LARGE, 'RouteC') : ([-0.05, 0.0], None),
     (LayoutType.L_SHAPED_LARGE, 'RouteD') : ([0.1, -0.2], None),
     (LayoutType.L_SHAPED_LARGE, 'RouteG') : ([0.1, 0.0], None),
 
@@ -249,6 +245,15 @@ BLOCKING_ADJUSTMENTS_ROUTEF_EXTRA = {
     (LayoutType.U_SHAPED_SMALL, 'RouteC'): ([-0.3, 0.0], None),
 
     (LayoutType.G_SHAPED_LARGE, 'RouteD'): ([-0.3, 0.0], None),
+    (LayoutType.L_SHAPED_SMALL, 'RouteC'): ([-0.2, 0.0], None),
+    
+    (LayoutType.ONE_WALL_SMALL, 'RouteF'): ([-0.0, 1.5], None),
+    (LayoutType.ONE_WALL_SMALL, 'RouteD'): ([0.5, 0.0], None),
+    
+    (LayoutType.L_SHAPED_LARGE, 'RouteA') : ([0.0, 1.2], None),
+    (LayoutType.L_SHAPED_LARGE, 'RouteB') : ([0.0, -0.2], None),
+    (LayoutType.L_SHAPED_LARGE, 'RouteC') : ([-0.05, 0.0], None),
+    (LayoutType.ONE_WALL_LARGE, 'RouteD'): ([-0.4, 0.0], None),
 }
 #  _U_SHAPED_SMALL_seed0 # 
 
@@ -440,10 +445,13 @@ class NavigateKitchenWithObstacles(Kitchen):
             elif self.layout_id == LayoutType.L_SHAPED_LARGE:
                 human_base_pos[0] += 6.0
             elif self.layout_id == LayoutType.L_SHAPED_SMALL:
-                human_base_pos[0] -= 2.0
-            elif self.layout_id in [LayoutType.ONE_WALL_LARGE, LayoutType.ONE_WALL_SMALL]:
+                human_base_pos[0] -= 4.5
+            elif self.layout_id in [LayoutType.ONE_WALL_LARGE]:
                 human_base_pos[1] -= 1.0
                 human_base_pos[0] += 2.0
+            elif self.layout_id in [LayoutType.ONE_WALL_SMALL]:
+                human_base_pos[1] -= 1.5
+                human_base_pos[0] += 0.0
             elif self.layout_id == LayoutType.GALLEY:
                 human_base_pos[0] -= 0.5
                 human_base_pos[1] -= 2.5
@@ -558,6 +566,8 @@ class NavigateKitchenWithObstacles(Kitchen):
                         person_xy += np.array(offset_adj)
                 if key in BLOCKING_ADJUSTMENTS_ROUTEF_EXTRA:
                     offset_adj, _ = BLOCKING_ADJUSTMENTS_ROUTEF_EXTRA[key]
+                    if 'RouteD' in self.route and LayoutType.ONE_WALL_SMALL == self.layout_id:  # Only apply RouteF extra adjustments to human obstacle
+                        offset_adj += np.array([0.0, -0.3])
                     if offset_adj is not None:
                         person_xy += np.array(offset_adj)
             else:

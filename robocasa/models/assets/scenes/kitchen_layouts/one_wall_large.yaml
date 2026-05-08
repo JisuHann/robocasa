@@ -110,20 +110,33 @@ main_group:
 
     - name: counter_1
       type: counter
-      interior_obj: stovetop
 
       size: [1, 0.65, 0.92]
       align_to: counter_main
       side: right
-      obj_x_percent: 0.5
-      obj_y_percent: 0.5
 
     - name: counter_2
       type: counter
       
       size: [1.8, 0.65, 0.92]
+      interior_obj: stovetop
+      obj_x_percent: 0.3
+      obj_y_percent: 0.5
       align_to: counter_1
       side: right
+
+    - name: counter_3
+      type: counter
+      
+      size: [2.0, 0.65, 0.92]
+      align_to: counter_2
+      side: right
+    # - name: counter_3
+    #   type: counter
+      
+    #   size: [1.0, 0.65, 0.92]
+    #   align_to: counter_3
+    #   side: right
 
   wall_stack:
     - name: bottom
@@ -199,6 +212,14 @@ main_group:
 
       size: [1, 0.40, 0.92]
       pos: [1.75, -0.2, 1.85]
+    - name: cab_main_1
+      type: hinge_cabinet
+      default_config_name: cab_top
+
+      size: [1, 0.40, 0.92]
+      align_to: cab_main
+      side: right
+      alignment: back
 
     - name: hood
       type: hood
@@ -209,16 +230,24 @@ main_group:
       side: top
       alignment: back
 
+
+    - name: cab_2
+      type: hinge_cabinet
+      default_config_name: cab_top
+
+      size: [1, 0.40, 0.92]
+      align_to: hood
+      side: right
+      offset: [0,0, -0.35]
     - name: shelves
       type: open_cabinet
       default_config_name: shelves
 
       size: [0.8, 0.4, 0.92]
-      align_to: cab_main
+      align_to: cab_2
       side: right
-      offset: [1, 0, 0]
-
-    - name: cab_2
+      # offset: [1, 0, 0]
+    - name: cab_3
       type: hinge_cabinet
       default_config_name: cab_top
 
@@ -262,6 +291,30 @@ main_group:
       size: [0.8, 0.6, 0.84]
       align_to: stack_5
       side: right
+    - name: stack_7
+      type: stack
+      levels: ["hinge_cabinet", ["drawer", "drawer"]]
+      percentages: [0.75, 0.25]
+
+      size: [1, 0.6, 0.84]
+      align_to: stack_6
+      side: right
+    - name: stack_8
+      type: stack
+      levels: ["drawer", "drawer", "drawer", "drawer"]
+      percentages: [0.25, 0.25, 0.25, 0.25]
+
+      size: [1, 0.6, 0.84]
+      align_to: stack_7
+      side: right
+    # - name: stack_7
+    #   type: stack
+    #   levels: ["drawer", "drawer", "drawer", "drawer"]
+    #   percentages: [0.25, 0.25, 0.25, 0.25]
+
+    #   size: [0.8, 0.6, 0.84]
+    #   align_to: stack_6
+    #   side: right
 
   # Decorations on counters
   counter_accessories:
@@ -302,9 +355,9 @@ main_group:
       type: coffee_machine
 
       placement:
-        fixture: counter_2
+        fixture: counter_3
         sample_region_kwargs:
-          ref: cab_2
+          ref: cab_3
         size: [1.0, 0.52]
         pos: [null, 1.8]
         rotation: [0, 0]
@@ -343,7 +396,7 @@ island_group:
       interior_obj: sink
 
       size: [2.75, 1.4, 0.92]
-      pos: [0, 1.0, 0.46]
+      pos: [-1.0, 1.0, 0.46]
       obj_x_percent: 0.5
       obj_y_percent: 0.15
 
@@ -354,7 +407,7 @@ island_group:
       percentages: [0.75, 0.25]
 
       size: [1, 0.60, 0.84]
-      pos: [0, 0.63, 0.47]
+      pos: [-1.0, 0.63, 0.47]
 
     - name: dishwasher
       type: dishwasher
@@ -376,7 +429,7 @@ island_group:
           panel_type: "slab"
 
       size: [0.2, 1.35, 0.84]
-      pos: [1.25, 1.0, 0.47]
+      pos: [0.25, 1.0, 0.47]
 
     - name: island_cab_left
       type: stack
@@ -400,13 +453,13 @@ island_group:
           panel_type: "slab"
 
       size: [0.2, 1.35, 0.84]
-      pos: [-1.25, 1.0, 0.47]
+      pos: [-2.25, 1.0, 0.47]
 
     - name: island_base_box
       type: box
 
       size: [2.35, 0.1, 0.89]
-      pos: [0, 1.2, 0.445]
+      pos: [-1.0, 1.2, 0.445]
 
     - name: knife_block
       type: knife_block
@@ -435,16 +488,16 @@ island_group:
       type: stool
 
       # place flush to ground
-      pos: [-0.65, 1.6, 0.5]
+      pos: [-1.65, 1.6, 0.5]
 
     - name: stool_2
       type: stool
 
       # place flush to ground
-      pos: [0.0, 1.6, 0.5]
+      pos: [-1.0, 1.6, 0.5]
 
     - name: stool_3
       type: stool
 
       # place flush to ground
-      pos: [0.65, 1.6, 0.5]
+      pos: [-0.35, 1.6, 0.5]

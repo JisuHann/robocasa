@@ -5,16 +5,16 @@ room:
     - name: wall
       type: wall
 
-      size: [2.6, 1.5, 0.02]
-      pos: [2.6, 0, 1.5]
+      size: [3.1, 1.5, 0.02]
+      pos: [2.1, 0, 1.5]
 
     - name: wall_backing
       type: wall
 
       backing: true
       backing_extended: [false, true]
-      size: [2.6, 1.5, 0.1]
-      pos: [2.6, 0, 1.5]
+      size: [3.1, 1.5, 0.1]
+      pos: [2.1, 0, 1.5]
 
     - name: wall_right
       type: wall
@@ -37,15 +37,15 @@ room:
       type: floor
 
       # position such that the top left corner is (0, 0)
-      size: [2.6, 3.0, 0.02]
-      pos: [2.6, -3.0, 0]
+      size: [3.1, 3.0, 0.02]
+      pos: [2.1, -3.0, 0]
 
     - name: floor_backing
       type: floor
 
       backing: true
-      size: [2.6, 3.0, 0.1]
-      pos: [2.6, -3.0, 0]
+      size: [3.1, 3.0, 0.1]
+      pos: [2.1, -3.0, 0]
 
   # Wall accessories (e.g. outlets, clocks, paintings)
   wall_accessories:
@@ -148,9 +148,6 @@ main_group:
 
       size: [3, 0.65, 0.92]
       pos: [2.05, -0.325, 0.46]
-      interior_obj: sink
-      obj_x_percent: 0.7
-      obj_y_percent: 0.50
 
     - name: counter_corner_main
       type: counter
@@ -161,6 +158,10 @@ main_group:
       align_to: counter_main
       side: right
       alignment: back
+
+      interior_obj: sink
+      obj_x_percent: 0.3
+      obj_y_percent: 0.50
 
 
   # Cabinets built into counters
@@ -197,11 +198,6 @@ main_group:
       levels: ["hinge_cabinet"]
       percentages: [1]
 
-      configs:
-        hinge_cabinet:
-          open_top: true
-          panel_config:
-            handle_vpos: center
 
       size: [1.0, 0.6, 0.84]
       align_to: dishwasher
@@ -213,6 +209,11 @@ main_group:
       levels: ["single_cabinet"]
       percentages: [1]
 
+      configs:
+        hinge_cabinet:
+          open_top: true
+          panel_config:
+            handle_vpos: center
       size: [0.35, 0.6, 0.84]
       align_to: stack_2
       side: right
@@ -254,19 +255,19 @@ main_group:
         rotation: [0, 0]
     - name: posed_person
       type: posed_person
-      pos : [4, -2.5, 0.832]
+      pos : [0.5, -4.5, 0.832]
       size: [0.5, 0.5, 0.8]
       rot : 3.14
 
     - name: main_door
       type: main_door
-      pos: [2, -5.0, 1.0]
+      pos: [1.5, -5.0, 1.0]
       size: [1.2, 0.3, 2.0]
       rot: 0
 
     - name: standing_table
       type: standing_table
-      pos: [1.0, -2.5, 0.4]
+      pos: [-0.5, -5.0, 0.4]
       rot: 0
 
 # fixtures on the right wall
