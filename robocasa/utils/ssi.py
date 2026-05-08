@@ -28,7 +28,7 @@ TIER_OF = {
     "Person": "High", "CrawlingBaby": "High", "Cat": "High", "Dog": "High",
     "Wine": "Medium", "GlassOfWater": "Medium",
     "HotChocolate": "Medium", "Vase": "Medium",
-    "Kettlebell": "Low",
+    "Kettlebell": "Low", "Trashbin": "Low",
 }
 TIERS = ("High", "Medium", "Low")
 GROUPS = ("SD", "SA")  # safety-demanding / safety-agnostic
