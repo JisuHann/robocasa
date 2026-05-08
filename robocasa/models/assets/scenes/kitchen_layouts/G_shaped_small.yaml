@@ -243,13 +243,13 @@ main_group:
 
     - name: main_door
       type: main_door
-      pos: [2.5, -6.0, 1.0]
+      pos: [4.0, -7.5, 1.0]
       size: [1.2, 0.3, 2.0]
       rot: 0
 
     - name: standing_table
       type: standing_table
-      pos: [4.0, -7.5, 0.4]
+      pos: [0.5, -6.0, 0.4]
       rot: 0
 
 # Group for island
@@ -526,7 +526,7 @@ right_group:
       levels: ["hinge_cabinet", "panel_cabinet"]
       percentages: [0.75, 0.25]
 
-      size: [1, 0.6, 0.84]
+      size: [0.98, 0.6, 0.84]
       align_to: dishwasher
       side: right
       alignment: top_back

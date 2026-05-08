@@ -232,28 +232,36 @@ BLOCKING_ADJUSTMENTS = {
 # Additional RouteF blocking adjustments (applied after main adjustments)
 BLOCKING_ADJUSTMENTS_ROUTEF_EXTRA = {
     # layout, route, offset, rotation
-    (LayoutType.U_SHAPED_LARGE, 'RouteF'): ([0.0, 1.5], None),
+    (LayoutType.U_SHAPED_LARGE, 'RouteA'): ([0.0, -0.5], None),
+    (LayoutType.U_SHAPED_SMALL, 'RouteC'): ([-0.3, 0.0], None),
     (LayoutType.U_SHAPED_SMALL, 'RouteF'): ([-0.2, 0.0], None),
-    (LayoutType.L_SHAPED_LARGE, 'RouteF'): ([0, 1.0], None),
-    (LayoutType.L_SHAPED_SMALL, 'RouteF'): ([0.4, 0.3], None),
-    (LayoutType.G_SHAPED_SMALL, 'RouteF'): ([0.0, 0.8], None),
+    (LayoutType.U_SHAPED_LARGE, 'RouteD'): ([-0.5, 0.0], None),
+    (LayoutType.U_SHAPED_LARGE, 'RouteF'): ([0.0, 1.5], None),
+    
+    (LayoutType.ONE_WALL_LARGE, 'RouteD'): ([-0.4, 0.0], None),
     (LayoutType.ONE_WALL_LARGE, 'RouteF'): ([0.3, 1.0], [np.pi/2, 0, 0]),
-    (LayoutType.L_SHAPED_LARGE, 'RouteD') : ([0.1, -0.2], None),
-    (LayoutType.L_SHAPED_LARGE, 'RouteG') : ([0.1, 0.0], None),
 
     (LayoutType.G_SHAPED_SMALL, 'RouteC'): ([0.2, -0.3], None),
-    (LayoutType.U_SHAPED_SMALL, 'RouteC'): ([-0.3, 0.0], None),
+    (LayoutType.G_SHAPED_SMALL, 'RouteD'): ([-0.1, -0.2], None),
+    (LayoutType.G_SHAPED_SMALL, 'RouteF'): ([0.0, 0.8], None),
 
-    (LayoutType.G_SHAPED_LARGE, 'RouteD'): ([-0.3, 0.0], None),
-    (LayoutType.L_SHAPED_SMALL, 'RouteC'): ([-0.2, 0.0], None),
+    # (LayoutType.G_SHAPED_LARGE, 'RouteD'): ([-0.3, 0.0], None),
+    (LayoutType.G_SHAPED_LARGE, 'RouteF'): ([-1.3, 0.0], None),
     
     (LayoutType.ONE_WALL_SMALL, 'RouteF'): ([-0.0, 1.5], None),
     (LayoutType.ONE_WALL_SMALL, 'RouteD'): ([0.5, 0.0], None),
     
+    (LayoutType.L_SHAPED_SMALL, 'RouteC'): ([-0.2, 0.0], None),
+    (LayoutType.L_SHAPED_SMALL, 'RouteD'): ([-0.1, -0.2], None),
+    (LayoutType.L_SHAPED_SMALL, 'RouteF'): ([0.4, 0.3], None),
+    
     (LayoutType.L_SHAPED_LARGE, 'RouteA') : ([0.0, 1.2], None),
     (LayoutType.L_SHAPED_LARGE, 'RouteB') : ([0.0, -0.2], None),
     (LayoutType.L_SHAPED_LARGE, 'RouteC') : ([-0.05, 0.0], None),
-    (LayoutType.ONE_WALL_LARGE, 'RouteD'): ([-0.4, 0.0], None),
+    (LayoutType.L_SHAPED_LARGE, 'RouteD') : ([0.1, -0.2], None),
+    (LayoutType.L_SHAPED_LARGE, 'RouteG') : ([0.1, 0.0], None),
+    (LayoutType.L_SHAPED_LARGE, 'RouteF'): ([0, 1.0], None),
+    
 }
 #  _U_SHAPED_SMALL_seed0 # 
 
@@ -440,12 +448,12 @@ class NavigateKitchenWithObstacles(Kitchen):
                 human_base_pos[0] += 2.0
                 human_base_pos[1] -= 2.0
             elif self.layout_id == LayoutType.U_SHAPED_LARGE:
-                human_base_pos[1] -= 1.0
+                human_base_pos[1] -= 1.5
                 human_base_pos[0] += 2.0
             elif self.layout_id == LayoutType.L_SHAPED_LARGE:
                 human_base_pos[0] += 6.0
             elif self.layout_id == LayoutType.L_SHAPED_SMALL:
-                human_base_pos[0] -= 4.5
+                human_base_pos[0] -= 2.5
             elif self.layout_id in [LayoutType.ONE_WALL_LARGE]:
                 human_base_pos[1] -= 1.0
                 human_base_pos[0] += 2.0
@@ -633,16 +641,18 @@ class NavigateKitchenWithObstacles(Kitchen):
         use_table = self.obstacle in TABLE_OBSTACLES
 
         if use_table:
-            # Place drink on the standing table's "top" region, offset to edge
+            # Place drink near the centre of the standing table; small region keeps
+            # tall narrow bottles (e.g. wine) away from the rim where punt-shaped
+            # bases would topple under stiff contact.
             cfgs.append(
                 dict(
                     name="obstacle_1",
                     obj_groups=self.obstacle,
                     placement=dict(
                         fixture=self.standing_table,
-                        size=(0.20, 0.20),
+                        size=(0.05, 0.05),
                         pos=(0, 0),
-                        offset=(0.10, 0.0),  # slight offset toward edge of table
+                        offset=(0.0, 0.0),
                         ensure_object_boundary_in_range=False,
                     ),
                 )
@@ -794,12 +804,18 @@ class NavigateKitchenWithObstacles(Kitchen):
                 qpos[0] = sampled_pos[0]
                 qpos[1] = sampled_pos[1]
                 if use_table:
-                    # Keep sampled Z (placed on table surface by placement system)
-                    qpos[2] = sampled_pos[2]
+                    # Sink the bottle ~5 mm into the table top so the contact starts
+                    # with a positive normal force; otherwise wine bottles whose
+                    # bottom_site sits inside the punt land on a thin rim and
+                    # accumulate torque from stiff contact, eventually toppling.
+                    qpos[2] = sampled_pos[2] - 0.005
+                    # Force perfectly upright orientation, ignoring sampled yaw too:
+                    # any tilt off the z-axis at spawn re-introduces the topple.
+                    qpos[3:7] = np.array([1.0, 0.0, 0.0, 0.0])
                 else:
                     # Fix Z to floor level + half object height
                     qpos[2] = floor_z - obj.bottom_offset[2] + 0.01
-                qpos[3:7] = sampled_quat
+                    qpos[3:7] = sampled_quat
                 self.sim.data.set_joint_qpos(joint_name, qpos)
 
                 # Zero out velocity so obstacle starts at rest

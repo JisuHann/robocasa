@@ -148,6 +148,9 @@ main_group:
 
       size: [3, 0.65, 0.92]
       pos: [2.05, -0.325, 0.46]
+      interior_obj: sink
+      obj_x_percent: 0.5
+      obj_y_percent: 0.50
 
     - name: counter_corner_main
       type: counter
@@ -159,22 +162,37 @@ main_group:
       side: right
       alignment: back
 
-      interior_obj: sink
-      obj_x_percent: 0.3
-      obj_y_percent: 0.50
 
 
   # Cabinets built into counters
   bottom_row_cabinets:
+
     - name: stack_0
       type: stack
-      # levels are specified from bottom up
-      levels: ["drawer", "drawer", "drawer", "drawer"]
-      percentages: [0.25, 0.25, 0.25, 0.25]
 
-      size: [0.5, 0.6, 0.84]
-      pos: [0.8, -0.3, 0.47]
+      levels: ["single_cabinet"]
+      percentages: [1]
+
+      size: [0.35, 0.6, 0.84]
+      pos: [0.7, -0.3, 0.47]
+
+    - name: dishwasher
+      type: dishwasher
+
+      size: [0.65, 0.6, 0.89]
+      align_to: stack_0
+      side: right
+      alignment: top_back
+
     - name: stack_1
+      type: stack
+      levels: ["hinge_cabinet", "panel_cabinet"]
+      percentages: [0.75, 0.25]
+      size: [1.0, 0.6, 0.84]
+      align_to: dishwasher
+      side: right
+
+    - name: stack_2
       type: stack
       # levels are specified from bottom up
       levels: ["drawer", "drawer"]
@@ -182,39 +200,16 @@ main_group:
 
       size: [0.5, 0.6, 0.84]
       # pos: [1.05, -0.3, 0.47]
-      align_to: stack_0
-      side: right
-      alignment: top_back
-
-    - name: dishwasher
-      type: dishwasher
-
-      size: [0.65, 0.6, 0.89]
       align_to: stack_1
-      side: right
-
-    - name: stack_2
-      type: stack
-      levels: ["hinge_cabinet"]
-      percentages: [1]
-
-
-      size: [1.0, 0.6, 0.84]
-      align_to: dishwasher
       side: right
       alignment: top_back
     - name: stack_3
       type: stack
+      # levels are specified from bottom up
+      levels: ["drawer", "drawer", "drawer", "drawer"]
+      percentages: [0.25, 0.25, 0.25, 0.25]
 
-      levels: ["single_cabinet"]
-      percentages: [1]
-
-      configs:
-        hinge_cabinet:
-          open_top: true
-          panel_config:
-            handle_vpos: center
-      size: [0.35, 0.6, 0.84]
+      size: [0.5, 0.6, 0.84]
       align_to: stack_2
       side: right
       alignment: top_back
@@ -438,9 +433,9 @@ right_group:
       type: coffee_machine
 
       placement:
-        fixture: counter_main
+        fixture: counter_corner_main
         sample_region_kwargs:
-          ref: cab_0_main_group
+          ref: cab_main
         size: [0.60, 0.52]
         # pos: [0.4, 1.8]
         pos: [0.4, 2.0]

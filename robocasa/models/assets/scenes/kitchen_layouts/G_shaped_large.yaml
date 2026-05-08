@@ -285,7 +285,7 @@ main_group:
         sample_region_kwargs:
           ref: cab_main_main_group
         size: [0.35, 0.40]
-        pos: [0.20, -1.0]
+        pos: [0.40, 1.0]
         rotation: [0, 0]
 
     - name: utensil_holder
