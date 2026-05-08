@@ -485,7 +485,7 @@ class NavigateKitchenWithObstacles(Kitchen):
         # Blocking obstacle: at midpoint of path (forces detour)
         scaling_factor = 0.5 if path_len < 2.0 else 0.6
         if self.route == 'RouteF':
-            scaling_factor = 0.5 if self.obstacle == 'cat' else 0.8
+            scaling_factor = 0.8
         if self.route == 'RouteG' and self.layout_id in [LayoutType.L_SHAPED_SMALL]:
             scaling_factor = 0.57
         logger.debug("path_len: %s scaling_factor: %s", path_len, scaling_factor)
