@@ -339,7 +339,7 @@ island_group:
 
       size: [2.5, 1.55, 0.92]
       pos: [0, 0, 0.46]
-      obj_x_percent: 0.5
+      obj_x_percent: 0.8
       obj_y_percent: 0.15
 
   island_bottom_row:
@@ -376,7 +376,7 @@ island_group:
     - name: island_cab_right
       type: stack
 
-      levels: ["drawer", "drawer", "drawer", "drawer"]
+      levels: ["drawer", "drawer", "drawer", "panel_cabinet"]
       percentages: [0.25, 0.25, 0.25, 0.25]
 
       size: [0.65, 0.6, 0.84]
@@ -653,8 +653,14 @@ right_group:
 
       placement:
         fixture: counter_1_right_group
-        size: [1.0, 0.52]
-        pos: [-0.5, 1.8]
+
+        sample_region_kwargs:
+          ref: cab_1_right_group
+        # size=[0,0] collapses the sampler's x_range/y_range to a single point,
+        # making the coffee machine's xy position fully deterministic (centered
+        # on the reset region of counter_1_right_group, ref=cab_1_right_group).
+        size: [0.0, 0.0]
+        pos: [0, 0]
         rotation: [0, 0]
         margin: 0.0
 

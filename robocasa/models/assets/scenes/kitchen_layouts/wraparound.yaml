@@ -282,8 +282,12 @@ main_group:
 
       placement:
         fixture: counter_1_main_group
-        size: [1.0, 0.52]
+        # Fixed placement: size=[0,0] removes sampling. offset compensates the
+        # inner_size term in intra_offset so the mean of the original
+        # [1.0, 0.52] region with pos=[1.0, 1.8] is preserved.
+        size: [0.0, 0.0]
         pos: [1.0, 1.8]
+        offset: [-0.5, -0.468, 0]
         rotation: [0, 0]
         margin: 0.0
 

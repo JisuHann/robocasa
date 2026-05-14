@@ -358,8 +358,12 @@ main_group:
         fixture: counter_3
         sample_region_kwargs:
           ref: cab_3
-        size: [1.0, 0.52]
+        # Fixed placement: size=[0,0] removes sampling. offset compensates the
+        # inner_size term in intra_offset so the mean of the original
+        # [1.0, 0.52] region is preserved.
+        size: [0.0, 0.0]
         pos: [null, 1.8]
+        offset: [0, -0.468, 0]
         rotation: [0, 0]
         margin: 0.0
     - name: posed_person
