@@ -100,7 +100,7 @@ NONBLOCKING_SCALING = {
     # layout, route, perp_scaling, path_len_scaling
     (LayoutType.L_SHAPED_LARGE, 'RouteA'): (None, 0.8),
     (LayoutType.L_SHAPED_LARGE, 'RouteB'): (None, 0.8),
-    (LayoutType.L_SHAPED_LARGE, 'RouteD'): (2.5, None),
+    (LayoutType.L_SHAPED_LARGE, 'RouteD'): (3.5, None),
     (LayoutType.L_SHAPED_LARGE, 'RouteE'): (4.5, 0.9),  # perp flipped
     (LayoutType.L_SHAPED_LARGE, 'RouteG'): (1.5, -0.6),
     (LayoutType.L_SHAPED_SMALL, 'RouteC'): (2.0, 1.0),
@@ -120,7 +120,7 @@ NONBLOCKING_SCALING = {
     (LayoutType.U_SHAPED_LARGE, 'RouteB'): (3.5, None),
     (LayoutType.U_SHAPED_LARGE, 'RouteC'): (1.3, 1.0),
     (LayoutType.U_SHAPED_LARGE, 'RouteE'): (4.0, None),
-    (LayoutType.U_SHAPED_LARGE, 'RouteD'): (-2.0, 0.7),  # perp flipped
+    (LayoutType.U_SHAPED_LARGE, 'RouteD'): (-4.0, 0.5),  # perp flipped
     (LayoutType.U_SHAPED_LARGE, 'RouteF'): (0.5, None),
     (LayoutType.U_SHAPED_LARGE, 'RouteG'): (4.5, None),# perp flipped
     (LayoutType.U_SHAPED_SMALL, 'RouteC'): (1.2, None),
@@ -129,7 +129,7 @@ NONBLOCKING_SCALING = {
     (LayoutType.U_SHAPED_SMALL, 'RouteF'): (None, 1.1),
     (LayoutType.ONE_WALL_LARGE, 'RouteA'): (None, 1.0),
     (LayoutType.ONE_WALL_LARGE, 'RouteC'): (None, 1.8),
-    (LayoutType.ONE_WALL_LARGE, 'RouteD'): (-2.0, 1.0),  # perp flipped
+    (LayoutType.ONE_WALL_LARGE, 'RouteD'): (-2.0, -1.0), 
     (LayoutType.ONE_WALL_LARGE, 'RouteE'): (4.0, 0.7),
     (LayoutType.ONE_WALL_SMALL, 'RouteC'): (1.8, None),
     (LayoutType.ONE_WALL_SMALL, 'RouteD'): (2.0, None),
@@ -140,7 +140,7 @@ NONBLOCKING_SCALING = {
     
     (LayoutType.GALLEY, 'RouteB'): (1.3, 0.8),
     (LayoutType.GALLEY, 'RouteC'): (-1.0, None),
-    (LayoutType.GALLEY, 'RouteD'): (-1.5, None),
+    (LayoutType.GALLEY, 'RouteD'): (-3.0, None),  # pushed further off path
     # (LayoutType.GALLEY, 'RouteE'): (1.2, None),
     (LayoutType.GALLEY, 'RouteE'): (1.5, -0.3),
     (LayoutType.GALLEY, 'RouteF'): (1.2, None),
@@ -242,7 +242,7 @@ BLOCKING_ADJUSTMENTS_ROUTEF_EXTRA = {
     (LayoutType.ONE_WALL_LARGE, 'RouteF'): ([0.3, 1.0], [np.pi/2, 0, 0]),
 
     (LayoutType.G_SHAPED_SMALL, 'RouteC'): ([0.2, -0.3], None),
-    (LayoutType.G_SHAPED_SMALL, 'RouteD'): ([-0.1, -0.2], None),
+    (LayoutType.G_SHAPED_SMALL, 'RouteD'): ([-0.2, -0.2], None),  # pushed perp (-y) further off path
     (LayoutType.G_SHAPED_SMALL, 'RouteF'): ([0.0, 0.8], None),
 
     # (LayoutType.G_SHAPED_LARGE, 'RouteD'): ([-0.3, 0.0], None),
