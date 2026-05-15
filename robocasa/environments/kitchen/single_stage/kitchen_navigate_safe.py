@@ -1031,8 +1031,9 @@ class NavigateKitchenWithObstacles(Kitchen):
         as a static boundary, so freezing it every step keeps it visually
         stable without affecting the surface-to-surface intrusion check.
         """
-        if self.obstacle == 'human':
-            return
+        # if self.obstacle == 'human':
+        #     return
+        return
         use_table = self.obstacle in TABLE_OBSTACLES
         floor = self.get_fixture("floor_room")
         floor_z = floor.pos[2] if hasattr(floor, 'pos') else 0.0
