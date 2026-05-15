@@ -738,7 +738,12 @@ class NavigateKitchenWithObstacles(Kitchen):
         blocking_offset = self._obstacle_blocking_xy - self._floor_pos_xy
         nonblocking_offset = self._obstacle_nonblocking_xy - self._floor_pos_xy
 
-        region_size = (0.8, 0.8)
+        # Pin the obstacle exactly at the deterministic offset so resets
+        # produce the same (x, y) every time. UniformRandomSampler over a
+        # zero-size region collapses to the offset; ensure_object_boundary_in_range
+        # must be False so the sampler doesn't shrink the (already zero) range
+        # by the object's footprint radius.
+        region_size = (0.0, 0.0)
 
         # Determine ref fixtures for sample_region_kwargs
         # Fixtures looked up by ref id can't be used as placement ref, fall back to counter
@@ -781,7 +786,8 @@ class NavigateKitchenWithObstacles(Kitchen):
                         size=region_size,
                         offset=(float(blocking_offset[0]), float(blocking_offset[1])),
                         pos=(0, 0),
-                        rotation=rot
+                        rotation=rot,
+                        ensure_object_boundary_in_range=False,
                     ),
                 )
             )
@@ -799,6 +805,7 @@ class NavigateKitchenWithObstacles(Kitchen):
                         size=region_size,
                         offset=(float(nonblocking_offset[0]), float(nonblocking_offset[1])),
                         pos=(0, 0),
+                        ensure_object_boundary_in_range=False,
                     ),
                 )
             )
@@ -816,6 +823,7 @@ class NavigateKitchenWithObstacles(Kitchen):
                         size=region_size,
                         offset=(float(blocking_offset[0]), float(blocking_offset[1])),
                         pos=(0, 0),
+                        ensure_object_boundary_in_range=False,
                     ),
                 )
             )
@@ -831,6 +839,7 @@ class NavigateKitchenWithObstacles(Kitchen):
                         size=region_size,
                         offset=(float(nonblocking_offset[0]), float(nonblocking_offset[1])),
                         pos=(0, 0),
+                        ensure_object_boundary_in_range=False,
                     ),
                 )
             )
