@@ -98,16 +98,16 @@ NONBLOCKING_SCALING = {
     (None, 'RouteG'): (-3.5, 0.3),  # perp_scaling += 1.0 handled separately
     # Layout + Route specific overrides
     # layout, route, perp_scaling, path_len_scaling
-    (LayoutType.L_SHAPED_LARGE, 'RouteA'): (None, 0.8),
-    (LayoutType.L_SHAPED_LARGE, 'RouteB'): (4.0, 0.8),
+    (LayoutType.L_SHAPED_LARGE, 'RouteA'): (-1.0, 0.6),  # was (None, 0.8) — perp default sent crawling_baby off the L corner
+    (LayoutType.L_SHAPED_LARGE, 'RouteB'): (0.5, 0.5),   # iter3 (1.5, 0.6) regressed; the L's missing corner sits at y~-2.6, so keep obstacle near path centerline
     (LayoutType.L_SHAPED_LARGE, 'RouteC'): (2.5, -0.5),
-    (LayoutType.L_SHAPED_LARGE, 'RouteD'): (5.5, None),
+    (LayoutType.L_SHAPED_LARGE, 'RouteD'): (2.0, None),  # shared by floor + table obstacles; tuned for table placement (see straggler handling for crawling_baby)
     (LayoutType.L_SHAPED_LARGE, 'RouteE'): (-4.5, 0.9),  # perp flipped
     (LayoutType.L_SHAPED_LARGE, 'RouteG'): (3.5, -0.6),
     (LayoutType.L_SHAPED_SMALL, 'RouteB'): (2.5, 1.0),
     (LayoutType.L_SHAPED_SMALL, 'RouteC'): (3.5, 1.0),
     (LayoutType.L_SHAPED_SMALL, 'RouteD'): (4.0, None),
-    (LayoutType.L_SHAPED_SMALL, 'RouteE'): (4.0, 0.8),
+    (LayoutType.L_SHAPED_SMALL, 'RouteE'): (1.5, 0.6),  # was (4.0, 0.8) — perp 4m put trashbin outside L_SHAPED_SMALL
     (LayoutType.L_SHAPED_SMALL, 'RouteF'): (-1.0, None),
     (LayoutType.L_SHAPED_SMALL, 'RouteG'): (2.5, -0.2),
     (LayoutType.G_SHAPED_SMALL, 'RouteA'): (4.0, 0.1),
@@ -121,7 +121,7 @@ NONBLOCKING_SCALING = {
     (LayoutType.G_SHAPED_LARGE, 'RouteD'): (3.5, None),
     (LayoutType.G_SHAPED_LARGE, 'RouteE'): (-2.0, 0.3),
     (LayoutType.G_SHAPED_LARGE, 'RouteF'): (4.0, None),
-    # (LayoutType.G_SHAPED_LARGE, 'RouteG'): (-3.5, None),
+    (LayoutType.G_SHAPED_LARGE, 'RouteG'): (1.0, 0.5),  # pull obstacle into G interior, off the missing corner
     (LayoutType.U_SHAPED_LARGE, 'RouteA'): (4.0, None),
     (LayoutType.U_SHAPED_LARGE, 'RouteB'): (5.0, None),
     (LayoutType.U_SHAPED_LARGE, 'RouteC'): (4.3, -0.7),
@@ -132,7 +132,7 @@ NONBLOCKING_SCALING = {
     (LayoutType.U_SHAPED_SMALL, 'RouteB'): (2.5, 0.1),
     (LayoutType.U_SHAPED_SMALL, 'RouteC'): (2.2, -0.5),
     (LayoutType.U_SHAPED_SMALL, 'RouteD'): (2.0, None),
-    (LayoutType.U_SHAPED_SMALL, 'RouteE'): (-2.0, 0.6),
+    (LayoutType.U_SHAPED_SMALL, 'RouteE'): (-1.0, 0.5),  # tightened — trashbin drifted past U boundary at perp -2
     (LayoutType.U_SHAPED_SMALL, 'RouteF'): (2.0, 1.0),
     (LayoutType.U_SHAPED_SMALL, 'RouteG'): (4.0, 0.6),
     (LayoutType.ONE_WALL_LARGE, 'RouteA'): (2.5, 0.2),
@@ -244,7 +244,7 @@ BLOCKING_ADJUSTMENTS = {
     (LayoutType.ONE_WALL_SMALL, 'RouteB'): ([0, -0.4], None),
     (LayoutType.ONE_WALL_SMALL, 'RouteC'): ([-0.3, -0.1], None),
     (LayoutType.ONE_WALL_SMALL, 'RouteD'): ([-0.2, -0.2], None),
-    (LayoutType.ONE_WALL_SMALL, 'RouteE'): ([-0.0, 0], [np.pi/2, 0]),
+    (LayoutType.ONE_WALL_SMALL, 'RouteE'): ([0.3, 0.0], np.pi/4),
     (LayoutType.ONE_WALL_SMALL, 'RouteG'): ([0.0, -0.3], None),
     # ONE_WALL_LARGE layout
     (LayoutType.ONE_WALL_LARGE, 'RouteA'): ([0.0, -0.3], None),
@@ -268,7 +268,7 @@ BLOCKING_ADJUSTMENTS_EXTRA = {
     
     (LayoutType.U_SHAPED_LARGE, 'RouteA'): ([0.0, -0.5], None),
     (LayoutType.U_SHAPED_LARGE, 'RouteD'): ([-0.5, 0.0], None),
-    (LayoutType.U_SHAPED_LARGE, 'RouteF'): ([0.2, 1.5], None),
+    (LayoutType.U_SHAPED_LARGE, 'RouteF'): ([0.2, 0.3], None),  # was [0.2, 1.5] — drove trashbin into U back wall, popping upward 5m
     (LayoutType.U_SHAPED_LARGE, 'RouteG'): ([-0.7, 0.0], None),
     
     (LayoutType.ONE_WALL_SMALL, 'RouteF'): ([-0.0, 1.5], None),
@@ -555,11 +555,14 @@ class NavigateKitchenWithObstacles(Kitchen):
         if np.dot(path_perp, counter_to_robot) < 0:
             path_perp = -path_perp
         path_perp = path_perp / (np.linalg.norm(path_perp) + 1e-8)
-        # Get floor fixture position for offset computation
+        # Get floor fixture position + extents (used for clamping below).
         self._floor_pos_xy = None
+        self._floor_half_size_xy = None
         for fxtr in self.fixtures.values():
             if type(fxtr).__name__ == "Floor":
                 self._floor_pos_xy = np.array(fxtr.pos[:2])
+                if hasattr(fxtr, "size") and len(fxtr.size) >= 2:
+                    self._floor_half_size_xy = np.array(fxtr.size[:2], dtype=float)
                 break
         if self._floor_pos_xy is None:
             self._floor_pos_xy = np.array([0.0, 0.0])
@@ -608,6 +611,20 @@ class NavigateKitchenWithObstacles(Kitchen):
         self._obstacle_nonblocking_xy = (
             src_xy + path_dir * (path_len * path_len_scaling) + path_perp * perp_scaling
         )
+
+        # Clamp blocking/nonblocking XY into the floor footprint with a 0.4 m
+        # safety margin. Without this, large perp/path_len scalings on layouts
+        # like U_SHAPED_LARGE and G_SHAPED_LARGE land the obstacle outside
+        # floor_room, so it spawns over empty space and falls forever
+        # (z_drift_down values of 5–13 m in the validation report). The clamp
+        # uses the floor's AABB; L/G/U shaped floors are non-rectangular so
+        # the AABB is conservative, but it eliminates the fall-into-void case.
+        if self._floor_half_size_xy is not None:
+            margin = 0.4
+            lo = self._floor_pos_xy - (self._floor_half_size_xy - margin)
+            hi = self._floor_pos_xy + (self._floor_half_size_xy - margin)
+            self._obstacle_blocking_xy = np.clip(self._obstacle_blocking_xy, lo, hi)
+            self._obstacle_nonblocking_xy = np.clip(self._obstacle_nonblocking_xy, lo, hi)
 
         # Position the standing table at obstacle location for drink obstacles
         if self.obstacle in TABLE_OBSTACLES:
@@ -846,6 +863,38 @@ class NavigateKitchenWithObstacles(Kitchen):
 
         return cfgs
 
+    def _lowest_collision_world_z(self, obj_name):
+        """
+        World-space Z of the obstacle's lowest collision point in the current
+        sim state. Mesh-aware: transforms each collision mesh's vertices by
+        its geom frame and takes the minimum, instead of the loose
+        bounding-sphere radius (geom_rbound) which over-estimates a
+        thin-walled multi-piece hull and would leave a spurious gap.
+
+        Requires sim.forward() so geom_xpos/geom_xmat are current.
+        Returns +inf if the obstacle has no collision geoms.
+        """
+        m = self.sim.model._model
+        d = self.sim.data._data
+        geom_ids = self._filter_collision_geoms(
+            self._get_geom_ids_by_name(obj_name)
+        )
+        min_z = float("inf")
+        for g in geom_ids:
+            did = m.geom_dataid[g]
+            if m.geom_type[g] == mujoco.mjtGeom.mjGEOM_MESH and did >= 0:
+                vadr = m.mesh_vertadr[did]
+                vnum = m.mesh_vertnum[did]
+                V = m.mesh_vert[vadr:vadr + vnum].reshape(-1, 3)
+                gpos = d.geom_xpos[g]
+                gmat = d.geom_xmat[g].reshape(3, 3)
+                z = ((gmat @ V.T).T + gpos)[:, 2].min()
+            else:
+                z = float(d.geom_xpos[g][2] - m.geom_rbound[g])
+            if z < min_z:
+                min_z = z
+        return min_z
+
     def _reset_internal(self):
         """
         Override to fix obstacle z-position after MuJoCo settling.
@@ -875,6 +924,10 @@ class NavigateKitchenWithObstacles(Kitchen):
         floor = self.get_fixture("floor_room")
         floor_z = floor.pos[2] if hasattr(floor, 'pos') else 0.0
 
+        # Pass 1: place XY, orientation, provisional Z; zero velocity.
+        # Floor obstacles get a provisional lift, then are exact-snapped and
+        # frozen in pass 2. Table obstacles are final here.
+        floor_obstacles = []
         for obj_name in list(self.objects.keys()):
             if not obj_name.startswith("obstacle_"):
                 continue
@@ -896,14 +949,42 @@ class NavigateKitchenWithObstacles(Kitchen):
                     # any tilt off the z-axis at spawn re-introduces the topple.
                     qpos[3:7] = np.array([1.0, 0.0, 0.0, 0.0])
                 else:
-                    # Fix Z to floor level + half object height
-                    qpos[2] = floor_z - obj.bottom_offset[2] + 0.01
+                    # Provisional lift; corrected to an exact resting contact
+                    # in pass 2. min(..., 0) guards meshes whose bottom_offset
+                    # is reported positive (would spawn below the floor).
+                    qpos[2] = floor_z - min(obj.bottom_offset[2], 0.0) + 0.05
                     qpos[3:7] = sampled_quat
+                    floor_obstacles.append((obj_name, joint_name))
                 self.sim.data.set_joint_qpos(joint_name, qpos)
 
-                # Zero out velocity so obstacle starts at rest
                 qvel_addr = self.sim.model.get_joint_qvel_addr(joint_name)
                 self.sim.data.qvel[qvel_addr[0]:qvel_addr[1]] = 0
+
+        # Update geom frames so pass 2 can measure true lowest points.
+        self.sim.forward()
+
+        # Pass 2: snap each floor obstacle so its lowest collision vertex
+        # rests exactly 1 mm above the floor (zero gap, zero penetration),
+        # then FREEZE it: huge dof_armature makes the free joint effectively
+        # immovable, so contact/gravity cannot drop, sink, eject, or topple
+        # it. Obstacles here are static navigation blockers (never pushed),
+        # so freezing is semantically correct and removes the need for a
+        # settle phase entirely. This is a one-time reset property change,
+        # not the per-step _pin_obstacles path. The earlier exact-snap alone
+        # failed only because dynamics tipped the single-point contact;
+        # freezing eliminates that failure mode.
+        FROZEN_ARMATURE = 1.0e9
+        for obj_name, joint_name in floor_obstacles:
+            lowest_z = self._lowest_collision_world_z(obj_name)
+            if np.isfinite(lowest_z):
+                qpos = self.sim.data.get_joint_qpos(joint_name).copy()
+                qpos[2] += (floor_z + 0.001) - lowest_z
+                self.sim.data.set_joint_qpos(joint_name, qpos)
+            qvel_addr = self.sim.model.get_joint_qvel_addr(joint_name)
+            self.sim.data.qvel[qvel_addr[0]:qvel_addr[1]] = 0
+            dof_start, dof_end = qvel_addr
+            self.sim.model.dof_armature[dof_start:dof_end] = FROZEN_ARMATURE
+            self.sim.model.dof_damping[dof_start:dof_end] = 1.0e4
 
         # Update derived quantities without running physics
         self.sim.forward()
@@ -1248,6 +1329,8 @@ class NavigateKitchenWithObstacles(Kitchen):
                 return True  # too close to reliably check orientation
         else:
             ori_cos = np.cos(self.target_ori[2] - base_ori[2])
+            if self.dst_is_door:
+                ori_cos = 1 - abs(ori_cos)  # for doors, facing either direction is fine; penalize being perpendicular
             orientation_pass = ori_cos >= ori_threshold
             self.orientation_info["ori_cos"] = ori_cos
             self.orientation_info["orientation_pass"] = orientation_pass

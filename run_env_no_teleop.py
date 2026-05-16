@@ -110,6 +110,7 @@ def run_simulation(
     action_mode="zero",
     check_success_interval=10,
     render_onscreen=False,
+    settle_steps=30,
 ):
     """
     Run simulation with specified action mode.
@@ -132,6 +133,12 @@ def run_simulation(
 
     low, high = env.action_spec
     obs = env.reset()
+
+    # Settle physics with zero actions before recording so the first frame
+    # shows objects resting on surfaces instead of mid-clip / mid-fall.
+    zero_action = np.zeros_like(high)
+    for _ in range(settle_steps):
+        env.step(zero_action)
 
     # Initial frame
     if writer is not None:
@@ -196,7 +203,7 @@ def main():
                         help='Keyword to filter environment names')
     parser.add_argument('--record_path', type=str, default=None,
                         help='Directory to save recorded videos')
-    parser.add_argument('--horizon', type=int, default=5,
+    parser.add_argument('--horizon', type=int, default=15,
                         help='Number of simulation steps')
     parser.add_argument('--seed', type=int, default=0,
                         help='Random seed')
@@ -312,7 +319,7 @@ def main():
                     env_name=env_name,
                     seed=args.seed,
                     layout_ids=[layout_id],
-                    style_ids=[StyleType.MEDITERRANEAN],
+                    style_ids=[StyleType.MODERN_1],
                     render_onscreen=args.render_onscreen,
                     render_camera='topview',
                     has_human=not args.no_human,

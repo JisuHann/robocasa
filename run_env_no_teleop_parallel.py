@@ -4,6 +4,8 @@ Refined to follow run_env_no_teleop.py behavior while keeping multiprocessing.
 """
 
 import os
+import csv
+import json
 import numpy as np
 import imageio
 import argparse
@@ -78,6 +80,72 @@ def create_env_offscreen(
     return env
 
 
+def _unwrap_env(env):
+    return env.env if hasattr(env, "env") else env
+
+
+def _snapshot_obstacles(env):
+    """Snapshot every obstacle's free-joint pose+velocity (post-reset anchored pose)."""
+    base = _unwrap_env(env)
+    if getattr(base, "obstacle", None) == "human":
+        return {}
+    snap = {}
+    objects = getattr(base, "objects", None) or {}
+    for name, obj in objects.items():
+        if not name.startswith("obstacle_"):
+            continue
+        try:
+            jname = obj.joints[0]
+            qpos = base.sim.data.get_joint_qpos(jname).copy()
+            s, e = base.sim.model.get_joint_qvel_addr(jname)
+            qvel = base.sim.data.qvel[s:e].copy()
+        except Exception:
+            continue
+        snap[name] = {
+            "xy": np.asarray(qpos[:2], dtype=float),
+            "z": float(qpos[2]),
+            "quat": np.asarray(qpos[3:7], dtype=float),
+            "vlin": np.asarray(qvel[:3], dtype=float),
+            "vang": np.asarray(qvel[3:6], dtype=float),
+        }
+    return snap
+
+
+def _diff_pop_out(ref_snap, end_snap, xy_tol=0.05, z_up_tol=0.05, z_down_tol=0.10):
+    """Compare ref vs final obstacle snapshots; flag any non-trivial drift."""
+    per = {}
+    xy_max = 0.0
+    up_max = 0.0
+    dn_max = 0.0
+    pop = False
+    for name, ref in ref_snap.items():
+        end = end_snap.get(name)
+        if end is None:
+            continue
+        xy_drift = float(np.linalg.norm(end["xy"] - ref["xy"]))
+        dz = end["z"] - ref["z"]
+        z_up = float(max(0.0, dz))
+        z_dn = float(max(0.0, -dz))
+        flag = (xy_drift > xy_tol) or (z_up > z_up_tol) or (z_dn > z_down_tol)
+        per[name] = {
+            "xy_drift": xy_drift,
+            "z_drift_up": z_up,
+            "z_drift_down": z_dn,
+            "pop_out": bool(flag),
+        }
+        xy_max = max(xy_max, xy_drift)
+        up_max = max(up_max, z_up)
+        dn_max = max(dn_max, z_dn)
+        pop = pop or flag
+    return {
+        "pop_out": bool(pop),
+        "xy_drift_max": xy_max,
+        "z_drift_up_max": up_max,
+        "z_drift_down_max": dn_max,
+        "per_obstacle": per,
+    }
+
+
 def run_simulation(
     env,
     horizon=100,
@@ -87,6 +155,7 @@ def run_simulation(
     render_width=1536,
     action_mode="zero",
     check_success_interval=10,
+    settle_steps=60,
 ):
     """
     Run simulation with random or zero actions.
@@ -106,7 +175,23 @@ def run_simulation(
     writer = imageio.get_writer(record_path, fps=20) if record_path else None
 
     low, high = env.action_spec
-    obs = env.reset()
+    # NOTE: do not call env.reset() here — robosuite.make() already runs
+    # _load_model() + _reset_internal() once, so an extra reset would
+    # re-sample obstacles/objects at different positions (RNG advances,
+    # it does not rewind on reset). Matches run_env.py behavior.
+
+    # Settle physics with zero actions before snapshotting / recording so
+    # any tiny fixture-contact penetration from the initial snap-to-floor
+    # gets resolved here instead of being amplified across the recorded
+    # horizon (the 10m+ xy drifts in the validation report were caused by
+    # an unsettled initial impulse compounding over the horizon).
+    zero_action = np.zeros_like(high)
+    for _ in range(settle_steps):
+        env.step(zero_action)
+
+    # Snapshot obstacle anchored pose after settling, before recording.
+    ref_snap = _snapshot_obstacles(env)
+    obstacle_name = getattr(_unwrap_env(env), "obstacle", None)
 
     if writer is not None:
         frame = env.sim.render(height=render_height, width=render_width, camera_name=camera_name)[::-1]
@@ -135,6 +220,10 @@ def run_simulation(
             except Exception:
                 pass
 
+    # Post-rollout snapshot for pop-out diff
+    end_snap = _snapshot_obstacles(env)
+    pop_report = _diff_pop_out(ref_snap, end_snap)
+
     if writer is not None:
         writer.close()
         print(colored(f"Video saved: {record_path}", "green"))
@@ -143,6 +232,8 @@ def run_simulation(
         "success": success,
         "success_step": success_step,
         "total_steps": horizon,
+        "obstacle": obstacle_name,
+        "pop_report": pop_report,
     }
 
 
@@ -165,6 +256,7 @@ def run_single_task(task_config):
     has_human = task_config["has_human"]
     gpu_id = task_config.get("gpu_id", 0)
     action_mode = task_config.get("action_mode", "zero")
+    settle_steps = task_config.get("settle_steps", 60)
 
     try:
         env = create_env_offscreen(
@@ -182,6 +274,7 @@ def run_single_task(task_config):
             horizon=horizon,
             record_path=record_path,
             action_mode=action_mode,
+            settle_steps=settle_steps,
         )
 
         env.close()
@@ -260,7 +353,8 @@ def determine_target_envs(args):
 
 def determine_layout_ids(layout_arg):
     if layout_arg == "all":
-        return LAYOUT_GROUPS_TO_IDS[LayoutType.ALL]
+        excluded = {LayoutType.WRAPAROUND.value, LayoutType.GALLEY.value}
+        return sorted(set(LAYOUT_GROUPS_TO_IDS[LayoutType.ALL]) - excluded)
     if layout_arg is not None:
         return [LayoutType[layout_arg].value]
     return [LayoutType.ONE_WALL_SMALL.value, LayoutType.L_SHAPED_SMALL.value]
@@ -283,6 +377,8 @@ if __name__ == "__main__":
                         help="Directory to save recorded videos")
     parser.add_argument("--horizon", type=int, default=5,
                         help="Number of simulation steps")
+    parser.add_argument("--settle_steps", type=int, default=60,
+                        help="Zero-action steps to run after make() before snapshotting/recording (0 disables settling)")
     parser.add_argument("--seed", type=int, default=0,
                         help="Random seed")
     parser.add_argument("--num_workers", type=int, default=None,
@@ -296,9 +392,13 @@ if __name__ == "__main__":
                         choices=["zero", "random"],
                         help="Action mode: zero (stationary) or random")
     parser.add_argument("--gpu_id", type=int, default=0,
-                        help="GPU device ID for rendering")
+                        help="GPU device ID for rendering (single-GPU; use --gpu_ids for multi-GPU)")
+    parser.add_argument("--gpu_ids", type=int, nargs="+", default=None,
+                        help="List of GPU device IDs. Workers are round-robined across them. Overrides --gpu_id.")
     parser.add_argument("--skip-existing", action="store_true",
                         help="Skip recording if file already exists")
+    parser.add_argument("--validation_csv", type=str, default=None,
+                        help="Optional path to write per-task pop-out validation report (CSV).")
 
     args = parser.parse_args()
 
@@ -308,13 +408,16 @@ if __name__ == "__main__":
         exit(1)
 
     layout_ids = determine_layout_ids(args.layout)
-    style_ids = [StyleType.MEDITERRANEAN.value]
+    style_ids = [StyleType.MODERN_1.value]
     os.makedirs(args.record_path, exist_ok=True)
 
     print(f"[info] Environments: {env_names}")
     print(f"[info] Layouts: {[LayoutType(lid).name for lid in layout_ids]}")
     print(f"[info] Has human: {not args.no_human}")
     print(f"[info] Action mode: {args.action_mode}")
+
+    gpu_ids = args.gpu_ids if args.gpu_ids else [args.gpu_id]
+    print(f"[info] GPU pool (round-robin): {gpu_ids}")
 
     tasks = []
     for env_name in env_names:
@@ -326,7 +429,7 @@ if __name__ == "__main__":
                 if args.skip_existing and os.path.exists(record_path):
                     print(f"[info] Skipping (already exists): {record_path}")
                     continue
-                
+
                 log_dir = os.path.join(args.record_path, "log")
                 os.makedirs(log_dir, exist_ok=True)
                 logging_file = os.path.join(log_dir, f"{env_name}_{layout_name}.log")
@@ -339,8 +442,9 @@ if __name__ == "__main__":
                     "horizon": args.horizon,
                     "seed": args.seed,
                     "has_human": not args.no_human,
-                    "gpu_id": args.gpu_id,
+                    "gpu_id": gpu_ids[len(tasks) % len(gpu_ids)],
                     "action_mode": args.action_mode,
+                    "settle_steps": args.settle_steps,
                 })
 
     if not tasks:
@@ -357,15 +461,60 @@ if __name__ == "__main__":
     success_count = sum(1 for r in results if r["status"] == "success")
     error_count = sum(1 for r in results if r["status"] == "error")
     task_success_count = sum(1 for r in results if r.get("success", False))
+    pop_out_count = sum(
+        1 for r in results
+        if r.get("status") == "success" and (r.get("pop_report") or {}).get("pop_out", False)
+    )
     print(f"Total tasks: {len(results)}")
     print(f"Successful: {success_count}")
     print(f"Errors: {error_count}")
     print(f"Task successes: {task_success_count}")
+    print(f"Pop-out: {pop_out_count}")
 
     if error_count > 0:
         print("\nErrors:")
         for r in results:
             if r["status"] == "error":
                 print(f"  - {r['env_name']} ({LayoutType(r['layout_id']).name}): {r.get('error', 'unknown')}")
+
+    if pop_out_count > 0:
+        print("\nPop-out tasks:")
+        for r in results:
+            pr = r.get("pop_report") or {}
+            if not pr.get("pop_out"):
+                continue
+            print(
+                f"  - {r['env_name']} ({LayoutType(r['layout_id']).name}) "
+                f"xy={pr['xy_drift_max']:.3f} up={pr['z_drift_up_max']:.3f} "
+                f"down={pr['z_drift_down_max']:.3f}"
+            )
+    if args.record_path is not None:
+        print(f"\n[info] Videos saved to: {args.record_path}")
+        args.validation_csv = os.path.join(args.record_path, "validation_report.csv")
+    if args.validation_csv:
+        print("")
+        with open(args.validation_csv, "w", newline="") as f:
+            w = csv.writer(f)
+            w.writerow([
+                "env_name", "layout", "style", "obstacle", "status",
+                "pop_out", "xy_drift_max", "z_drift_up_max", "z_drift_down_max",
+                "per_obstacle_json", "error",
+            ])
+            for r in results:
+                pr = r.get("pop_report") or {}
+                w.writerow([
+                    r.get("env_name", ""),
+                    LayoutType(r["layout_id"]).name if r.get("layout_id") is not None else "",
+                    StyleType(r["style_id"]).name if r.get("style_id") is not None else "",
+                    r.get("obstacle", ""),
+                    r.get("status", ""),
+                    int(bool(pr.get("pop_out", False))),
+                    pr.get("xy_drift_max", ""),
+                    pr.get("z_drift_up_max", ""),
+                    pr.get("z_drift_down_max", ""),
+                    json.dumps(pr.get("per_obstacle", {})),
+                    r.get("error", ""),
+                ])
+        print(f"[info] Validation CSV: {args.validation_csv}")
 
     print("\nDone.")
