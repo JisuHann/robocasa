@@ -97,43 +97,47 @@ NONBLOCKING_SCALING = {
     (None, 'RouteF'): (2.3, 0.6),
     (None, 'RouteG'): (-3.5, 0.3),  # perp_scaling += 1.0 handled separately
     # Layout + Route specific overrides
-    # layout, route, perp_scaling, path_len_scaling
-    (LayoutType.L_SHAPED_LARGE, 'RouteA'): (-1.0, 0.6),  # was (None, 0.8) — perp default sent crawling_baby off the L corner
-    (LayoutType.L_SHAPED_LARGE, 'RouteB'): (0.5, 0.5),   # iter3 (1.5, 0.6) regressed; the L's missing corner sits at y~-2.6, so keep obstacle near path centerline
+    # layout, route, perp_scaling, path_len_scaling (0.5/1.5/1.8 , 0.5 for defaults)
+    (LayoutType.L_SHAPED_LARGE, 'RouteA'): (5.0, 0.6),  # was (None, 0.8) — perp default sent crawling_baby off the L corner
+    (LayoutType.L_SHAPED_LARGE, 'RouteB'): (6.0, 0.5),   # iter3 (1.5, 0.6) regressed; the L's missing corner sits at y~-2.6, so keep obstacle near path centerline
     (LayoutType.L_SHAPED_LARGE, 'RouteC'): (2.5, -0.5),
-    (LayoutType.L_SHAPED_LARGE, 'RouteD'): (2.0, None),  # shared by floor + table obstacles; tuned for table placement (see straggler handling for crawling_baby)
+    (LayoutType.L_SHAPED_LARGE, 'RouteD'): (4.0, None),  # shared by floor + table obstacles; tuned for table placement (see straggler handling for crawling_baby)
     (LayoutType.L_SHAPED_LARGE, 'RouteE'): (-4.5, 0.9),  # perp flipped
+    (LayoutType.L_SHAPED_LARGE, 'RouteF'): (-2.5, 1.2),
     (LayoutType.L_SHAPED_LARGE, 'RouteG'): (3.5, -0.6),
     (LayoutType.L_SHAPED_SMALL, 'RouteB'): (2.5, 1.0),
     (LayoutType.L_SHAPED_SMALL, 'RouteC'): (3.5, 1.0),
     (LayoutType.L_SHAPED_SMALL, 'RouteD'): (4.0, None),
-    (LayoutType.L_SHAPED_SMALL, 'RouteE'): (1.5, 0.6),  # was (4.0, 0.8) — perp 4m put trashbin outside L_SHAPED_SMALL
-    (LayoutType.L_SHAPED_SMALL, 'RouteF'): (-1.0, None),
+    (LayoutType.L_SHAPED_SMALL, 'RouteE'): (3.0, 0.6),  # was (4.0, 0.8) — perp 4m put trashbin outside L_SHAPED_SMALL
+    (LayoutType.L_SHAPED_SMALL, 'RouteF'): (3.5, None),
     (LayoutType.L_SHAPED_SMALL, 'RouteG'): (2.5, -0.2),
+
     (LayoutType.G_SHAPED_SMALL, 'RouteA'): (4.0, 0.1),
     (LayoutType.G_SHAPED_SMALL, 'RouteB'): (3.0, None),
     (LayoutType.G_SHAPED_SMALL, 'RouteC'): (2.4, -0.3),
     (LayoutType.G_SHAPED_SMALL, 'RouteD'): (2.5, None),
     (LayoutType.G_SHAPED_SMALL, 'RouteE'): (1.5, 0.4),
+    (LayoutType.G_SHAPED_SMALL, 'RouteF'): (-1.5, 0.5),
     (LayoutType.G_SHAPED_LARGE, 'RouteA'): (4.0, None),
     (LayoutType.G_SHAPED_LARGE, 'RouteB'): (3.0, None),
     (LayoutType.G_SHAPED_LARGE, 'RouteC'): (2.5, -0.3),
     (LayoutType.G_SHAPED_LARGE, 'RouteD'): (3.5, None),
     (LayoutType.G_SHAPED_LARGE, 'RouteE'): (-2.0, 0.3),
     (LayoutType.G_SHAPED_LARGE, 'RouteF'): (4.0, None),
-    (LayoutType.G_SHAPED_LARGE, 'RouteG'): (1.0, 0.5),  # pull obstacle into G interior, off the missing corner
+    (LayoutType.G_SHAPED_LARGE, 'RouteG'): (-4.0, 0.4),  # pull obstacle into G interior, off the missing corner
     (LayoutType.U_SHAPED_LARGE, 'RouteA'): (4.0, None),
     (LayoutType.U_SHAPED_LARGE, 'RouteB'): (5.0, None),
     (LayoutType.U_SHAPED_LARGE, 'RouteC'): (4.3, -0.7),
     (LayoutType.U_SHAPED_LARGE, 'RouteD'): (-4.5, 0.0),  # perp flipped
-    (LayoutType.U_SHAPED_LARGE, 'RouteE'): (3.0, 1.05),
+    (LayoutType.U_SHAPED_LARGE, 'RouteE'): (4.0, 0.7),
     (LayoutType.U_SHAPED_LARGE, 'RouteF'): (-3.5, 0.9),
     (LayoutType.U_SHAPED_LARGE, 'RouteG'): (4.0, -0.3),# perp flipped
+    (LayoutType.U_SHAPED_SMALL, 'RouteA'): (-2.5, None),
     (LayoutType.U_SHAPED_SMALL, 'RouteB'): (2.5, 0.1),
     (LayoutType.U_SHAPED_SMALL, 'RouteC'): (2.2, -0.5),
     (LayoutType.U_SHAPED_SMALL, 'RouteD'): (2.0, None),
-    (LayoutType.U_SHAPED_SMALL, 'RouteE'): (-1.0, 0.5),  # tightened — trashbin drifted past U boundary at perp -2
-    (LayoutType.U_SHAPED_SMALL, 'RouteF'): (2.0, 1.0),
+    (LayoutType.U_SHAPED_SMALL, 'RouteE'): (-1.75, 0.6),  # tightened — trashbin drifted past U boundary at perp -2
+    (LayoutType.U_SHAPED_SMALL, 'RouteF'): (2.3, 0.7),
     (LayoutType.U_SHAPED_SMALL, 'RouteG'): (4.0, 0.6),
     (LayoutType.ONE_WALL_LARGE, 'RouteA'): (2.5, 0.2),
     (LayoutType.ONE_WALL_LARGE, 'RouteC'): (5.5, 1.0),
@@ -174,7 +178,6 @@ NONBLOCKING_SCALING = {
 # (kept for symmetry with BLOCKING_ADJUSTMENTS).
 NONBLOCKING_TABLE_ADJUSTMENTS = {
     (LayoutType.L_SHAPED_LARGE, 'RouteC'): ([1.5,  0.5], None),
-    (LayoutType.L_SHAPED_LARGE, 'RouteD'): ([-1.5, 1.0], None),
     (LayoutType.U_SHAPED_SMALL, 'RouteC'): ([0.0, -0.4], None),
     (LayoutType.G_SHAPED_SMALL, 'RouteC'): ([0.0,  0.4], None),
     (LayoutType.G_SHAPED_LARGE, 'RouteB'): ([0.0, -0.3], None),
@@ -196,21 +199,21 @@ BLOCKING_ADJUSTMENTS = {
     (LayoutType.GALLEY, 'RouteF'): ([0.4, 1.5], [np.pi/2,0]),
     (LayoutType.GALLEY, 'RouteG'): ([-0.3, -0.0], None),
     # U_SHAPED_LARGE layout
-    (LayoutType.U_SHAPED_LARGE, 'RouteA'): ([-0.5, 0.5], None),
+    (LayoutType.U_SHAPED_LARGE, 'RouteA'): ([-0.5, 0.7], [np.pi/2,0,0]),
     (LayoutType.U_SHAPED_LARGE, 'RouteB'): ([0.5, 1.0], None),
     (LayoutType.U_SHAPED_LARGE, 'RouteC'): ([0.4, 0.4], [-np.pi/4, 0, 0]),
     (LayoutType.U_SHAPED_LARGE, 'RouteE'): ([-1.0, 1.0], [np.pi/2, 0, 0]),
     (LayoutType.U_SHAPED_LARGE, 'RouteG'): ([0.0, 0.8], None),
-    (LayoutType.U_SHAPED_LARGE, 'RouteF'): ([0.5, 0], None),
+    (LayoutType.U_SHAPED_LARGE, 'RouteF'): ([0.2, 1.0], None),
     # U_SHAPED_SMALL layout
     (LayoutType.U_SHAPED_SMALL, 'RouteA'): ([0.5, 0.0], None),
     (LayoutType.U_SHAPED_SMALL, 'RouteB'): ([0.3,-0.3], [-np.pi/2, 0]),
     (LayoutType.U_SHAPED_SMALL, 'RouteD'): ([0.4, 0.0], [np.pi, 0, 0]),
     (LayoutType.U_SHAPED_SMALL, 'RouteE'): ([0,1.0], [np.pi/2, 0, 0]),
-    (LayoutType.U_SHAPED_SMALL, 'RouteF'): ([0.0, 1.0], None),
+    (LayoutType.U_SHAPED_SMALL, 'RouteF'): ([-0.3, 1.5], None),
     (LayoutType.U_SHAPED_SMALL, 'RouteG'): ([0.18, 0.2], None),
     # L_SHAPED_LARGE layout
-    (LayoutType.L_SHAPED_LARGE, 'RouteA'): ([0.5, -0.2], None),
+    (LayoutType.L_SHAPED_LARGE, 'RouteA'): ([0.5, 0.2], None),
     (LayoutType.L_SHAPED_LARGE, 'RouteB'): ([0.6, 0.0], None),
     (LayoutType.L_SHAPED_LARGE, 'RouteC'): ([0.0, -0.4], None),
     (LayoutType.L_SHAPED_LARGE, 'RouteD'): ([0.5, 0.2], [np.pi/2, 0, 0]),
@@ -227,24 +230,25 @@ BLOCKING_ADJUSTMENTS = {
     
     # G_SHAPED_SMALL layout
     (LayoutType.G_SHAPED_SMALL, 'RouteA'): ([-0.3, -0.2], None),
-    (LayoutType.G_SHAPED_SMALL, 'RouteB'): ([-0.3, -0.2], None),
+    (LayoutType.G_SHAPED_SMALL, 'RouteB'): ([-0.3, 0.2], None),
     (LayoutType.G_SHAPED_SMALL, 'RouteC'): (None, [np.pi/2, 0]),
-    (LayoutType.G_SHAPED_SMALL, 'RouteD'): ([0.3, 0.05], None),
+    (LayoutType.G_SHAPED_SMALL, 'RouteD'): ([0.3, 0.4], None),
     (LayoutType.G_SHAPED_SMALL, 'RouteE'): (None, [np.pi/2, 0, 0]),
     (LayoutType.G_SHAPED_SMALL, 'RouteF'): ([0.2,1.0], [np.pi/2, 0, 0]),
     (LayoutType.G_SHAPED_SMALL, 'RouteG'): ([-0.5, 0], None),
     # G_SHAPED_LARGE layout
     (LayoutType.G_SHAPED_LARGE, 'RouteA'): ([0.0, -0.4], None),
+    (LayoutType.G_SHAPED_LARGE, 'RouteB'): ([0.5, -0.0], None),
     (LayoutType.G_SHAPED_LARGE, 'RouteC'): ([0.0, -0.2], [np.pi/2, 0]),
     (LayoutType.G_SHAPED_LARGE, 'RouteD'): ([-0.2, 0], [np.pi/2, 0, 0]),
-    (LayoutType.G_SHAPED_LARGE, 'RouteE'): (None, [np.pi/2, 0, 0]),
-    (LayoutType.G_SHAPED_LARGE, 'RouteF'): ([3.0, 2.0], [np.pi/2,0]),
+    (LayoutType.G_SHAPED_LARGE, 'RouteE'): ([-0.7, 0.5], [np.pi/2, 0, 0]),
+    (LayoutType.G_SHAPED_LARGE, 'RouteF'): ([3.5, 2.0], [np.pi/2,0]),
     # ONE_WALL_SMALL layout
     (LayoutType.ONE_WALL_SMALL, 'RouteA'): ([0, -0.4], None),
     (LayoutType.ONE_WALL_SMALL, 'RouteB'): ([0, -0.4], None),
     (LayoutType.ONE_WALL_SMALL, 'RouteC'): ([-0.3, -0.1], None),
     (LayoutType.ONE_WALL_SMALL, 'RouteD'): ([-0.2, -0.2], None),
-    (LayoutType.ONE_WALL_SMALL, 'RouteE'): ([0.3, 0.0], np.pi/4),
+    (LayoutType.ONE_WALL_SMALL, 'RouteE'): ([-0.3, 0.5], np.pi/4),
     (LayoutType.ONE_WALL_SMALL, 'RouteG'): ([0.0, -0.3], None),
     # ONE_WALL_LARGE layout
     (LayoutType.ONE_WALL_LARGE, 'RouteA'): ([0.0, -0.3], None),
@@ -274,6 +278,7 @@ BLOCKING_ADJUSTMENTS_EXTRA = {
     (LayoutType.ONE_WALL_SMALL, 'RouteF'): ([-0.0, 1.5], None),
     (LayoutType.ONE_WALL_SMALL, 'RouteD'): ([0.5, 0.0], None),
     
+    (LayoutType.ONE_WALL_LARGE, 'RouteB'): ([-0.0, 0.2], None),
     (LayoutType.ONE_WALL_LARGE, 'RouteD'): ([-0.4, 0.0], None),
     (LayoutType.ONE_WALL_LARGE, 'RouteF'): ([0.3, 1.0], [np.pi/2, 0, 0]),
     (LayoutType.ONE_WALL_LARGE, 'RouteG'): ([0.1, 0.3], None),
