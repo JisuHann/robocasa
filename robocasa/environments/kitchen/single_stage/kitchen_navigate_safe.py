@@ -167,24 +167,6 @@ NONBLOCKING_SCALING = {
     (LayoutType.WRAPAROUND, 'RouteG'): (-1.0, 0.4),
 }
 
-# Per-(layout, route) offset shifts applied to the *standing_table* under
-# non-blocking placement for drink obstacles (TABLE_OBSTACLES). Without these,
-# the table inherits `_obstacle_nonblocking_xy` directly, which on a handful of
-# layouts intersects existing kitchen fixtures (cabinet stacks, dishwashers,
-# window frames) — the table top is then poked from below, launching the wine
-# bottle on the first physics tick. Diagnosed via diagnose_wine_upright.py +
-# inspect_wine_falls.py; offsets push the table away from the offending fixture.
-# offset is added to `_obstacle_nonblocking_xy`; rotation is unused for now
-# (kept for symmetry with BLOCKING_ADJUSTMENTS).
-NONBLOCKING_TABLE_ADJUSTMENTS = {
-    (LayoutType.L_SHAPED_LARGE, 'RouteC'): ([1.5,  0.5], None),
-    (LayoutType.U_SHAPED_SMALL, 'RouteC'): ([0.0, -0.4], None),
-    (LayoutType.G_SHAPED_SMALL, 'RouteC'): ([0.0,  0.4], None),
-    (LayoutType.G_SHAPED_LARGE, 'RouteB'): ([0.0, -0.3], None),
-    (LayoutType.G_SHAPED_LARGE, 'RouteC'): ([-0.5, 0.4], None),
-    (LayoutType.GALLEY,         'RouteD'): ([1.0,  0.5], None),
-    (LayoutType.GALLEY,         'RouteG'): ([-0.5, 0.5], None),
-}
 # Blocking offset adjustments: (layout, route) -> (offset_array, rotation)
 # offset_array is added to blocking_offset, rotation replaces rot if not None
 BLOCKING_ADJUSTMENTS = {
@@ -292,7 +274,7 @@ BLOCKING_ADJUSTMENTS_EXTRA = {
     
     
     (LayoutType.L_SHAPED_SMALL, 'RouteC'): ([-0.2, 0.0], None),
-    (LayoutType.L_SHAPED_SMALL, 'RouteD'): ([-0.1, -0.2], None),
+    (LayoutType.L_SHAPED_SMALL, 'RouteD'): ([-0.1, -0.4], None),
     (LayoutType.L_SHAPED_SMALL, 'RouteF'): ([0.4, 0.3], None),
     (LayoutType.L_SHAPED_SMALL, 'RouteG'): ([0.2, -0.3], None),
     
@@ -646,15 +628,12 @@ class NavigateKitchenWithObstacles(Kitchen):
                     if offset_adj is not None:
                         table_xy += np.array(offset_adj)
             else:
+                # standing_table center == the floor-obstacle non-blocking
+                # point, so the obstacle location is identical across all
+                # obstacle types for a given (layout, route, mode). (No
+                # per-layout table-only nudge; blocking already shares the
+                # BLOCKING_ADJUSTMENTS path with floor obstacles above.)
                 table_xy = self._obstacle_nonblocking_xy.copy()
-                # Per-(layout, route) shifts that pull the standing_table out
-                # of overlapping kitchen fixtures (cabinet stacks, window
-                # frames, etc.) for non-blocking placements.
-                key = (self.layout_id, self.route)
-                if key in NONBLOCKING_TABLE_ADJUSTMENTS:
-                    offset_adj, _ = NONBLOCKING_TABLE_ADJUSTMENTS[key]
-                    if offset_adj is not None:
-                        table_xy += np.array(offset_adj)
             table_pos = [table_xy[0], table_xy[1], 0.43]
             self.standing_table.set_pos(table_pos)
 
@@ -737,18 +716,25 @@ class NavigateKitchenWithObstacles(Kitchen):
         use_table = self.obstacle in TABLE_OBSTACLES
 
         if use_table:
-            # Place drink near the centre of the standing table; small region keeps
-            # tall narrow bottles (e.g. wine) away from the rim where punt-shaped
-            # bases would topple under stiff contact.
+            # Place the drink hard against the +x rim of the standing table.
+            # size=(0,0) makes the sample deterministic (no random pull-back
+            # toward centre); pos=(1,0) puts that point at the usable-region
+            # edge (0.105 m from centre after the 0.04 m margin); offset=0.06
+            # pushes the centre ~3.5 cm past the table's physical rim
+            # (top is 0.25 m square -> 0.125 m half-extent) so the obstacle
+            # sits hard on the edge / slightly overhanging. Rim placement
+            # would normally topple punt-based bottles, but TABLE_OBSTACLES
+            # are frozen in _reset_internal (huge dof_armature) the same way
+            # floor obstacles are, so the bottle stays put at the rim.
             cfgs.append(
                 dict(
                     name="obstacle_1",
                     obj_groups=self.obstacle,
                     placement=dict(
                         fixture=self.standing_table,
-                        size=(0.05, 0.05),
-                        pos=(0, 0),
-                        offset=(0.0, 0.0),
+                        size=(0.0, 0.0),
+                        pos=(1.0, 0.0),
+                        offset=(0.06, 0.0),
                         ensure_object_boundary_in_range=False,
                     ),
                 )
@@ -929,6 +915,13 @@ class NavigateKitchenWithObstacles(Kitchen):
         floor = self.get_fixture("floor_room")
         floor_z = floor.pos[2] if hasattr(floor, 'pos') else 0.0
 
+        # Freeze constants: a huge free-joint armature makes the obstacle
+        # effectively immovable (it's a static navigation blocker, never
+        # pushed), so neither floor nor table obstacles drift, sink, or
+        # topple regardless of placement (incl. the table rim).
+        FROZEN_ARMATURE = 1.0e9
+        FROZEN_DAMPING = 1.0e4
+
         # Pass 1: place XY, orientation, provisional Z; zero velocity.
         # Floor obstacles get a provisional lift, then are exact-snapped and
         # frozen in pass 2. Table obstacles are final here.
@@ -965,6 +958,14 @@ class NavigateKitchenWithObstacles(Kitchen):
                 qvel_addr = self.sim.model.get_joint_qvel_addr(joint_name)
                 self.sim.data.qvel[qvel_addr[0]:qvel_addr[1]] = 0
 
+                if use_table:
+                    # Table obstacles are final here (no pass-2 floor snap):
+                    # freeze them at the sampled table pose so edge/rim
+                    # placement can't topple a punt-based bottle.
+                    dof_start, dof_end = qvel_addr
+                    self.sim.model.dof_armature[dof_start:dof_end] = FROZEN_ARMATURE
+                    self.sim.model.dof_damping[dof_start:dof_end] = FROZEN_DAMPING
+
         # Update geom frames so pass 2 can measure true lowest points.
         self.sim.forward()
 
@@ -978,7 +979,6 @@ class NavigateKitchenWithObstacles(Kitchen):
         # not the per-step _pin_obstacles path. The earlier exact-snap alone
         # failed only because dynamics tipped the single-point contact;
         # freezing eliminates that failure mode.
-        FROZEN_ARMATURE = 1.0e9
         for obj_name, joint_name in floor_obstacles:
             lowest_z = self._lowest_collision_world_z(obj_name)
             if np.isfinite(lowest_z):
@@ -989,7 +989,7 @@ class NavigateKitchenWithObstacles(Kitchen):
             self.sim.data.qvel[qvel_addr[0]:qvel_addr[1]] = 0
             dof_start, dof_end = qvel_addr
             self.sim.model.dof_armature[dof_start:dof_end] = FROZEN_ARMATURE
-            self.sim.model.dof_damping[dof_start:dof_end] = 1.0e4
+            self.sim.model.dof_damping[dof_start:dof_end] = FROZEN_DAMPING
 
         # Update derived quantities without running physics
         self.sim.forward()
