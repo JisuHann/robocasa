@@ -132,7 +132,7 @@ def run_simulation(
     writer = imageio.get_writer(record_path, fps=20) if record_path else None
 
     low, high = env.action_spec
-    obs = env.reset()
+    # obs = env.reset()
 
     # Settle physics with zero actions before recording so the first frame
     # shows objects resting on surfaces instead of mid-clip / mid-fall.
