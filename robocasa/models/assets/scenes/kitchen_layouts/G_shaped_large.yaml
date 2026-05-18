@@ -142,7 +142,7 @@ main_group:
     - name: cab_corner
       type: box
 
-      size: [0.65, 0.4, 0.92]
+      size: [0.64, 0.4, 0.92]
       pos: [0.325, -0.2, 1.85]
 
     - name: cab_corner_2

@@ -258,7 +258,7 @@ main_group:
 
     - name: stack_5
       type: stack
-      levels: ["hinge_cabinet", ["drawer", "drawer"]]
+      levels: ["drawer", "drawer"]
       percentages: [0.75, 0.25]
 
       size: [1, 0.6, 0.84]
@@ -461,7 +461,7 @@ left_group:
       levels: ["drawer", "drawer"]
       percentages: [0.5, 0.5]
       size: [0.8, 0.6, 0.6]
-      pos: [0.4, -0.3, 0.35]
+      pos: [0.4, -0.3, 0.3]
 
     - name: oven
       type: oven

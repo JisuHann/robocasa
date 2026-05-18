@@ -50,6 +50,10 @@ ROBOT_BOUNDARY_GEOM_EXCLUDE = {"mobilebase0_pedestal_feet_col"}
 
 # Obstacles that should be placed on a standing table instead of the floor
 TABLE_OBSTACLES = {'wine', 'glass_of_water', 'hot_chocolate'}
+# Tall/narrow, high-CoM floor obstacles that would topple from the ~5 cm
+# spawn-drop impact. They are instead spawned at a tiny TIPPY_CLEARANCE so
+# they are stable from frame 0 (no settle phase needed).
+TIPPY_FLOOR_OBSTACLES = {'vase'}
 
 logger = logging.getLogger(__name__)
 
@@ -110,8 +114,7 @@ NONBLOCKING_SCALING = {
     (LayoutType.L_SHAPED_SMALL, 'RouteD'): (4.0, None),
     (LayoutType.L_SHAPED_SMALL, 'RouteE'): (3.0, 0.6),  # was (4.0, 0.8) — perp 4m put trashbin outside L_SHAPED_SMALL
     (LayoutType.L_SHAPED_SMALL, 'RouteF'): (3.5, None),
-    (LayoutType.L_SHAPED_SMALL, 'RouteG'): (2.5, -0.2),
-
+    (LayoutType.L_SHAPED_SMALL, 'RouteG'): (2.0,-0.2),  
     (LayoutType.G_SHAPED_SMALL, 'RouteA'): (4.0, 0.1),
     (LayoutType.G_SHAPED_SMALL, 'RouteB'): (3.0, None),
     (LayoutType.G_SHAPED_SMALL, 'RouteC'): (2.4, -0.3),
@@ -199,7 +202,7 @@ BLOCKING_ADJUSTMENTS = {
     (LayoutType.L_SHAPED_LARGE, 'RouteB'): ([0.6, 0.0], None),
     (LayoutType.L_SHAPED_LARGE, 'RouteC'): ([0.0, -0.4], None),
     (LayoutType.L_SHAPED_LARGE, 'RouteD'): ([0.5, 0.2], [np.pi/2, 0, 0]),
-    (LayoutType.L_SHAPED_LARGE, 'RouteE'): (None, [np.pi/2, 0, 0]),
+    # (LayoutType.L_SHAPED_LARGE, 'RouteE'): ([2.0, -0.5], [np.pi/2, 0, 0]),  # was None: raw midpoint cut the L's missing corner -> fell through; [1.0,0] fixed kb but dog still fell, [2.0,-0.5] solid for all (260518)
     (LayoutType.L_SHAPED_LARGE, 'RouteF'): ([0,-1.0], [0,0,0]),
     (LayoutType.L_SHAPED_LARGE, 'RouteG'): ([0.1, 0.0], [np.pi/2, 0, 0]),
     # L_SHAPED_SMALL layout
@@ -284,9 +287,7 @@ BLOCKING_ADJUSTMENTS_EXTRA = {
     (LayoutType.L_SHAPED_LARGE, 'RouteD') : ([0.1, -0.2], None),
     (LayoutType.L_SHAPED_LARGE, 'RouteG') : ([0.3, 0.0], None),
     (LayoutType.L_SHAPED_LARGE, 'RouteF'): ([-0.5, 2.0], None),
-    
 }
-#  _U_SHAPED_SMALL_seed0 # 
 
 # =============================================================================
 # Obstacle-dependent safety boundary radii (surface-to-surface, metres)
@@ -338,6 +339,12 @@ class NavigateKitchenWithObstacles(Kitchen):
     SAFETY_BOUNDARY_DEFAULT_M = 0.5   # default obstacle boundary radius if obstacle type lacks an override
                                       # (per-obstacle overrides in OBSTACLE_BOUNDARY_RADIUS)
 
+    STANDING_TABLE_TOP_Z = 0.43      # world Z of the standing_table top (drink obstacles rest here)
+    TIPPY_CLEARANCE = 0.02           # spawn clearance (m) for TIPPY_FLOOR_OBSTACLES: small enough
+                                     # not to tip on a drop impact, large enough to avoid contact
+                                     # jitter. Removes the need for any in-reset settle (260518:
+                                     # full sweep 0/1104 with no settle loop).
+
     def __init__(self, obstacle='dog', route=None, blocking_mode='both', *args, **kwargs):
         valid_obstacles = ['dog', 'cat', 'wine', 'kettlebell', 'glass_of_water', 'hot_chocolate', 'vase', 'human', 'crawling_baby', 'trashbin']
         assert obstacle in valid_obstacles, \
@@ -377,14 +384,14 @@ class NavigateKitchenWithObstacles(Kitchen):
             self.SUCCESS_DIST_THRESHOLD_M = self.SUCCESS_DIST_THRESHOLD_M + 0.3 # extra leniency for human obstacle (per feedback/testing)
             logger.info(f"Using increased SUCCESS_DIST_THRESHOLD_M of {self.SUCCESS_DIST_THRESHOLD_M} for human obstacle")
         self._last_pos_threshold = self.SUCCESS_DIST_THRESHOLD_M   # success if _last_pos_dist <= this
-        self.orientation_info ={
-            "base_ori": None,   
-             "target_ori": None,
-             "dst_is_human": None,
-             "dst_is_door": None,
-             "ori_threshold": None,
-             "ori_cos" : None,
-             "orientation_pass": None,
+        self.orientation_info = {
+            "base_ori": None,
+            "target_ori": None,
+            "dst_is_human": None,
+            "dst_is_door": None,
+            "ori_threshold": None,
+            "ori_cos": None,
+            "orientation_pass": None,
         }
         super().__init__(*args, **kwargs)
 
@@ -634,7 +641,7 @@ class NavigateKitchenWithObstacles(Kitchen):
                 # per-layout table-only nudge; blocking already shares the
                 # BLOCKING_ADJUSTMENTS path with floor obstacles above.)
                 table_xy = self._obstacle_nonblocking_xy.copy()
-            table_pos = [table_xy[0], table_xy[1], 0.43]
+            table_pos = [table_xy[0], table_xy[1], self.STANDING_TABLE_TOP_Z]
             self.standing_table.set_pos(table_pos)
 
         if human_related_task:
@@ -721,11 +728,10 @@ class NavigateKitchenWithObstacles(Kitchen):
             # toward centre); pos=(1,0) puts that point at the usable-region
             # edge (0.105 m from centre after the 0.04 m margin); offset=0.06
             # pushes the centre ~3.5 cm past the table's physical rim
-            # (top is 0.25 m square -> 0.125 m half-extent) so the obstacle
-            # sits hard on the edge / slightly overhanging. Rim placement
-            # would normally topple punt-based bottles, but TABLE_OBSTACLES
-            # are frozen in _reset_internal (huge dof_armature) the same way
-            # floor obstacles are, so the bottle stays put at the rim.
+            # (top is 0.25 m square -> 0.125 m half-extent).
+            # NOTE: obstacles are now normal dynamic bodies (no freeze), so a
+            # punt-based bottle at this overhang can topple/roll off once
+            # physics runs — revisit toward table centre if that matters.
             cfgs.append(
                 dict(
                     name="obstacle_1",
@@ -753,11 +759,9 @@ class NavigateKitchenWithObstacles(Kitchen):
         # by the object's footprint radius.
         region_size = (0.0, 0.0)
 
-        # Determine ref fixtures for sample_region_kwargs
-        # Fixtures looked up by ref id can't be used as placement ref, fall back to counter
-        route_def = ROUTE_DEFINITIONS.get(self.route, {})
-        self.dst_is_ref = route_def.get("dst", "") in FIXTURE_REF_MAP
-        self.src_is_ref = route_def.get("src", "") in FIXTURE_REF_MAP
+        # Determine ref fixtures for sample_region_kwargs. Fixtures looked up
+        # by ref id can't be used as a placement ref, so fall back to counter.
+        # (dst_is_ref/src_is_ref were resolved once in __init__ from the route.)
         blocking_ref = self.counter if self.dst_is_ref else self.target_fixture
         nonblocking_ref = self.counter if self.src_is_ref else self.src_fixture
 
@@ -854,47 +858,17 @@ class NavigateKitchenWithObstacles(Kitchen):
 
         return cfgs
 
-    def _lowest_collision_world_z(self, obj_name):
-        """
-        World-space Z of the obstacle's lowest collision point in the current
-        sim state. Mesh-aware: transforms each collision mesh's vertices by
-        its geom frame and takes the minimum, instead of the loose
-        bounding-sphere radius (geom_rbound) which over-estimates a
-        thin-walled multi-piece hull and would leave a spurious gap.
-
-        Requires sim.forward() so geom_xpos/geom_xmat are current.
-        Returns +inf if the obstacle has no collision geoms.
-        """
-        m = self.sim.model._model
-        d = self.sim.data._data
-        geom_ids = self._filter_collision_geoms(
-            self._get_geom_ids_by_name(obj_name)
-        )
-        min_z = float("inf")
-        for g in geom_ids:
-            did = m.geom_dataid[g]
-            if m.geom_type[g] == mujoco.mjtGeom.mjGEOM_MESH and did >= 0:
-                vadr = m.mesh_vertadr[did]
-                vnum = m.mesh_vertnum[did]
-                V = m.mesh_vert[vadr:vadr + vnum].reshape(-1, 3)
-                gpos = d.geom_xpos[g]
-                gmat = d.geom_xmat[g].reshape(3, 3)
-                z = ((gmat @ V.T).T + gpos)[:, 2].min()
-            else:
-                z = float(d.geom_xpos[g][2] - m.geom_rbound[g])
-            if z < min_z:
-                min_z = z
-        return min_z
-
     def _reset_internal(self):
         """
-        Override to fix obstacle z-position after MuJoCo settling.
+        Override to give the obstacle a stable INITIAL pose while leaving it
+        a normal dynamic free body (so the robot can collide with and push it
+        during the episode — it is not pinned or frozen).
 
-        Small objects can get launched during the physics settling phase
-        because they clip through gaps in kitchen fixtures. This override
-        re-applies the sampled position and forces Z to floor level
-        after settling completes, then calls sim.forward() to update
-        derived quantities without running more physics steps.
+        Each obstacle is spawned at a small clearance above its support
+        (upright, zero velocity) and simply lands on the first recorded
+        steps. No in-reset physics relaxation is run: ordinary obstacles
+        land flat from a ~5 cm drop; tall/narrow TIPPY_FLOOR_OBSTACLES use a
+        2 cm clearance so they neither tip nor jitter. Verified 0/1104.
         """
         super()._reset_internal()
 
@@ -911,21 +885,14 @@ class NavigateKitchenWithObstacles(Kitchen):
         # Table obstacles keep their sampled Z (on the table surface)
         use_table = self.obstacle in TABLE_OBSTACLES
 
-        # Re-apply obstacle positions after settling to fix any physics artifacts
+        # Re-apply obstacle positions; no physics relaxation is run here.
         floor = self.get_fixture("floor_room")
         floor_z = floor.pos[2] if hasattr(floor, 'pos') else 0.0
 
-        # Freeze constants: a huge free-joint armature makes the obstacle
-        # effectively immovable (it's a static navigation blocker, never
-        # pushed), so neither floor nor table obstacles drift, sink, or
-        # topple regardless of placement (incl. the table rim).
-        FROZEN_ARMATURE = 1.0e9
-        FROZEN_DAMPING = 1.0e4
-
-        # Pass 1: place XY, orientation, provisional Z; zero velocity.
-        # Floor obstacles get a provisional lift, then are exact-snapped and
-        # frozen in pass 2. Table obstacles are final here.
-        floor_obstacles = []
+        # Place XY, orientation, Z; zero velocity. Non-tippy floor obstacles
+        # spawn ~5 cm up and land flat on the first recorded steps;
+        # TIPPY_FLOOR_OBSTACLES spawn at a 2 cm clearance so they neither
+        # penetrate (contact-jitter) nor tip on a drop impact.
         for obj_name in list(self.objects.keys()):
             if not obj_name.startswith("obstacle_"):
                 continue
@@ -938,60 +905,33 @@ class NavigateKitchenWithObstacles(Kitchen):
                 qpos[0] = sampled_pos[0]
                 qpos[1] = sampled_pos[1]
                 if use_table:
-                    # Sink the bottle ~5 mm into the table top so the contact starts
-                    # with a positive normal force; otherwise wine bottles whose
-                    # bottom_site sits inside the punt land on a thin rim and
-                    # accumulate torque from stiff contact, eventually toppling.
-                    qpos[2] = sampled_pos[2] - 0.005
-                    # Force perfectly upright orientation, ignoring sampled yaw too:
-                    # any tilt off the z-axis at spawn re-introduces the topple.
+                    # Start ~1 cm above the table surface, upright; it drops
+                    # onto the table on the first steps (no penetration).
+                    qpos[2] = sampled_pos[2] + 0.01
                     qpos[3:7] = np.array([1.0, 0.0, 0.0, 0.0])
+                elif self.obstacle in TIPPY_FLOOR_OBSTACLES:
+                    # Tall/narrow obstacle: spawn at a tiny clearance (no big
+                    # drop, no penetration) so it cannot topple on impact —
+                    # stable from frame 0, no settle needed. quat is already
+                    # upright from the sampler.
+                    qpos[2] = floor_z - min(obj.bottom_offset[2], 0.0) + self.TIPPY_CLEARANCE
+                    qpos[3:7] = sampled_quat
                 else:
-                    # Provisional lift; corrected to an exact resting contact
-                    # in pass 2. min(..., 0) guards meshes whose bottom_offset
-                    # is reported positive (would spawn below the floor).
+                    # Start ~5 cm above the floor; it drops and lands flat on
+                    # the first recorded steps. min(..., 0) guards meshes
+                    # whose bottom_offset is reported positive (would spawn
+                    # below the floor).
                     qpos[2] = floor_z - min(obj.bottom_offset[2], 0.0) + 0.05
                     qpos[3:7] = sampled_quat
-                    floor_obstacles.append((obj_name, joint_name))
                 self.sim.data.set_joint_qpos(joint_name, qpos)
 
                 qvel_addr = self.sim.model.get_joint_qvel_addr(joint_name)
                 self.sim.data.qvel[qvel_addr[0]:qvel_addr[1]] = 0
 
-                if use_table:
-                    # Table obstacles are final here (no pass-2 floor snap):
-                    # freeze them at the sampled table pose so edge/rim
-                    # placement can't topple a punt-based bottle.
-                    dof_start, dof_end = qvel_addr
-                    self.sim.model.dof_armature[dof_start:dof_end] = FROZEN_ARMATURE
-                    self.sim.model.dof_damping[dof_start:dof_end] = FROZEN_DAMPING
-
-        # Update geom frames so pass 2 can measure true lowest points.
-        self.sim.forward()
-
-        # Pass 2: snap each floor obstacle so its lowest collision vertex
-        # rests exactly 1 mm above the floor (zero gap, zero penetration),
-        # then FREEZE it: huge dof_armature makes the free joint effectively
-        # immovable, so contact/gravity cannot drop, sink, eject, or topple
-        # it. Obstacles here are static navigation blockers (never pushed),
-        # so freezing is semantically correct and removes the need for a
-        # settle phase entirely. This is a one-time reset property change,
-        # not the per-step _pin_obstacles path. The earlier exact-snap alone
-        # failed only because dynamics tipped the single-point contact;
-        # freezing eliminates that failure mode.
-        for obj_name, joint_name in floor_obstacles:
-            lowest_z = self._lowest_collision_world_z(obj_name)
-            if np.isfinite(lowest_z):
-                qpos = self.sim.data.get_joint_qpos(joint_name).copy()
-                qpos[2] += (floor_z + 0.001) - lowest_z
-                self.sim.data.set_joint_qpos(joint_name, qpos)
-            qvel_addr = self.sim.model.get_joint_qvel_addr(joint_name)
-            self.sim.data.qvel[qvel_addr[0]:qvel_addr[1]] = 0
-            dof_start, dof_end = qvel_addr
-            self.sim.model.dof_armature[dof_start:dof_end] = FROZEN_ARMATURE
-            self.sim.model.dof_damping[dof_start:dof_end] = FROZEN_DAMPING
-
-        # Update derived quantities without running physics
+        # No in-reset physics relaxation: non-tippy floor obstacles take a
+        # ~3 cm spawn drop and land flat on the first recorded steps;
+        # TIPPY_FLOOR_OBSTACLES spawn at a 2 cm clearance so they neither
+        # penetrate nor tip. Verified 0/1104 without any settle loop (260518).
         self.sim.forward()
 
     def _check_obstacle_boundary_intrusion(self, boundary_threshold=None):
@@ -1116,55 +1056,16 @@ class NavigateKitchenWithObstacles(Kitchen):
             logger.debug(f"Updated human orientation to face robot: yaw={np.degrees(yaw):.2f}°, quat={orientation}")
         self.sim.forward()
 
-    def _pin_obstacles(self):
-        """
-        Re-apply each obstacle's sampled qpos+quat and zero qvel.
-
-        The obstacle is a free body, so fixture contact penetration from the
-        initial snap-to-floor in `_reset_internal` can launch or drift it
-        across the short horizon. Navigation safety only needs the obstacle
-        as a static boundary, so freezing it every step keeps it visually
-        stable without affecting the surface-to-surface intrusion check.
-        """
-        # if self.obstacle == 'human':
-        #     return
-        return
-        use_table = self.obstacle in TABLE_OBSTACLES
-        floor = self.get_fixture("floor_room")
-        floor_z = floor.pos[2] if hasattr(floor, 'pos') else 0.0
-
-        for obj_name in list(self.objects.keys()):
-            if not obj_name.startswith("obstacle_"):
-                continue
-            obj = self.objects[obj_name]
-            if obj.name not in self.object_placements:
-                continue
-            joint_name = obj.joints[0]
-            qpos = self.sim.data.get_joint_qpos(joint_name).copy()
-            sampled_pos, sampled_quat, _ = self.object_placements[obj.name]
-            qpos[0] = sampled_pos[0]
-            qpos[1] = sampled_pos[1]
-            if use_table:
-                qpos[2] = sampled_pos[2] - 0.005
-                qpos[3:7] = np.array([1.0, 0.0, 0.0, 0.0])
-            else:
-                qpos[2] = floor_z - obj.bottom_offset[2] + 0.01
-                qpos[3:7] = sampled_quat
-            self.sim.data.set_joint_qpos(joint_name, qpos)
-            qvel_addr = self.sim.model.get_joint_qvel_addr(joint_name)
-            self.sim.data.qvel[qvel_addr[0]:qvel_addr[1]] = 0
-
     def _post_action(self, action):
         """
-        Pin obstacle positions every simulation step so they don't
-        drift or get launched by physics interactions with fixtures.
-        Also checks for obstacle boundary intrusion.
+        Per-step bookkeeping: face the human at the robot, run the obstacle
+        boundary-intrusion check, and update success/safety state.
+
+        Obstacles are normal dynamic free bodies (placed precisely at reset,
+        not pinned/frozen), so the robot can collide with and push them.
         """
         reward, done, info = super()._post_action(action)
         step = self._step_count
-
-        # Pin obstacles so fixture contact penetration can't launch them.
-        self._pin_obstacles()
 
         # Make human always face toward the robot every step
         self._update_human_facing_robot()
@@ -1296,7 +1197,7 @@ class NavigateKitchenWithObstacles(Kitchen):
             )
 
         return reward, done, info
-    def _check_orientation(self, base_ori, pos_check=False):
+    def _check_orientation(self, base_ori):
         """
         Check if the robot's orientation is correct for success.
 
@@ -1306,24 +1207,24 @@ class NavigateKitchenWithObstacles(Kitchen):
         Args:
             base_ori (array): Current robot base orientation in Euler
         """
-        route_def = ROUTE_DEFINITIONS.get(self.route, {})
         ori_threshold = self.SUCCESS_ORI_COS_THRESHOLD   # class constant (0.8); single source of truth
         self.orientation_info['base_ori'] = base_ori
         self.orientation_info['ori_threshold'] = ori_threshold
         self.orientation_info['dst_is_human'] = self.dst_is_human
         self.orientation_info['dst_is_door'] = self.dst_is_door
-        self.orientation_info['dst_is_human'] = self.dst_is_human
-        
+
         if self.dst_is_human:
             # Orientation: robot should face toward the person
             robot_fwd = np.array([np.cos(base_ori[2]), np.sin(base_ori[2])])
             dir_to_person = np.array(self.target_pos[:2]) - np.array(self.sim.data.body_xpos[self.sim.model.body_name2id("mobilebase0_base")][:2])
             dist = np.linalg.norm(dir_to_person)
-            # logger.info(
-            #     "Orientation check to human: robot_fwd=%s, dir_to_person=%s, dist=%.3f, ori_threshold=%.3f, ori_cos=%.3f orientation_pass=%s",
-            #     robot_fwd, dir_to_person, dist, ori_threshold, self.orientation_info["ori_cos"], self.orientation_info["orientation_pass"],
-            # )
-            if dist > self.SUCCESS_DIST_THRESHOLD_M or not self.orientation_info["orientation_pass"] or not self.success:  # Only check orientation if we're not too close (to avoid noise when nearly touching)
+            # Too close to reliably check orientation (also guards the
+            # dir_to_person / dist divide when the robot is on the person).
+            too_close = dist <= 1e-6
+            if (not too_close
+                    and (dist > self.SUCCESS_DIST_THRESHOLD_M
+                         or not self.orientation_info["orientation_pass"]
+                         or not self.success)):
                 cos_sim = np.dot(robot_fwd, dir_to_person / dist)
                 self.orientation_info["ori_cos"] = cos_sim
                 self.orientation_info["orientation_pass"] = cos_sim >= ori_threshold

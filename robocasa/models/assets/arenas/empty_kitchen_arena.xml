@@ -14,7 +14,14 @@
 
     <!-- <camera pos="1.453 -4.122 9.475" name='topview' xyaxes="-0.008 -1.000 -0.000 0.996 -0.008 0.091"/> -->
     <camera pos="1.978 -3.580 14.764" name='topview' xyaxes="-0.009 -1.000 -0.000 0.995 -0.009 0.099"/>
-    <camera mode="fixed" name="routed_u_larged" pos="1.700 -0.196 3.209" xyaxes="-0.454 -0.891 -0.000 0.517 -0.264 0.814"/>
+    <camera mode="fixed" name="routed_u_larged" pos="5.823 -0.266 4.388" xyaxes="-0.834 0.552 0.000 -0.378 -0.572 0.727"/>
+    <camera mode="fixed" name="routed_u_larged_routeA" pos="2.111 -3.351 5.937" xyaxes="-0.000 -1.000 -0.000 0.879 -0.000 0.477"/>
+    
+    <camera mode="fixed" name="routed_u_larged_topview" pos="2.092 -4.381 13.527" xyaxes="-0.001 -1.000 -0.000 1.000 -0.001 0.017"/>
+    
+    <camera mode="fixed" name="routed_one_wall_large" pos="4.030 1.574 7.486" xyaxes="-1.000 -0.003 -0.000 0.003 -0.802 0.598"/>
+    <camera mode="fixed" name="routed_one_wall_large_topview" pos="2.316 -3.210 12.763" xyaxes="1.000 0.001 0.000 -0.000 1.000 0.017"/>
+
 
 
     <!-- agent view -->

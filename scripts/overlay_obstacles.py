@@ -271,7 +271,7 @@ def render_one(group_key, members, out_dir, dry_run, mode="mean"):
 def main():
     ap = argparse.ArgumentParser(description="Overlay per-obstacle videos sharing a scene.")
     ap.add_argument("--root", type=Path,
-                    default=Path(__file__).parent / "test_video",
+                    default=Path(__file__).parent / "../test_video",
                     help="dir containing one subdir per obstacle (default: ./test_video)")
     ap.add_argument("--out", type=Path, default=None,
                     help="output dir (default: <root>_overlay, a writable sibling "
