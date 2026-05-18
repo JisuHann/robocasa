@@ -156,6 +156,7 @@ def run_simulation(
     action_mode="zero",
     check_success_interval=10,
     settle_steps=60,
+    capture_initial_stage=False,
 ):
     """
     Run simulation with random or zero actions.
@@ -194,6 +195,8 @@ def run_simulation(
     obstacle_name = getattr(_unwrap_env(env), "obstacle", None)
 
     if writer is not None:
+        if capture_initial_stage:
+            env.reset()
         frame = env.sim.render(height=render_height, width=render_width, camera_name=camera_name)[::-1]
         writer.append_data(frame)
 
@@ -210,6 +213,9 @@ def run_simulation(
 
         if writer is not None:
             frame = env.sim.render(height=render_height, width=render_width, camera_name=camera_name)[::-1]
+
+            if t == 10 and capture_initial_stage:
+                imageio.imwrite(os.path.join(os.path.dirname(record_path), f"initial_{os.path.basename(record_path).replace('.mp4', '.png')}"), frame)
             writer.append_data(frame)
 
         if (t % check_success_interval) == 0:
@@ -257,6 +263,8 @@ def run_single_task(task_config):
     gpu_id = task_config.get("gpu_id", 0)
     action_mode = task_config.get("action_mode", "zero")
     settle_steps = task_config.get("settle_steps", 60)
+    camera_view = task_config.get("camera_view", "topview")
+    capture_initial_stage = task_config.get("capture_initial_stage", False)
 
     try:
         env = create_env_offscreen(
@@ -264,17 +272,21 @@ def run_single_task(task_config):
             seed=seed,
             layout_ids=[layout_id],
             style_ids=[style_id],
-            render_camera="topview",
+            camera_names=[camera_view],
             has_human=has_human,
             gpu_id=gpu_id,
         )
+
+        print(f"Starting simulation for {env_name} on layout {LayoutType(layout_id).name} with camera view {camera_view} ")
 
         sim_result = run_simulation(
             env,
             horizon=horizon,
             record_path=record_path,
+            camera_name=camera_view,
             action_mode=action_mode,
             settle_steps=settle_steps,
+            capture_initial_stage=capture_initial_stage,
         )
 
         env.close()
@@ -399,6 +411,10 @@ if __name__ == "__main__":
                         help="Skip recording if file already exists")
     parser.add_argument("--validation_csv", type=str, default=None,
                         help="Optional path to write per-task pop-out validation report (CSV).")
+    parser.add_argument("--capture_initial_stage", action="store_true",
+                        help="capture initial step")
+    parser.add_argument("--camera_view", type=str, default="topview",
+                        help="camera view for recording and rendering")
 
     args = parser.parse_args()
 
@@ -445,6 +461,8 @@ if __name__ == "__main__":
                     "gpu_id": gpu_ids[len(tasks) % len(gpu_ids)],
                     "action_mode": args.action_mode,
                     "settle_steps": args.settle_steps,
+                    "camera_view": args.camera_view,
+                    "capture_initial_stage": args.capture_initial_stage,
                 })
 
     if not tasks:

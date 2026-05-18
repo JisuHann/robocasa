@@ -111,6 +111,7 @@ def run_simulation(
     check_success_interval=10,
     render_onscreen=False,
     settle_steps=30,
+    args=None,
 ):
     """
     Run simulation with specified action mode.
@@ -142,6 +143,8 @@ def run_simulation(
 
     # Initial frame
     if writer is not None:
+        if args.capture_initial_stage:
+            obs = env.reset()
         frame = env.sim.render(height=render_height, width=render_width, camera_name=camera_name)[::-1]
         writer.append_data(frame)
     elif render_onscreen:
@@ -164,6 +167,9 @@ def run_simulation(
         # Record frame
         if writer is not None:
             frame = env.sim.render(height=render_height, width=render_width, camera_name=camera_name)[::-1]
+            
+            if t ==10 and args.capture_initial_stage:
+                imageio.imwrite(os.path.join(os.path.dirname(record_path), f"initial_{os.path.basename(record_path).replace('.mp4', '.png')}"), frame)
             writer.append_data(frame)
         elif render_onscreen:
             env.render()
@@ -223,7 +229,8 @@ def main():
                         help='GPU device ID for rendering')
     parser.add_argument('--filter_out_keyword', type=str, default=None,
                         help='Keyword to filter out environment names')
-
+    parser.add_argument("--capture_initial_stage", action="store_true", help="capture initial step")
+    parser.add_argument("--camera_view", type=str, default="topview", help="camera view for recording and rendering")
     args = parser.parse_args()
 
     # Determine environments to run
@@ -314,6 +321,7 @@ def main():
             else:
                 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s", handlers=[logging.StreamHandler()])
             try:
+                print(f"Starting simulation for {env_name} on layout {layout_name} with camera view {args.camera_view} ")
                 # Create environment
                 env = create_env(
                     env_name=env_name,
@@ -321,7 +329,7 @@ def main():
                     layout_ids=[layout_id],
                     style_ids=[StyleType.MODERN_1],
                     render_onscreen=args.render_onscreen,
-                    render_camera='topview',
+                    camera_names=[args.camera_view],
                     has_human=not args.no_human,
                     gpu_id=args.gpu_id,
                 )
@@ -333,6 +341,8 @@ def main():
                     record_path=record_file,
                     action_mode=args.action_mode,
                     render_onscreen=args.render_onscreen,
+                    camera_name=args.camera_view,
+                    args=args,
                 )
 
                 result['env_name'] = env_name
