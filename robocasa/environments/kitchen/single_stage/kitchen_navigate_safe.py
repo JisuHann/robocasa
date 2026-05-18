@@ -50,10 +50,16 @@ ROBOT_BOUNDARY_GEOM_EXCLUDE = {"mobilebase0_pedestal_feet_col"}
 
 # Obstacles that should be placed on a standing table instead of the floor
 TABLE_OBSTACLES = {'wine', 'glass_of_water', 'hot_chocolate'}
-# Tall/narrow, high-CoM floor obstacles that would topple from the ~5 cm
-# spawn-drop impact. They are instead spawned at a tiny TIPPY_CLEARANCE so
-# they are stable from frame 0 (no settle phase needed).
-TIPPY_FLOOR_OBSTACLES = {'vase'}
+# Floor obstacles that cannot survive the ~5 cm spawn-drop: tall/narrow or
+# high-CoM meshes topple, and small/round/legged meshes (kettlebell, cat,
+# crawling_baby, trashbin, dog) land on an irregular contact and topple or
+# skitter 0.1-0.4 m off their pinned spot. All are instead spawned at a tiny
+# TIPPY_CLEARANCE so they are stable from frame 0 (no settle phase needed).
+# Verified via scripts/verify_obstacle_placement.py across all benchmark
+# layouts/routes in BOTH Blocking and NonBlocking modes. (dog survives the
+# drop in Blocking but topples in NonBlocking, where it lands differently.)
+TIPPY_FLOOR_OBSTACLES = {'vase', 'kettlebell', 'cat', 'crawling_baby',
+                         'trashbin', 'dog'}
 
 logger = logging.getLogger(__name__)
 
@@ -488,6 +494,9 @@ class NavigateKitchenWithObstacles(Kitchen):
             src_base_pos, _ = self.compute_robot_base_placement_pose(
                 ref_fixture=self.src_fixture
             )
+        # Robot start (base) xy — used to orient the standing-table drink
+        # toward the robot in _get_obj_cfgs (table obstacles).
+        self._src_base_xy = np.array(src_base_pos[:2], dtype=float)
 
         # Position the fixture person based on obstacle type and blocking mode
         human_related_task = self.obstacle == 'human' and not self.dst_is_human
@@ -549,6 +558,10 @@ class NavigateKitchenWithObstacles(Kitchen):
         if np.dot(path_perp, counter_to_robot) < 0:
             path_perp = -path_perp
         path_perp = path_perp / (np.linalg.norm(path_perp) + 1e-8)
+        # Unit vector orthogonal to the src->dst path (open-floor / robot
+        # side). Reused in _get_obj_cfgs to seat the standing-table drink on
+        # the table edge perpendicular to the path.
+        self._path_perp = path_perp.copy()
         # Get floor fixture position + extents (used for clamping below).
         self._floor_pos_xy = None
         self._floor_half_size_xy = None
@@ -723,15 +736,35 @@ class NavigateKitchenWithObstacles(Kitchen):
         use_table = self.obstacle in TABLE_OBSTACLES
 
         if use_table:
-            # Place the drink hard against the +x rim of the standing table.
-            # size=(0,0) makes the sample deterministic (no random pull-back
-            # toward centre); pos=(1,0) puts that point at the usable-region
-            # edge (0.105 m from centre after the 0.04 m margin); offset=0.06
-            # pushes the centre ~3.5 cm past the table's physical rim
-            # (top is 0.25 m square -> 0.125 m half-extent).
-            # NOTE: obstacles are now normal dynamic bodies (no freeze), so a
-            # punt-based bottle at this overhang can topple/roll off once
-            # physics runs — revisit toward table centre if that matters.
+            # Place the drink on the table edge that is PERPENDICULAR to the
+            # src->dst path, on the side facing the robot. This makes the
+            # drink the closest part of the obstacle to the robot's lateral
+            # approach, and (unlike a fixed world +x rim) is correct for both
+            # blocking (table on the path) and nonblocking (table beside it).
+            #
+            # self._path_perp is the unit vector orthogonal to path_dir; we
+            # only choose its sign here (toward the robot base) so the offset
+            # stays exactly perpendicular to the path (dot(offset,path_dir)=0).
+            #
+            # The standing table is axis-aligned (rot == 0 in every layout;
+            # no code ever set_orientation's it), so world xy == table-local
+            # xy and the sampler `offset` (metres) can be given directly in
+            # world xy. With pos=(0,0) (region centre) the net displacement
+            # from the table centre is exactly `offset`. RIM_DIST reproduces
+            # the previously validated 0.165 m overhang (old pos=(1,0)→0.105
+            # + offset 0.06). The table top is a 0.25 m square (0.125 m
+            # half-extent) so this overhangs the physical rim ~0.04 m;
+            # symmetric, so stability is unchanged from the old +x case.
+            RIM_DIST = 0.165
+            table_xy = np.array(self.standing_table.pos[:2], dtype=float)
+            perp = self._path_perp
+            # Sign the perpendicular axis toward the robot base. If the robot
+            # is ~on the path through the table centre, _path_perp already
+            # points to the open-floor/robot side, so keep it as-is.
+            s = float(np.dot(self._src_base_xy - table_xy, perp))
+            udir = perp if s >= 0 else -perp
+            drink_offset = (float(udir[0] * RIM_DIST),
+                            float(udir[1] * RIM_DIST))
             cfgs.append(
                 dict(
                     name="obstacle_1",
@@ -739,8 +772,8 @@ class NavigateKitchenWithObstacles(Kitchen):
                     placement=dict(
                         fixture=self.standing_table,
                         size=(0.0, 0.0),
-                        pos=(1.0, 0.0),
-                        offset=(0.06, 0.0),
+                        pos=(0.0, 0.0),
+                        offset=drink_offset,
                         ensure_object_boundary_in_range=False,
                     ),
                 )
@@ -866,9 +899,11 @@ class NavigateKitchenWithObstacles(Kitchen):
 
         Each obstacle is spawned at a small clearance above its support
         (upright, zero velocity) and simply lands on the first recorded
-        steps. No in-reset physics relaxation is run: ordinary obstacles
-        land flat from a ~5 cm drop; tall/narrow TIPPY_FLOOR_OBSTACLES use a
-        2 cm clearance so they neither tip nor jitter. Verified 0/1104.
+        steps. No in-reset physics relaxation is run: ordinary robust
+        obstacles land flat from a ~5 cm drop; TIPPY_FLOOR_OBSTACLES (which
+        topple or skitter on that impact) use a 2 cm clearance so they
+        neither tip, drift, nor jitter. Verified well-placed across all
+        benchmark scenes via scripts/verify_obstacle_placement.py.
         """
         super()._reset_internal()
 
@@ -928,10 +963,12 @@ class NavigateKitchenWithObstacles(Kitchen):
                 qvel_addr = self.sim.model.get_joint_qvel_addr(joint_name)
                 self.sim.data.qvel[qvel_addr[0]:qvel_addr[1]] = 0
 
-        # No in-reset physics relaxation: non-tippy floor obstacles take a
-        # ~3 cm spawn drop and land flat on the first recorded steps;
-        # TIPPY_FLOOR_OBSTACLES spawn at a 2 cm clearance so they neither
-        # penetrate nor tip. Verified 0/1104 without any settle loop (260518).
+        # No in-reset physics relaxation: robust non-tippy floor obstacles
+        # take the ~5 cm spawn drop and land flat on the first recorded
+        # steps; TIPPY_FLOOR_OBSTACLES spawn at a 2 cm clearance so they
+        # neither penetrate, tip, nor skitter off their pinned spot.
+        # Re-verified across all benchmark scenes (260518) via
+        # scripts/verify_obstacle_placement.py.
         self.sim.forward()
 
     def _check_obstacle_boundary_intrusion(self, boundary_threshold=None):

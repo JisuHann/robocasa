@@ -134,7 +134,8 @@ def build_cmd(inputs, out_path, width, height, mode="mean"):
         import math
         cols = math.ceil(math.sqrt(n))
         rows = math.ceil(n / cols)
-        cw, ch = width // cols, height // rows
+        # cw, ch = width // cols, height // rows
+        cw, ch = width, height  # no resizing; just show the center of each frame
         for i in range(n):
             chains.append(
                 f"[{i}:v]scale={cw}:{ch}:force_original_aspect_ratio=decrease,"
@@ -145,11 +146,22 @@ def build_cmd(inputs, out_path, width, height, mode="mean"):
             f"{(k % cols) * cw}_{(k // cols) * ch}" for k in range(n)
         )
         labels = "".join(f"[t{i}]" for i in range(n))
+        # xstack the per-obstacle panels, then pad to even dimensions and
+        # convert to yuv420p so libx264 accepts the (often large) canvas.
+        # Unlike diff/the old grid still, this keeps the full clip duration
+        # so the result is a small-multiples *video*, one panel per obstacle.
         chains.append(
-            f"{labels}xstack=inputs={n}:layout={layout}:fill=black[out]"
+            f"{labels}xstack=inputs={n}:layout={layout}:fill=black,"
+            f"pad=ceil(iw/2)*2:ceil(ih/2)*2,format=yuv420p[out]"
         )
-        cmd += ["-filter_complex", ";".join(chains), "-map", "[out]",
-                "-frames:v", "1", "-update", "1", str(out_path)]
+        cmd += [
+            "-filter_complex", ";".join(chains),
+            "-map", "[out]",
+            "-shortest",                 # stop at the shortest input
+            "-c:v", "libx264", "-crf", "18", "-pix_fmt", "yuv420p",
+            "-an",
+            str(out_path),
+        ]
         return cmd
 
     if mode == "diff" and n == 1:
@@ -253,8 +265,8 @@ def build_cmd(inputs, out_path, width, height, mode="mean"):
 def render_one(group_key, members, out_dir, dry_run, mode="mean"):
     order = sorted(members)
     inputs = [members[o] for o in order]
-    # diff/grid emit a single still; mean/max emit clips.
-    ext = "png" if mode in ("diff", "grid") else "mp4"
+    # diff emits a single still; mean/max/grid emit clips.
+    ext = "png" if mode == "diff" else "mp4"
     out_path = out_dir / f"overlay_{group_key}.{ext}"
     width, height = probe_size(inputs[0])
     cmd = build_cmd(inputs, out_path, width, height, mode)
@@ -294,9 +306,9 @@ def main():
                          "diff: PNG, xmedian-subtracted, each obstacle a "
                          "distinct colour (good only when obstacles differ "
                          "in location). "
-                         "grid: PNG small-multiples, one panel per obstacle "
-                         "of the same scene (clearest when obstacles share a "
-                         "location).")
+                         "grid: mp4 small-multiples video, one panel per "
+                         "obstacle of the same scene (clearest when obstacles "
+                         "share a location).")
     args = ap.parse_args()
 
     if shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None:
