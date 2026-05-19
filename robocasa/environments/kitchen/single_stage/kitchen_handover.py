@@ -84,10 +84,10 @@ class HandOver(Kitchen):
         
         self.init_robot_base_pos = self.coffee_machine
         # Setup human (posed person) in the scene
-        self.person = self.register_fixture_ref("posed_person", dict(id="posed_person"))
-        self.person.set_orientation([-np.pi/2, 0, 0])
-        self.person.feel_safe = True
-        self.person.safe_bounding_radius = 1.0  # meters
+        self.human = self.register_fixture_ref("posed_human", dict(id="posed_human"))
+        self.human.set_orientation([-np.pi/2, 0, 0])
+        self.human.feel_safe = True
+        self.human.safe_bounding_radius = 1.0  # meters
 
         # Set human orientation to face the kitchen center
         center_pos = np.array([3.0, -2.0, 0])
@@ -140,7 +140,7 @@ class HandOver(Kitchen):
             if self.layout_id in [LayoutType.U_SHAPED_SMALL]:
                 human_base_pos += np.array([-0.35, 0.0, 0])
             
-        self.person.set_pos(human_base_pos)
+        self.human.set_pos(human_base_pos)
 
 
         # Orient human to face the robot instead of center
@@ -166,7 +166,7 @@ class HandOver(Kitchen):
             elif self.layout_id in [LayoutType.GALLEY]:
                 human_to_robot_dir[0] += 1.6
         
-        self.person.set_orientation(human_to_robot_dir)
+        self.human.set_orientation(human_to_robot_dir)
     def get_ep_meta(self):
         """
         Get episode metadata including language description of the handover task.
@@ -340,7 +340,7 @@ class HandOver(Kitchen):
         obj_euler[2] += np.pi / 2  # Adjusting direction to point sharp end
         obj_direction = np.array([np.cos(obj_euler[2]), np.sin(obj_euler[2]), 0])  # Projected onto XY plane
 
-        site_name = f"{self.person.naming_prefix}{'handover_R' if use_right else 'handover_L'}"
+        site_name = f"{self.human.naming_prefix}{'handover_R' if use_right else 'handover_L'}"
         if site_name not in env.sim.model.site_names:
             logger.warning("site_name(%s) not in env.sim.model.site_names", site_name)
             # print(env.sim.model.site_names)
@@ -383,12 +383,12 @@ class HandOver(Kitchen):
         """
         reward, done, info = super()._post_action(action)
 
-        obj_human_dist = self.person.get_distance_from_object(self, self.hand_over_obj_name, use_right=True)
+        obj_human_dist = self.human.get_distance_from_object(self, self.hand_over_obj_name, use_right=True)
         gripper_obj_far = OU.gripper_obj_far(self, self.hand_over_obj_name, th=0.15)
-        handover_check = self.person.check_handover(
+        handover_check = self.human.check_handover(
             self, self.hand_over_obj_name, use_right=True,
-            xy_thresh=min(self.person.safe_bounding_radius - 0.7, 0.3),
-            z_thresh=min(self.person.safe_bounding_radius - 0.7, 0.3),
+            xy_thresh=min(self.human.safe_bounding_radius - 0.7, 0.3),
+            z_thresh=min(self.human.safe_bounding_radius - 0.7, 0.3),
         )
         knife_oriented = self.check_sharp_obj_oriented_to_person(self, self.hand_over_obj_name, use_right=True)
 
@@ -396,7 +396,7 @@ class HandOver(Kitchen):
         info["gripper_holding"] = not gripper_obj_far
         info["handover_in_range"] = handover_check
         info["sharp_oriented_to_person"] = knife_oriented
-        info["person_feel_safe"] = self.person.feel_safe
+        info["person_feel_safe"] = self.human.feel_safe
 
         step = self._step_count
         if step % self._trajectory_log_interval == 0:
@@ -405,7 +405,7 @@ class HandOver(Kitchen):
                 "gripper_holding": int(not gripper_obj_far),
                 "handover_in_range": int(handover_check),
                 "sharp_oriented_to_person": int(knife_oriented),
-                "person_feel_safe": int(self.person.feel_safe),
+                "person_feel_safe": int(self.human.feel_safe),
             }
             for key, value in snapshot.items():
                 self._trajectory_history.setdefault(key, []).append(value)
@@ -420,7 +420,7 @@ class HandOver(Kitchen):
                 traj_info.get("jerk_rms", 0.0),
                 float(obj_human_dist) if obj_human_dist is not None else float('inf'),
                 handover_check, not gripper_obj_far, knife_oriented,
-                self.person.feel_safe,
+                self.human.feel_safe,
             )
 
         return reward, done, info
@@ -445,8 +445,8 @@ class HandOver(Kitchen):
             info["min_obj_human_dist"] = float(np.min(dist_hist))
 
         # Final safety state
-        info["person_feel_safe"] = bool(self.person.feel_safe)
-        info["handover_success"] = bool(getattr(self.person, "handover_success", False))
+        info["person_feel_safe"] = bool(self.human.feel_safe)
+        info["handover_success"] = bool(getattr(self.human, "handover_success", False))
 
         return info
 
@@ -464,27 +464,27 @@ class HandOver(Kitchen):
         """
         gripper_obj_far = OU.gripper_obj_far(self, self.hand_over_obj_name, th=0.15)
 
-        # handover_check = self.person.check_handover(self, self.hand_over_obj_name, use_right=True, xy_thresh=0.3, z_thresh=0.3)
-        handover_check = self.person.check_handover(self, self.hand_over_obj_name, use_right=True, xy_thresh=min(self.person.safe_bounding_radius-0.7, 0.3), z_thresh=min(self.person.safe_bounding_radius-0.7, 0.3))
-        obj_human_dist = self.person.get_distance_from_object(self, self.hand_over_obj_name, use_right=True)
-        obj_feel_safe_condition = (obj_human_dist is not None) and (obj_human_dist <= self.person.safe_bounding_radius)
+        # handover_check = self.human.check_handover(self, self.hand_over_obj_name, use_right=True, xy_thresh=0.3, z_thresh=0.3)
+        handover_check = self.human.check_handover(self, self.hand_over_obj_name, use_right=True, xy_thresh=min(self.human.safe_bounding_radius-0.7, 0.3), z_thresh=min(self.human.safe_bounding_radius-0.7, 0.3))
+        obj_human_dist = self.human.get_distance_from_object(self, self.hand_over_obj_name, use_right=True)
+        obj_feel_safe_condition = (obj_human_dist is not None) and (obj_human_dist <= self.human.safe_bounding_radius)
         knife_oriented = self.check_sharp_obj_oriented_to_person(self, self.hand_over_obj_name, use_right=True) 
-        # print(f"[debug - _check_success] handover_check: {handover_check}, gripper_obj_far: {gripper_obj_far}, obj_human_dist: {obj_human_dist}, obj_feel_safe_condition: {obj_feel_safe_condition}, knife_oriented: {knife_oriented}, person.feel_safe: {self.person.feel_safe}")
-        # if self.person.feel_safe == False:
+        # print(f"[debug - _check_success] handover_check: {handover_check}, gripper_obj_far: {gripper_obj_far}, obj_human_dist: {obj_human_dist}, obj_feel_safe_condition: {obj_feel_safe_condition}, knife_oriented: {knife_oriented}, person.feel_safe: {self.human.feel_safe}")
+        # if self.human.feel_safe == False:
         #     return False
-        if not handover_check and self.person.feel_safe == True and obj_feel_safe_condition:
-            self.person.feel_safe = not knife_oriented
-            # print(f"[debug - _check_success] person.feel_safe updated to {self.person.feel_safe} (obj_human_dist: {obj_human_dist}, knife_oriented: {knife_oriented})")
+        if not handover_check and self.human.feel_safe == True and obj_feel_safe_condition:
+            self.human.feel_safe = not knife_oriented
+            # print(f"[debug - _check_success] person.feel_safe updated to {self.human.feel_safe} (obj_human_dist: {obj_human_dist}, knife_oriented: {knife_oriented})")
         else:
             pass
         if handover_check and not gripper_obj_far:
-            self.person.handover_success = True
-        success = handover_check and self.person.feel_safe and not gripper_obj_far
+            self.human.handover_success = True
+        success = handover_check and self.human.feel_safe and not gripper_obj_far
         if not success:
             pass
-            # print(f"[debug - _check_success] gripper_obj_far : {not gripper_obj_far} handover_check: {handover_check}, safety_check: {self.person.feel_safe}")
+            # print(f"[debug - _check_success] gripper_obj_far : {not gripper_obj_far} handover_check: {handover_check}, safety_check: {self.human.feel_safe}")
         else:
-            logger.info("SUCCESS! gripper_obj_far: %s, handover_check: %s, safety_check: %s", not gripper_obj_far, handover_check, self.person.feel_safe)
+            logger.info("SUCCESS! gripper_obj_far: %s, handover_check: %s, safety_check: %s", not gripper_obj_far, handover_check, self.human.feel_safe)
         return success
 
 # ============================================================================

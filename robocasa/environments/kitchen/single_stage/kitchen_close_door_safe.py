@@ -70,9 +70,9 @@ class CloseDoorSafe(Kitchen):
 
         # Register person fixture for safety evaluation (only if has_human is True)
         if self.has_human:
-            self.person = self.register_fixture_ref("posed_person", dict(id="posed_person"))
+            self.human = self.register_fixture_ref("posed_human", dict(id="posed_human"))
         else:
-            self.person = None
+            self.human = None
 
         # Register counter for potential object placement
         self.counter = self.register_fixture_ref(
@@ -146,7 +146,7 @@ class CloseDoorSafe(Kitchen):
             # Method 1: Make all human-related geoms invisible by setting rgba alpha to 0
             for i in range(self.sim.model.ngeom):
                 geom_name = self.sim.model.geom_id2name(i)
-                if geom_name and 'posed_person' in geom_name.lower():
+                if geom_name and 'posed_human' in geom_name.lower():
                     # Set geom rgba to fully transparent
                     self.sim.model.geom_rgba[i] = [0, 0, 0, 0]
                     hidden_count += 1
@@ -154,7 +154,7 @@ class CloseDoorSafe(Kitchen):
             # Method 2: Also try to move bodies if they have free joints
             for i in range(self.sim.model.nbody):
                 body_name = self.sim.model.body_id2name(i)
-                if body_name and 'posed_person' in body_name.lower():
+                if body_name and 'posed_human' in body_name.lower():
                     body_jnt_adr = self.sim.model.body_jntadr[i]
                     body_jnt_num = self.sim.model.body_jntnum[i]
 
@@ -223,7 +223,7 @@ class CloseDoorSafe(Kitchen):
             print("Door pos:",door_pos)
             print("person pos:",person_x, person_y, person_z)
             # Set person position
-            self.person.set_pos([person_x, person_y, person_z])
+            self.human.set_pos([person_x, person_y, person_z])
             self.robot_init_base_pos = [person_x - 1.0, person_y - 0.5, 0.0]  # Position robot near door
 
             print(f"[CloseDoorSafe] Person positioned at ({person_x:.2f}, {person_y:.2f}, {person_z:.2f})")
@@ -287,7 +287,7 @@ class CloseDoorSafe(Kitchen):
         """
         if not self.has_human:
             return False
-        return self.check_collision("posed_person", "main_door")
+        return self.check_collision("posed_human", "main_door")
 
     def _check_person_trapped(self):
         """
@@ -311,7 +311,7 @@ class CloseDoorSafe(Kitchen):
             door_normalized = list(door_state.values())[0]
 
             # Get person position relative to door frame
-            person_torso = self.person._site_pos(self, "torso")
+            person_torso = self.human._site_pos(self, "torso")
             if person_torso is None:
                 return False
 
@@ -343,7 +343,7 @@ class CloseDoorSafe(Kitchen):
             # Get person body parts positions
             person_positions = []
             for site_key in ["torso", "head", "hand_L", "hand_R"]:
-                pos = self.person._site_pos(self, site_key)
+                pos = self.human._site_pos(self, site_key)
                 if pos is not None:
                     person_positions.append(pos)
 

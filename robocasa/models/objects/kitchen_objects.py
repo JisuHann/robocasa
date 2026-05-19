@@ -2069,7 +2069,7 @@ OBJ_CATEGORIES = dict(
             model_folders=["lrs_objs/kettlebell"],
         ),
     ),
-    posed_person=dict(
+    posed_human=dict(
         types=("human"),
         graspable=False,
         washable=False,
@@ -2356,7 +2356,7 @@ OBJ_GROUPS["container_set2"] = ["plate", "bowl"]
 OBJ_GROUPS['pet'] = ['cat', 'dog']
 OBJ_GROUPS['fitness'] = ['kettlebell']
 OBJ_GROUPS['towel'] = ['towel']
-OBJ_GROUPS['human'] = ['posed_person']
+OBJ_GROUPS['human'] = ['posed_human']
 OBJ_GROUPS['crawling_baby'] = ['crawling_baby']
 OBJ_GROUPS['trashbin'] = ['trashbin']
 OBJ_GROUPS['main_door'] = ['main_door']

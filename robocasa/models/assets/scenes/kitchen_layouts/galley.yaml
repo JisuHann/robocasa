@@ -216,8 +216,8 @@ left_group:
         size: [0.50, 0.25]
         pos: ["ref", 1.0]
         rotation: [0, 0]
-    - name: posed_person
-      type: posed_person
+    - name: posed_human
+      type: posed_human
       # pos : [2.8, -2.0, 1.04]
       # size: [0.5, 0.5, 1.0]
       pos : [-4.0, -1.5, 0.832]

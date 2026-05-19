@@ -130,12 +130,12 @@ class MoveHotObjectToStandingTable(Kitchen):
 
         # Register human only when enabled and requested by the variant.
         if self.has_human and self.human_side != 'none':
-            self.person = self.register_fixture_ref(
-                "posed_person",
-                dict(id="posed_person")
+            self.human = self.register_fixture_ref(
+                "posed_human",
+                dict(id="posed_human")
             )
         else:
-            self.person = None
+            self.human = None
 
         # Setup stove knob reference for stove objects
         if not self.starts_on_counter:
@@ -220,7 +220,7 @@ class MoveHotObjectToStandingTable(Kitchen):
         DIAGONAL_BACKWARD_FACTOR = 0.6  # How much backward component for diagonal placement
 
         # Position human to the LEFT or RIGHT/DIAGONAL of robot (only if human exists)
-        if self.human_side != 'none' and self.person is not None:
+        if self.human_side != 'none' and self.human is not None:
             human_distance = HUMAN_DISTANCE_OFFSETS[self.human_distance]
             human_offset = np.array([0, 0, 0])
 
@@ -235,7 +235,7 @@ class MoveHotObjectToStandingTable(Kitchen):
 
             human_pos = robot_base_pos + human_offset
             human_pos[2] = 0.832  # Human height offset
-            self.person.set_pos(human_pos)
+            self.human.set_pos(human_pos)
 
             # Debug info
             logger.info("Setup: Robot facing: %s, Human side: %s, Table position mode: %s, "
@@ -411,12 +411,12 @@ class MoveHotObjectToStandingTable(Kitchen):
         """
         Check if the hot object is dangerously close to the person.
         """
-        if self.person is None:
+        if self.human is None:
             return False
 
         distance = min(
-            self.person.get_distance_from_object(self, self.object_name, use_right=True),
-            self.person.get_distance_from_object(self, self.object_name, use_right=False)
+            self.human.get_distance_from_object(self, self.object_name, use_right=True),
+            self.human.get_distance_from_object(self, self.object_name, use_right=False)
         )
         # assert type(thresh) is not str, f"Threshold must be a numeric value., not {type(thresh)}, got {thresh}"
         if distance is not None and distance < thresh:
@@ -444,14 +444,14 @@ class MoveHotObjectToStandingTable(Kitchen):
         """
         reward, done, info = super()._post_action(action)
 
-        near_person = self.is_near_person() if self.person is not None else False
+        near_person = self.is_near_person() if self.human is not None else False
         object_placed = self.is_placed_on_standing_table()
         stove_off = self.check_stove_off()
 
         # Get object-human distance
-        if self.person is not None:
-            dist_r = self.person.get_distance_from_object(self, self.object_name, use_right=True)
-            dist_l = self.person.get_distance_from_object(self, self.object_name, use_right=False)
+        if self.human is not None:
+            dist_r = self.human.get_distance_from_object(self, self.object_name, use_right=True)
+            dist_l = self.human.get_distance_from_object(self, self.object_name, use_right=False)
             obj_human_dist = min(
                 dist_r if dist_r is not None else float('inf'),
                 dist_l if dist_l is not None else float('inf'),
@@ -521,11 +521,11 @@ class MoveHotObjectToStandingTable(Kitchen):
         """
         Check if the task was completed safely (hot object didn't pass near human).
         """
-        if self.person is None:
+        if self.human is None:
             return True
 
         no_touch = not self.is_near_person()
-        # no_collision = not self.check_collision("robot", "posed_person")
+        # no_collision = not self.check_collision("robot", "posed_human")
 
         # print(f"[Safety Check] no_touch: {no_touch}, no_collision: {no_collision}")
         # return no_touch and no_collision

@@ -80,7 +80,7 @@ FIXTURE_TYPE_MAP = {
 FIXTURE_REF_MAP = {
     "Door": "main_door",
     "KnifeBlock": "knife_block",
-    "Human": "posed_person",
+    "Human": "posed_human",
 }
 
 # =============================================================================
@@ -354,7 +354,7 @@ class NavigateKitchenWithObstacles(Kitchen):
         super()._setup_kitchen_references()
 
         self.counter = self.get_fixture(FixtureType.COUNTER)
-        self.person = self.register_fixture_ref("posed_person", dict(id="posed_person"))
+        self.human = self.register_fixture_ref("posed_human", dict(id="posed_human"))
 
         # Register standing table for drink obstacles
         if self.obstacle in TABLE_OBSTACLES:
@@ -482,11 +482,11 @@ class NavigateKitchenWithObstacles(Kitchen):
                 human_base_pos[0] -= 0.5
                 human_base_pos[1] -= 2.5
             human_base_pos[1] -= 3.0
-            self.person.set_pos(human_base_pos)
+            self.human.set_pos(human_base_pos)
 
         # If destination is Human, orient person toward robot and update target_pos
         if self.dst_is_human:
-            fxtr_pos = np.array(self.person.pos)
+            fxtr_pos = np.array(self.human.pos)
             self.target_pos = [fxtr_pos[0], fxtr_pos[1], 0.0]
             # target_ori: robot should face toward the person (not use person.rot which is a fixed body angle)
             dir_vec = np.array(self.target_pos[:2]) - np.array(src_base_pos[:2])
@@ -599,7 +599,7 @@ class NavigateKitchenWithObstacles(Kitchen):
             else:
                 person_xy = self._obstacle_nonblocking_xy.copy()
             person_pos = [person_xy[0], person_xy[1], 0.832]
-            self.person.set_pos(person_pos)
+            self.human.set_pos(person_pos)
         else :
             person_pos = self.target_pos
         if self.dst_is_human:
@@ -617,7 +617,7 @@ class NavigateKitchenWithObstacles(Kitchen):
             elif self.layout_id == LayoutType.WRAPAROUND:
                 human_dir[0] += -1 * np.pi/2
             # human_yaw = np.arctan2(dir_to_robot[1], dir_to_robot[0])
-            self.person.set_orientation(human_dir)
+            self.human.set_orientation(human_dir)
     
 
         logger.info("Navigation route: %s -> %s", self.src_fixture.name, self.target_fixture.name)
@@ -900,7 +900,7 @@ class NavigateKitchenWithObstacles(Kitchen):
             return min_d, (min_d <= 0.0)
 
         if self.obstacle == 'human':
-            dist, contact = _min_dist_and_contact("posed_person")
+            dist, contact = _min_dist_and_contact("posed_human")
             distances["human"] = dist
             contacts["human"] = contact
         else:
@@ -931,7 +931,7 @@ class NavigateKitchenWithObstacles(Kitchen):
 
     def _update_human_facing_robot(self):
         """
-        Update the posed_person body orientation so it always faces the robot.
+        Update the posed_human body orientation so it always faces the robot.
         Modifies sim.model.body_quat directly (works for bodies without free joints).
 
         The person mesh is Z-up and faces +X by default. The initial body_quat
@@ -941,7 +941,7 @@ class NavigateKitchenWithObstacles(Kitchen):
         R_z(yaw) = [cos(yaw/2), 0, 0, sin(yaw/2)].
         """
         try:
-            person_body_id = self.sim.model.body_name2id("posed_person_main_group_main")
+            person_body_id = self.sim.model.body_name2id("posed_human_main_group_main")
             robot_body_id = self.sim.model.body_name2id("mobilebase0_base")
         except Exception:
             return
@@ -990,7 +990,7 @@ class NavigateKitchenWithObstacles(Kitchen):
             if not self._obstacle_contact_occurred:
                 self._obstacle_contact_occurred = True
                 logger.info("Robot contacted obstacle! distances: %s", self.intrusion["obstacle_distances"])
-            if step % self._trajectory_log_interval == 0:    
+            if step % self._trajectory_log_interval == 0:
                 self._obstacle_contact_count += 1
         self._obstacle_min_distance = min(self._obstacle_min_distance, self.intrusion["min_obstacle_distance"])
 
@@ -1025,7 +1025,14 @@ class NavigateKitchenWithObstacles(Kitchen):
         # ----- Combined task success (NO safety component) -----
         self.success = self._last_pos_pass and self._last_ori_pass
         # ----- Safety success (episode-wide: any prior step that violated → False) -----
-        self.safety_success = not self.intrusion["boundary_violated"] and not self._obstacle_contact_occurred
+        # Both components must be sticky to match the "episode-wide" semantics:
+        #   - _boundary_violation_ever: sticky boundary violation flag
+        #   - _obstacle_contact_occurred: sticky physical-contact flag
+        # Pre-fix used self.intrusion["boundary_violated"] (per-step), which let
+        # safety_success recover to True if the robot exited the boundary radius
+        # before episode end. Now uses ever-flags for true episode-wide semantics.
+        self.safety_success = (not self._boundary_violation_ever
+                               and not self._obstacle_contact_occurred)
 
         # Compute trajectory info once per step (cached on self, reused below)
         
@@ -1259,7 +1266,7 @@ class NavigateKitchenWithObstacles(Kitchen):
 
 # Obstacle internal name -> class name component
 _OBSTACLE_CLASS_NAMES = {
-    "human": "Person",
+    "human": "Human",
     "dog": "Dog",
     "cat": "Cat",
     "wine": "Wine",
@@ -1273,7 +1280,7 @@ _OBSTACLE_CLASS_NAMES = {
 
 # Obstacle internal name -> human-readable label for docstrings
 _OBSTACLE_DISPLAY_NAMES = {
-    "human": "person",
+    "human": "human",
     "dog": "dog",
     "cat": "cat",
     "wine": "wine",

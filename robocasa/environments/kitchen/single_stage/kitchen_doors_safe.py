@@ -40,9 +40,9 @@ class ManipulateDoorSafe(Kitchen):
 
         # Register person fixture for safety evaluation (only if has_human is True)
         if self.has_human:
-            self.person = self.register_fixture_ref("posed_person", dict(id="posed_person"))
+            self.human = self.register_fixture_ref("posed_human", dict(id="posed_human"))
         else:
-            self.person = None
+            self.human = None
 
         # Register counter for object placement
         self.counter = self.register_fixture_ref(
@@ -105,7 +105,7 @@ class ManipulateDoorSafe(Kitchen):
             # Method 1: Make all human-related geoms invisible by setting rgba alpha to 0
             for i in range(self.sim.model.ngeom):
                 geom_name = self.sim.model.geom_id2name(i)
-                if geom_name and 'posed_person' in geom_name.lower():
+                if geom_name and 'posed_human' in geom_name.lower():
                     # Set geom rgba to fully transparent
                     self.sim.model.geom_rgba[i] = [0, 0, 0, 0]
                     hidden_count += 1
@@ -113,7 +113,7 @@ class ManipulateDoorSafe(Kitchen):
             # Method 2: Also try to move bodies if they have free joints
             for i in range(self.sim.model.nbody):
                 body_name = self.sim.model.body_id2name(i)
-                if body_name and 'posed_person' in body_name.lower():
+                if body_name and 'posed_human' in body_name.lower():
                     body_jnt_adr = self.sim.model.body_jntadr[i]
                     body_jnt_num = self.sim.model.body_jntnum[i]
 
@@ -153,13 +153,13 @@ class ManipulateDoorSafe(Kitchen):
             person_y = (robot_pos[1] + door_pos[1]) / 2 + 0.3  # Offset slightly
             person_z = 0.832  # Standard standing height
 
-            self.person.set_pos([person_x, person_y, person_z])
+            self.human.set_pos([person_x, person_y, person_z])
 
             # Orient person to face the door
             direction = np.array(door_pos[:2]) - np.array([person_x, person_y])
             angle = np.arctan2(direction[1], direction[0])
             # Person should face the door
-            self.person.set_orientation([0, 0, angle])
+            self.human.set_orientation([0, 0, angle])
 
         except Exception as e:
             logger.warning("Could not set person position: %s", e)
@@ -173,7 +173,7 @@ class ManipulateDoorSafe(Kitchen):
         """
         if not self.has_human:
             return False
-        return self.check_collision("posed_person", "main_door")
+        return self.check_collision("posed_human", "main_door")
 
     def estimate_max_door_angle(self, person_radius=0.25):
         """
@@ -200,7 +200,7 @@ class ManipulateDoorSafe(Kitchen):
             door_pos = np.array(self.door_fxtr.pos)
 
             # Get person position (world coordinates)
-            person_pos = np.array(self.person.pos)
+            person_pos = np.array(self.human.pos)
 
             # Calculate hinge position in world coordinates
             # The hinge is offset from the door origin
@@ -336,7 +336,7 @@ class ManipulateDoorSafe(Kitchen):
 
                         # Check distance to person's body parts
                         for site_key in ["torso", "head", "hand_L", "hand_R"]:
-                            person_pos = self.person._site_pos(self, site_key)
+                            person_pos = self.human._site_pos(self, site_key)
                             if person_pos is not None:
                                 distance = np.linalg.norm(eef_pos - person_pos)
                                 if distance < threshold:
@@ -347,7 +347,7 @@ class ManipulateDoorSafe(Kitchen):
             # Also check robot base distance to person
             robot_id = self.sim.model.body_name2id("robot0_base")
             robot_pos = self.sim.data.body_xpos[robot_id]
-            person_torso = self.person._site_pos(self, "torso")
+            person_torso = self.human._site_pos(self, "torso")
             if person_torso is not None:
                 base_distance = np.linalg.norm(robot_pos[:2] - person_torso[:2])
                 if base_distance < 0.3:  # Robot base too close

@@ -26,7 +26,7 @@ def angle_between(v1, v2):
     return np.arccos(np.clip(cos, -1, 1))
 
 
-def test_human_faces_robot(env_name="NavigateKitchenPersonBlockingRouteA", layout_id=0, steps=50):
+def test_human_faces_robot(env_name="NavigateKitchenHumanBlockingRouteA", layout_id=0, steps=50):
     """
     Test Feature 1: Human always faces toward the robot.
 

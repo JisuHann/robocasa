@@ -30,7 +30,7 @@ def compute_jerk(positions, dt):
 
 
 def compute_path_length(positions):
-    """Total Euclidean path length."""
+    """Total Euclidean path length (sum of step-by-step distances)."""
     if len(positions) < 2:
         return 0.0
     return float(np.sum(np.linalg.norm(np.diff(positions, axis=0), axis=1)))

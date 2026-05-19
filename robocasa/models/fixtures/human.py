@@ -32,7 +32,7 @@ def get_object_position(env, obj_name):
             return None
         obj_pos = np.array(env.sim.data.body_xpos[bid])
     return obj_pos
-def _resolve_site_name(canonical: str, all_sites, naming_prefix="posed_person_"):
+def _resolve_site_name(canonical: str, all_sites, naming_prefix="posed_human_"):
     exact = f"{naming_prefix}{canonical}"
     if exact in all_sites:
         return exact

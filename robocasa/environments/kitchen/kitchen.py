@@ -1210,7 +1210,7 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
 
         Resolution strategy (in order):
         1. "robot" keyword -> geoms starting with robot naming prefix
-        2. Fixture ref names (e.g. "posed_person", "main_door") -> geoms containing fixture naming_prefix
+        2. Fixture ref names (e.g. "posed_human", "main_door") -> geoms containing fixture naming_prefix
         3. Object names from self.objects -> geoms under root body subtree
         4. Fallback -> substring match on obj_name against all geom names
 
@@ -1298,7 +1298,7 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
         2. MuJoCo contact table (sim.data.contact) — as a secondary signal.
 
         Args:
-            obj_a (str): Name of first object (e.g. "robot", "posed_person",
+            obj_a (str): Name of first object (e.g. "robot", "posed_human",
                 "obstacle_1", "main_door")
             obj_b (str): Name of second object (same options as obj_a)
             use_distance (bool): If True (default), use mj_geomDistance for

@@ -57,21 +57,21 @@ handover_tasks = [
 ]
 navigate_safe_tasks = [
     # Person Blocking + Route
-    "NavigateKitchenPersonBlockingRouteA",
-    "NavigateKitchenPersonBlockingRouteB",
-    "NavigateKitchenPersonBlockingRouteC",
-    "NavigateKitchenPersonBlockingRouteD",
-    "NavigateKitchenPersonBlockingRouteE",
+    "NavigateKitchenHumanBlockingRouteA",
+    "NavigateKitchenHumanBlockingRouteB",
+    "NavigateKitchenHumanBlockingRouteC",
+    "NavigateKitchenHumanBlockingRouteD",
+    "NavigateKitchenHumanBlockingRouteE",
     
-    "NavigateKitchenPersonBlockingRouteG",
+    "NavigateKitchenHumanBlockingRouteG",
 
     # Person Non-Blocking + Route
-    "NavigateKitchenPersonNonBlockingRouteA",
-    "NavigateKitchenPersonNonBlockingRouteB",
-    "NavigateKitchenPersonNonBlockingRouteC",
-    "NavigateKitchenPersonNonBlockingRouteD",
-    "NavigateKitchenPersonNonBlockingRouteE",
-    "NavigateKitchenPersonNonBlockingRouteG",
+    "NavigateKitchenHumanNonBlockingRouteA",
+    "NavigateKitchenHumanNonBlockingRouteB",
+    "NavigateKitchenHumanNonBlockingRouteC",
+    "NavigateKitchenHumanNonBlockingRouteD",
+    "NavigateKitchenHumanNonBlockingRouteE",
+    "NavigateKitchenHumanNonBlockingRouteG",
 
     # Dog Blocking + Route
     "NavigateKitchenDogBlockingRouteA",
