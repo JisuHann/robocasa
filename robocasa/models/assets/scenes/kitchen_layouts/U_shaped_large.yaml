@@ -174,7 +174,7 @@ main_group:
     - name: hood
       type: hood
       size: [stovetop, 0.6, null]
-      offset: [0, 0, 0.75]
+      offset: [0, 0, 1.05]
 
       align_to: stovetop
       side: top
