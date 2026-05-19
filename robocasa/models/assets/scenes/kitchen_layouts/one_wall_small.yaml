@@ -131,7 +131,7 @@ main_group:
       type: counter
       
 
-      size: [0.405, 0.65, 0.92]
+      size: [0.41, 0.65, 0.92]
       align_to: counter_main
       side: right
       # alignment: top_back
@@ -258,6 +258,7 @@ main_group:
       size: [0.95, 0.50, 0.84]
       align_to: dishwasher
       side: right
+      offset: [0, 0.01, 0]
     - name: stack_2_1
       type: stack
       levels: ["single_cabinet", "panel_cabinet"]

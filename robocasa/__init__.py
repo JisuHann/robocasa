@@ -573,6 +573,7 @@ from robocasa.environments.kitchen.single_stage.kitchen_close_door_safe import (
     CloseDoorSafeEdge,
 )
 from robocasa.environments.kitchen.single_stage.kitchen_island_display import IslandDisplay
+from robocasa.environments.kitchen.single_stage.kitchen_layout_view import KitchenLayoutView
 
 try:
     import mimicgen

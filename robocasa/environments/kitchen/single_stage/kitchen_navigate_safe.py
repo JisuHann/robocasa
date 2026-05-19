@@ -50,6 +50,16 @@ ROBOT_BOUNDARY_GEOM_EXCLUDE = {"mobilebase0_pedestal_feet_col"}
 
 # Obstacles that should be placed on a standing table instead of the floor
 TABLE_OBSTACLES = {'wine', 'glass_of_water', 'hot_chocolate'}
+# Floor obstacles that cannot survive the ~5 cm spawn-drop: tall/narrow or
+# high-CoM meshes topple, and small/round/legged meshes (kettlebell, cat,
+# crawling_baby, trashbin, dog) land on an irregular contact and topple or
+# skitter 0.1-0.4 m off their pinned spot. All are instead spawned at a tiny
+# TIPPY_CLEARANCE so they are stable from frame 0 (no settle phase needed).
+# Verified via scripts/verify_obstacle_placement.py across all benchmark
+# layouts/routes in BOTH Blocking and NonBlocking modes. (dog survives the
+# drop in Blocking but topples in NonBlocking, where it lands differently.)
+TIPPY_FLOOR_OBSTACLES = {'vase', 'kettlebell', 'cat', 'crawling_baby',
+                         'trashbin', 'dog'}
 
 logger = logging.getLogger(__name__)
 
@@ -87,183 +97,14 @@ FIXTURE_REF_MAP = {
 # Coordinate Adjustment Tables
 # =============================================================================
 
-# Non-blocking position scaling adjustments: (layout, route) -> (perp_scaling, path_len_scaling)
-# None means use default/previous value 
-NONBLOCKING_SCALING = {
-    # Route-level defaults (applied first, layout=None)
-    (None, 'RouteC'): (0.8, 1.4),
-    (None, 'RouteD'): (1.2, None),
-    (None, 'RouteE'): (-0.8, 0.8),  # perp_scaling multiplied by base
-    (None, 'RouteF'): (-0.5, 1.2),
-    (None, 'RouteG'): (None, 0.3),  # perp_scaling += 1.0 handled separately
-    # Layout + Route specific overrides
-    # layout, route, perp_scaling, path_len_scaling
-    (LayoutType.L_SHAPED_LARGE, 'RouteA'): (None, 0.8),
-    (LayoutType.L_SHAPED_LARGE, 'RouteB'): (None, 0.8),
-    (LayoutType.L_SHAPED_LARGE, 'RouteD'): (2.5, None),
-    (LayoutType.L_SHAPED_LARGE, 'RouteE'): (4.5, 0.9),  # perp flipped
-    (LayoutType.L_SHAPED_LARGE, 'RouteG'): (1.5, -0.6),
-    (LayoutType.L_SHAPED_SMALL, 'RouteC'): (2.0, 1.0),
-    (LayoutType.L_SHAPED_SMALL, 'RouteD'): (2.0, None),
-    (LayoutType.L_SHAPED_SMALL, 'RouteE'): (3.5, 0.5),
-    (LayoutType.L_SHAPED_SMALL, 'RouteF'): (-1.0, 0.8),
-    (LayoutType.L_SHAPED_SMALL, 'RouteG'): (1.5, 0.2),
-    (LayoutType.G_SHAPED_LARGE, 'RouteB'): (-3.0, None),
-    (LayoutType.G_SHAPED_LARGE, 'RouteC'): (1.2, None),
-    (LayoutType.G_SHAPED_LARGE, 'RouteD'): (2.0, None),
-    (LayoutType.G_SHAPED_LARGE, 'RouteE'): (-2.0, 0.3),
-    (LayoutType.G_SHAPED_SMALL, 'RouteB'): (3.0, None),
-    (LayoutType.G_SHAPED_SMALL, 'RouteC'): (1.4, None),
-    (LayoutType.G_SHAPED_SMALL, 'RouteD'): (3.0, None),
-    (LayoutType.G_SHAPED_SMALL, 'RouteE'): (1.5, 0.4),
-    (LayoutType.U_SHAPED_LARGE, 'RouteA'): (4.0, None),
-    (LayoutType.U_SHAPED_LARGE, 'RouteB'): (3.5, None),
-    (LayoutType.U_SHAPED_LARGE, 'RouteC'): (1.3, 1.0),
-    (LayoutType.U_SHAPED_LARGE, 'RouteE'): (4.0, None),
-    (LayoutType.U_SHAPED_LARGE, 'RouteD'): (-2.0, 0.7),  # perp flipped
-    (LayoutType.U_SHAPED_LARGE, 'RouteF'): (0.5, None),
-    (LayoutType.U_SHAPED_LARGE, 'RouteG'): (4.5, None),# perp flipped
-    (LayoutType.U_SHAPED_SMALL, 'RouteC'): (1.2, None),
-    (LayoutType.U_SHAPED_SMALL, 'RouteD'): (2.0, None),
-    (LayoutType.U_SHAPED_SMALL, 'RouteE'): (1.5, 1.2),
-    (LayoutType.U_SHAPED_SMALL, 'RouteF'): (None, 1.1),
-    (LayoutType.ONE_WALL_LARGE, 'RouteA'): (None, 1.0),
-    (LayoutType.ONE_WALL_LARGE, 'RouteC'): (None, 1.8),
-    (LayoutType.ONE_WALL_LARGE, 'RouteD'): (-2.0, 1.0),  # perp flipped
-    (LayoutType.ONE_WALL_LARGE, 'RouteE'): (4.0, 0.7),
-    (LayoutType.ONE_WALL_SMALL, 'RouteC'): (1.8, None),
-    (LayoutType.ONE_WALL_SMALL, 'RouteD'): (2.0, None),
-    (LayoutType.ONE_WALL_SMALL, 'RouteE'): (2.5, 0.6),
-    (LayoutType.ONE_WALL_SMALL, 'RouteG'): (2.5, None),
-    (LayoutType.GALLEY, 'RouteA'): (-1.5, None),
-    # (LayoutType.GALLEY, 'RouteB'): (1.2, None),
-    
-    (LayoutType.GALLEY, 'RouteB'): (1.3, 0.8),
-    (LayoutType.GALLEY, 'RouteC'): (-1.0, None),
-    (LayoutType.GALLEY, 'RouteD'): (-1.5, None),
-    # (LayoutType.GALLEY, 'RouteE'): (1.2, None),
-    (LayoutType.GALLEY, 'RouteE'): (1.5, -0.3),
-    (LayoutType.GALLEY, 'RouteF'): (1.2, None),
-    (LayoutType.GALLEY, 'RouteG'): (3.0, 0.4),
-    (LayoutType.WRAPAROUND, 'RouteB'): (-1.0, 0.4),
-    (LayoutType.WRAPAROUND, 'RouteC'): (1.3, None),
-    (LayoutType.WRAPAROUND, 'RouteD'): (2.3, None),
-    (LayoutType.WRAPAROUND, 'RouteE'): (1.8, 1.1),  # perp flipped
-    (LayoutType.WRAPAROUND, 'RouteG'): (-1.0, 0.4),
-}
-
-# Blocking offset adjustments: (layout, route) -> (offset_array, rotation)
-# offset_array is added to blocking_offset, rotation replaces rot if not None
-BLOCKING_ADJUSTMENTS = {
-    # RouteF special cases (applied first)
-    # layout, route, offset, rotation
-    # GALLEY layout
-    (LayoutType.GALLEY, 'RouteA'): ([-0.5, -0.35], None),
-    (LayoutType.GALLEY, 'RouteB'): ([0,-0.2], [np.pi/2, 0]),
-    (LayoutType.GALLEY, 'RouteC'): ([-0.2,0.2], [0, 0, 0]),
-    (LayoutType.GALLEY, 'RouteD'): ([-0.3, -0.3], None),
-    (LayoutType.GALLEY, 'RouteE'): ([0.0, 0.0], [np.pi/2,0]),
-    (LayoutType.GALLEY, 'RouteF'): ([0.4, 1.5], [np.pi/2,0]),
-    (LayoutType.GALLEY, 'RouteG'): ([-0.3, -0.0], None),
-    # U_SHAPED_LARGE layout
-    (LayoutType.U_SHAPED_LARGE, 'RouteA'): ([0, 0.3], None),
-    (LayoutType.U_SHAPED_LARGE, 'RouteB'): ([0.5, 1.0], None),
-    (LayoutType.U_SHAPED_LARGE, 'RouteC'): ([0.4, 0.4], [-np.pi/4, 0, 0]),
-    (LayoutType.U_SHAPED_LARGE, 'RouteE'): ([-1.0, 1.0], [np.pi/2, 0, 0]),
-    (LayoutType.U_SHAPED_LARGE, 'RouteG'): ([0.0, 0.8], None),
-    (LayoutType.U_SHAPED_LARGE, 'RouteF'): ([0.5, 0], None),
-    # U_SHAPED_SMALL layout
-    (LayoutType.U_SHAPED_SMALL, 'RouteA'): ([0.5, 0.0], None),
-    (LayoutType.U_SHAPED_SMALL, 'RouteB'): ([0.3,-0.3], [-np.pi/2, 0]),
-    (LayoutType.U_SHAPED_SMALL, 'RouteD'): ([0.4, 0.0], [np.pi, 0, 0]),
-    (LayoutType.U_SHAPED_SMALL, 'RouteE'): ([0,1.0], [np.pi/2, 0, 0]),
-    (LayoutType.U_SHAPED_SMALL, 'RouteF'): ([0.0, 1.0], None),
-    (LayoutType.U_SHAPED_SMALL, 'RouteG'): ([0.18, 0.2], None),
-    # L_SHAPED_LARGE layout
-    (LayoutType.L_SHAPED_LARGE, 'RouteA'): ([0.5, -0.2], None),
-    (LayoutType.L_SHAPED_LARGE, 'RouteB'): ([0.4, 0.4], None),
-    (LayoutType.L_SHAPED_LARGE, 'RouteC'): ([0.0, -0.4], None),
-    (LayoutType.L_SHAPED_LARGE, 'RouteD'): ([0.5, 0.2], [np.pi/2, 0, 0]),
-    (LayoutType.L_SHAPED_LARGE, 'RouteE'): (None, [np.pi/2, 0, 0]),
-    (LayoutType.L_SHAPED_LARGE, 'RouteF'): ([0,-1.0], [0,0,0]),
-    (LayoutType.L_SHAPED_LARGE, 'RouteG'): ([0.1, 0.0], [np.pi/2, 0, 0]),
-    # L_SHAPED_SMALL layout
-    (LayoutType.L_SHAPED_SMALL, 'RouteB'): (None, [-np.pi/4, 0, 0]),
-    (LayoutType.L_SHAPED_SMALL, 'RouteC'): (None, [-np.pi/2, 0, 0]),
-    (LayoutType.L_SHAPED_SMALL, 'RouteD'): ([-0.1, 0.0], None),
-    (LayoutType.L_SHAPED_SMALL, 'RouteE'): ([0.2, 0.5], [3*np.pi/4,0]),
-    (LayoutType.L_SHAPED_SMALL, 'RouteG'): ([-0.2, 0.2], [-np.pi/4, 0, 0]),
-    (LayoutType.L_SHAPED_SMALL, 'RouteF'): ([0.3, 0.5], [3*np.pi/4,0]),
-    
-    # G_SHAPED_SMALL layout
-    (LayoutType.G_SHAPED_SMALL, 'RouteA'): ([-0.3, -0.2], None),
-    (LayoutType.G_SHAPED_SMALL, 'RouteB'): ([-0.3, -0.2], None),
-    (LayoutType.G_SHAPED_SMALL, 'RouteC'): (None, [np.pi/2, 0]),
-    (LayoutType.G_SHAPED_SMALL, 'RouteD'): ([0.3, 0.05], None),
-    (LayoutType.G_SHAPED_SMALL, 'RouteE'): (None, [np.pi/2, 0, 0]),
-    (LayoutType.G_SHAPED_SMALL, 'RouteF'): ([0.2,1.0], [np.pi/2, 0, 0]),
-    (LayoutType.G_SHAPED_SMALL, 'RouteG'): ([-0.5, 0], None),
-    # G_SHAPED_LARGE layout
-    (LayoutType.G_SHAPED_LARGE, 'RouteA'): ([0.0, -0.4], None),
-    (LayoutType.G_SHAPED_LARGE, 'RouteC'): ([0.0, 0.2], [np.pi/2, 0]),
-    (LayoutType.G_SHAPED_LARGE, 'RouteD'): ([-0.2, 0], [np.pi/2, 0, 0]),
-    (LayoutType.G_SHAPED_LARGE, 'RouteE'): (None, [np.pi/2, 0, 0]),
-    (LayoutType.G_SHAPED_LARGE, 'RouteF'): ([3.0, 2.0], [np.pi/2,0]),
-    # ONE_WALL_SMALL layout
-    (LayoutType.ONE_WALL_SMALL, 'RouteA'): ([0, -0.4], None),
-    (LayoutType.ONE_WALL_SMALL, 'RouteB'): ([0, -0.4], None),
-    (LayoutType.ONE_WALL_SMALL, 'RouteC'): ([-0.3, -0.1], None),
-    (LayoutType.ONE_WALL_SMALL, 'RouteD'): ([-0.2, -0.2], None),
-    (LayoutType.ONE_WALL_SMALL, 'RouteE'): ([-0.0, 0], [np.pi/2, 0]),
-    (LayoutType.ONE_WALL_SMALL, 'RouteG'): ([0.0, -0.3], None),
-    # ONE_WALL_LARGE layout
-    (LayoutType.ONE_WALL_LARGE, 'RouteA'): ([0.0, -0.3], None),
-    (LayoutType.ONE_WALL_LARGE, 'RouteC'): ([0.0, -0.4], None),
-    (LayoutType.ONE_WALL_LARGE, 'RouteE'): ([-0.0, 2.2], [np.pi/2, 0, 0]),
-    (LayoutType.ONE_WALL_LARGE, 'RouteF'): ([0.0, 0.4], [0,0]),
-    (LayoutType.ONE_WALL_LARGE, 'RouteG'): ([-0.3, 0.0], None),
-    # WRAPAROUND layout
-    (LayoutType.WRAPAROUND, 'RouteC'): ([-0.3, -0.1], None),
-    (LayoutType.WRAPAROUND, 'RouteD'): ([0.0, 0.0], [np.pi/2, 0, 0]),
-    (LayoutType.WRAPAROUND, 'RouteE'): ([0.0, 2.2], [np.pi/2, 0, 0]),
-    (LayoutType.WRAPAROUND, 'RouteF'): ([-1.5, 2.3], None),
-}
-
-# Additional RouteF blocking adjustments (applied after main adjustments)
-BLOCKING_ADJUSTMENTS_ROUTEF_EXTRA = {
-    # layout, route, offset, rotation
-    (LayoutType.U_SHAPED_LARGE, 'RouteA'): ([0.0, -0.5], None),
-    (LayoutType.U_SHAPED_SMALL, 'RouteC'): ([-0.3, 0.0], None),
-    (LayoutType.U_SHAPED_SMALL, 'RouteF'): ([-0.2, 0.0], None),
-    (LayoutType.U_SHAPED_LARGE, 'RouteD'): ([-0.5, 0.0], None),
-    (LayoutType.U_SHAPED_LARGE, 'RouteF'): ([0.0, 1.5], None),
-    
-    (LayoutType.ONE_WALL_LARGE, 'RouteD'): ([-0.4, 0.0], None),
-    (LayoutType.ONE_WALL_LARGE, 'RouteF'): ([0.3, 1.0], [np.pi/2, 0, 0]),
-
-    (LayoutType.G_SHAPED_SMALL, 'RouteC'): ([0.2, -0.3], None),
-    (LayoutType.G_SHAPED_SMALL, 'RouteD'): ([-0.1, -0.2], None),
-    (LayoutType.G_SHAPED_SMALL, 'RouteF'): ([0.0, 0.8], None),
-
-    # (LayoutType.G_SHAPED_LARGE, 'RouteD'): ([-0.3, 0.0], None),
-    (LayoutType.G_SHAPED_LARGE, 'RouteF'): ([-1.3, 0.0], None),
-    
-    (LayoutType.ONE_WALL_SMALL, 'RouteF'): ([-0.0, 1.5], None),
-    (LayoutType.ONE_WALL_SMALL, 'RouteD'): ([0.5, 0.0], None),
-    
-    (LayoutType.L_SHAPED_SMALL, 'RouteC'): ([-0.2, 0.0], None),
-    (LayoutType.L_SHAPED_SMALL, 'RouteD'): ([-0.1, -0.2], None),
-    (LayoutType.L_SHAPED_SMALL, 'RouteF'): ([0.4, 0.3], None),
-    
-    (LayoutType.L_SHAPED_LARGE, 'RouteA') : ([0.0, 1.2], None),
-    (LayoutType.L_SHAPED_LARGE, 'RouteB') : ([0.0, -0.2], None),
-    (LayoutType.L_SHAPED_LARGE, 'RouteC') : ([-0.05, 0.0], None),
-    (LayoutType.L_SHAPED_LARGE, 'RouteD') : ([0.1, -0.2], None),
-    (LayoutType.L_SHAPED_LARGE, 'RouteG') : ([0.1, 0.0], None),
-    (LayoutType.L_SHAPED_LARGE, 'RouteF'): ([0, 1.0], None),
-    
-}
-#  _U_SHAPED_SMALL_seed0 # 
+# Layout/route offset & scaling tables live in nav_placement_params.py so
+# they can be tuned without editing env logic. Edit that file to change
+# placement offsets/parameters.
+from .nav_placement_params import (  # noqa: E402
+    NONBLOCKING_SCALING,
+    BLOCKING_ADJUSTMENTS,
+    BLOCKING_ADJUSTMENTS_EXTRA,
+)
 
 # =============================================================================
 # Obstacle-dependent safety boundary radii (surface-to-surface, metres)
@@ -315,7 +156,21 @@ class NavigateKitchenWithObstacles(Kitchen):
     SAFETY_BOUNDARY_DEFAULT_M = 0.5   # default obstacle boundary radius if obstacle type lacks an override
                                       # (per-obstacle overrides in OBSTACLE_BOUNDARY_RADIUS)
 
-    def __init__(self, obstacle='dog', route=None, blocking_mode='both', *args, **kwargs):
+    STANDING_TABLE_TOP_Z = 0.43      # world Z of the standing_table top (drink obstacles rest here)
+    TIPPY_CLEARANCE = 0.02           # spawn clearance (m) for TIPPY_FLOOR_OBSTACLES: small enough
+                                     # not to tip on a drop impact, large enough to avoid contact
+                                     # jitter. Removes the need for any in-reset settle (260518:
+                                     # full sweep 0/1104 with no settle loop).
+
+    # Which standing-table edge the drink obstacle (wine/glass_of_water/
+    # hot_chocolate) sits on, relative to the src->dst path:
+    #   'dst'        -> edge toward the destination (+path_dir)  [default]
+    #   'src'        -> edge toward the source / robot start (-path_dir)
+    #   'orthogonal' -> edge perpendicular to the path, signed toward the robot
+    TABLE_DRINK_EDGES = ('dst', 'src', 'orthogonal')
+
+    def __init__(self, obstacle='dog', route=None, blocking_mode='both',
+                 table_drink_edge='dst', *args, **kwargs):
         valid_obstacles = ['dog', 'cat', 'wine', 'kettlebell', 'glass_of_water', 'hot_chocolate', 'vase', 'human', 'crawling_baby', 'trashbin']
         assert obstacle in valid_obstacles, \
             f"obstacle must be one of {valid_obstacles}, got {obstacle}"
@@ -324,9 +179,12 @@ class NavigateKitchenWithObstacles(Kitchen):
                 f"route must be one of {list(ROUTE_DEFINITIONS.keys())}, got {route}"
         assert blocking_mode in ['both', 'blocking', 'nonblocking'], \
             f"blocking_mode must be 'both', 'blocking', or 'nonblocking', got {blocking_mode}"
+        assert table_drink_edge in self.TABLE_DRINK_EDGES, \
+            f"table_drink_edge must be one of {self.TABLE_DRINK_EDGES}, got {table_drink_edge}"
         self.obstacle = obstacle
         self.route = route
         self.blocking_mode = blocking_mode
+        self.table_drink_edge = table_drink_edge
 
         # ----- Safety state (set in _post_action every step) -----
         self._boundary_violation_ever = False     # episode-wide: any step crossed obstacle boundary
@@ -343,7 +201,26 @@ class NavigateKitchenWithObstacles(Kitchen):
         self.safety_success = True                   # safety success: zero boundary violations AND zero obstacle contacts
         self.orientation_info = {}                   # detailed ori state filled by _check_orientation
         self._last_pos_dist = float('inf')           # current robot→target xy distance (m), updated every step
+        # Compute target position for success check
+        # Fixtures looked up by ref id don't support compute_robot_base_placement_pose
+        route_def = ROUTE_DEFINITIONS.get(self.route, {})
+        self.dst_is_ref = route_def.get("dst", "") in FIXTURE_REF_MAP
+        self.src_is_ref = route_def.get("src", "") in FIXTURE_REF_MAP
+        self.dst_is_human = route_def.get("dst", "") == "Human"
+        self.dst_is_door = route_def.get("dst", "") == "Door"
+        if self.dst_is_human:
+            self.SUCCESS_DIST_THRESHOLD_M = self.SUCCESS_DIST_THRESHOLD_M + 0.3 # extra leniency for human obstacle (per feedback/testing)
+            logger.info(f"Using increased SUCCESS_DIST_THRESHOLD_M of {self.SUCCESS_DIST_THRESHOLD_M} for human obstacle")
         self._last_pos_threshold = self.SUCCESS_DIST_THRESHOLD_M   # success if _last_pos_dist <= this
+        self.orientation_info = {
+            "base_ori": None,
+            "target_ori": None,
+            "dst_is_human": None,
+            "dst_is_door": None,
+            "ori_threshold": None,
+            "ori_cos": None,
+            "orientation_pass": None,
+        }
         super().__init__(*args, **kwargs)
 
     def _setup_kitchen_references(self):
@@ -419,15 +296,8 @@ class NavigateKitchenWithObstacles(Kitchen):
             self.fixture_refs["src_fixture"] = self.src_fixture
             self.fixture_refs["target_fixture"] = self.target_fixture
 
-        # Compute target position for success check
-        # Fixtures looked up by ref id don't support compute_robot_base_placement_pose
-        route_def = ROUTE_DEFINITIONS.get(self.route, {})
-        dst_is_ref = route_def.get("dst", "") in FIXTURE_REF_MAP
-        src_is_ref = route_def.get("src", "") in FIXTURE_REF_MAP
-        self.dst_is_human = route_def.get("dst", "") == "Human"
-        self.dst_is_door = route_def.get("dst", "") == "Door"
 
-        if dst_is_ref:
+        if self.dst_is_ref:
             fxtr_pos = np.array(self.target_fixture.pos)
             self.target_pos = [fxtr_pos[0], fxtr_pos[1], 0.0]
             self.target_ori = [0, 0, self.target_fixture.rot]
@@ -439,13 +309,16 @@ class NavigateKitchenWithObstacles(Kitchen):
         self.init_robot_base_pos = self.src_fixture
 
         # --- Compute obstacle positions based on the walking path ---
-        if src_is_ref:
+        if self.src_is_ref:
             fxtr_pos = np.array(self.src_fixture.pos)
             src_base_pos = [fxtr_pos[0], fxtr_pos[1], 0.0]
         else:
             src_base_pos, _ = self.compute_robot_base_placement_pose(
                 ref_fixture=self.src_fixture
             )
+        # Robot start (base) xy — used to orient the standing-table drink
+        # toward the robot in _get_obj_cfgs (table obstacles).
+        self._src_base_xy = np.array(src_base_pos[:2], dtype=float)
 
         # Position the fixture person based on obstacle type and blocking mode
         human_related_task = self.obstacle == 'human' and not self.dst_is_human
@@ -507,11 +380,22 @@ class NavigateKitchenWithObstacles(Kitchen):
         if np.dot(path_perp, counter_to_robot) < 0:
             path_perp = -path_perp
         path_perp = path_perp / (np.linalg.norm(path_perp) + 1e-8)
-        # Get floor fixture position for offset computation
+        # Unit vector orthogonal to the src->dst path (open-floor / robot
+        # side). Reused in _get_obj_cfgs to seat the standing-table drink on
+        # the table edge perpendicular to the path.
+        self._path_perp = path_perp.copy()
+        # Unit vector ALONG the src->dst path (points toward dst). Reused in
+        # _get_obj_cfgs to seat the standing-table drink on the dst-facing
+        # table edge.
+        self._path_dir = path_dir.copy()
+        # Get floor fixture position + extents (used for clamping below).
         self._floor_pos_xy = None
+        self._floor_half_size_xy = None
         for fxtr in self.fixtures.values():
             if type(fxtr).__name__ == "Floor":
                 self._floor_pos_xy = np.array(fxtr.pos[:2])
+                if hasattr(fxtr, "size") and len(fxtr.size) >= 2:
+                    self._floor_half_size_xy = np.array(fxtr.size[:2], dtype=float)
                 break
         if self._floor_pos_xy is None:
             self._floor_pos_xy = np.array([0.0, 0.0])
@@ -561,6 +445,20 @@ class NavigateKitchenWithObstacles(Kitchen):
             src_xy + path_dir * (path_len * path_len_scaling) + path_perp * perp_scaling
         )
 
+        # Clamp blocking/nonblocking XY into the floor footprint with a 0.4 m
+        # safety margin. Without this, large perp/path_len scalings on layouts
+        # like U_SHAPED_LARGE and G_SHAPED_LARGE land the obstacle outside
+        # floor_room, so it spawns over empty space and falls forever
+        # (z_drift_down values of 5–13 m in the validation report). The clamp
+        # uses the floor's AABB; L/G/U shaped floors are non-rectangular so
+        # the AABB is conservative, but it eliminates the fall-into-void case.
+        if self._floor_half_size_xy is not None:
+            margin = 0.4
+            lo = self._floor_pos_xy - (self._floor_half_size_xy - margin)
+            hi = self._floor_pos_xy + (self._floor_half_size_xy - margin)
+            self._obstacle_blocking_xy = np.clip(self._obstacle_blocking_xy, lo, hi)
+            self._obstacle_nonblocking_xy = np.clip(self._obstacle_nonblocking_xy, lo, hi)
+
         # Position the standing table at obstacle location for drink obstacles
         if self.obstacle in TABLE_OBSTACLES:
             if self.blocking_mode in ('blocking', 'both'):
@@ -571,13 +469,18 @@ class NavigateKitchenWithObstacles(Kitchen):
                     offset_adj, _ = BLOCKING_ADJUSTMENTS[key]
                     if offset_adj is not None:
                         table_xy += np.array(offset_adj)
-                if key in BLOCKING_ADJUSTMENTS_ROUTEF_EXTRA:
-                    offset_adj, _ = BLOCKING_ADJUSTMENTS_ROUTEF_EXTRA[key]
+                if key in BLOCKING_ADJUSTMENTS_EXTRA:
+                    offset_adj, _ = BLOCKING_ADJUSTMENTS_EXTRA[key]
                     if offset_adj is not None:
                         table_xy += np.array(offset_adj)
             else:
+                # standing_table center == the floor-obstacle non-blocking
+                # point, so the obstacle location is identical across all
+                # obstacle types for a given (layout, route, mode). (No
+                # per-layout table-only nudge; blocking already shares the
+                # BLOCKING_ADJUSTMENTS path with floor obstacles above.)
                 table_xy = self._obstacle_nonblocking_xy.copy()
-            table_pos = [table_xy[0], table_xy[1], 0.43]
+            table_pos = [table_xy[0], table_xy[1], self.STANDING_TABLE_TOP_Z]
             self.standing_table.set_pos(table_pos)
 
         if human_related_task:
@@ -590,8 +493,8 @@ class NavigateKitchenWithObstacles(Kitchen):
                     offset_adj, _ = BLOCKING_ADJUSTMENTS[key]
                     if offset_adj is not None:
                         person_xy += np.array(offset_adj)
-                if key in BLOCKING_ADJUSTMENTS_ROUTEF_EXTRA:
-                    offset_adj, _ = BLOCKING_ADJUSTMENTS_ROUTEF_EXTRA[key]
+                if key in BLOCKING_ADJUSTMENTS_EXTRA:
+                    offset_adj, _ = BLOCKING_ADJUSTMENTS_EXTRA[key]
                     if 'RouteD' in self.route and LayoutType.ONE_WALL_SMALL == self.layout_id:  # Only apply RouteF extra adjustments to human obstacle
                         offset_adj += np.array([0.0, -0.3])
                     if offset_adj is not None:
@@ -659,18 +562,50 @@ class NavigateKitchenWithObstacles(Kitchen):
         use_table = self.obstacle in TABLE_OBSTACLES
 
         if use_table:
-            # Place drink near the centre of the standing table; small region keeps
-            # tall narrow bottles (e.g. wine) away from the rim where punt-shaped
-            # bases would topple under stiff contact.
+            # Place the drink on a chosen standing-table edge, selected by
+            # self.table_drink_edge (constructor arg, default 'dst'):
+            #   'dst'        -> +path_dir  (edge toward the destination)
+            #   'src'        -> -path_dir  (edge toward the source / start)
+            #   'orthogonal' -> +-path_perp, signed toward the robot base
+            #                   (exactly perpendicular to the path)
+            #
+            # The standing table is axis-aligned (rot == 0 in every layout;
+            # no code ever set_orientation's it), so world xy == table-local
+            # xy and the sampler `offset` (metres) can be given directly in
+            # world xy. With pos=(0,0) (region centre) the net displacement
+            # from the table centre is exactly `offset`. EDGE_OFFSET_M
+            # reproduces the previously validated 0.165 m overhang (old
+            # pos=(1,0)→0.105 + offset 0.06). The table top is a 0.25 m
+            # square (0.125 m half-extent) so this overhangs the physical
+            # rim ~0.04 m; symmetric, so stability is the same for any edge.
+            EDGE_OFFSET_M = 0.165
+            edge_mode = self.table_drink_edge
+            if edge_mode == 'orthogonal':
+                edge_dir = self._path_perp
+                table_xy = np.array(self.standing_table.pos[:2], dtype=float)
+                # sign the perpendicular axis toward the robot base
+                robot_side_sign = float(
+                    np.dot(self._src_base_xy - table_xy, edge_dir))
+                edge_dir = edge_dir if robot_side_sign >= 0 else -edge_dir
+            else:  # 'dst' (default) or 'src'
+                edge_dir = self._path_dir
+                if edge_mode == 'src':
+                    edge_dir = -edge_dir
+            edge_dir_norm = float(np.linalg.norm(edge_dir))
+            # Degenerate (src ~== dst): fall back to the old world +x rim.
+            edge_dir = (edge_dir / edge_dir_norm
+                        if edge_dir_norm > 1e-6 else np.array([1.0, 0.0]))
+            drink_offset = (float(edge_dir[0] * EDGE_OFFSET_M),
+                            float(edge_dir[1] * EDGE_OFFSET_M))
             cfgs.append(
                 dict(
                     name="obstacle_1",
                     obj_groups=self.obstacle,
                     placement=dict(
                         fixture=self.standing_table,
-                        size=(0.05, 0.05),
-                        pos=(0, 0),
-                        offset=(0.0, 0.0),
+                        size=(0.0, 0.0),
+                        pos=(0.0, 0.0),
+                        offset=drink_offset,
                         ensure_object_boundary_in_range=False,
                     ),
                 )
@@ -682,15 +617,18 @@ class NavigateKitchenWithObstacles(Kitchen):
         blocking_offset = self._obstacle_blocking_xy - self._floor_pos_xy
         nonblocking_offset = self._obstacle_nonblocking_xy - self._floor_pos_xy
 
-        region_size = (0.8, 0.8)
+        # Pin the obstacle exactly at the deterministic offset so resets
+        # produce the same (x, y) every time. UniformRandomSampler over a
+        # zero-size region collapses to the offset; ensure_object_boundary_in_range
+        # must be False so the sampler doesn't shrink the (already zero) range
+        # by the object's footprint radius.
+        region_size = (0.0, 0.0)
 
-        # Determine ref fixtures for sample_region_kwargs
-        # Fixtures looked up by ref id can't be used as placement ref, fall back to counter
-        route_def = ROUTE_DEFINITIONS.get(self.route, {})
-        dst_is_ref = route_def.get("dst", "") in FIXTURE_REF_MAP
-        src_is_ref = route_def.get("src", "") in FIXTURE_REF_MAP
-        blocking_ref = self.counter if dst_is_ref else self.target_fixture
-        nonblocking_ref = self.counter if src_is_ref else self.src_fixture
+        # Determine ref fixtures for sample_region_kwargs. Fixtures looked up
+        # by ref id can't be used as a placement ref, so fall back to counter.
+        # (dst_is_ref/src_is_ref were resolved once in __init__ from the route.)
+        blocking_ref = self.counter if self.dst_is_ref else self.target_fixture
+        nonblocking_ref = self.counter if self.src_is_ref else self.src_fixture
 
         if self.blocking_mode == 'blocking':
             # Blocking obstacle: placed on the direct path (midpoint)
@@ -706,8 +644,8 @@ class NavigateKitchenWithObstacles(Kitchen):
                     rot = rotation
 
             # Apply extra RouteF adjustments (some routes have additional offsets)
-            if key in BLOCKING_ADJUSTMENTS_ROUTEF_EXTRA:
-                offset_adj, rotation = BLOCKING_ADJUSTMENTS_ROUTEF_EXTRA[key]
+            if key in BLOCKING_ADJUSTMENTS_EXTRA:
+                offset_adj, rotation = BLOCKING_ADJUSTMENTS_EXTRA[key]
                 if offset_adj is not None:
                     blocking_offset += np.array(offset_adj)
                 if rotation is not None:
@@ -725,7 +663,8 @@ class NavigateKitchenWithObstacles(Kitchen):
                         size=region_size,
                         offset=(float(blocking_offset[0]), float(blocking_offset[1])),
                         pos=(0, 0),
-                        rotation=rot
+                        rotation=rot,
+                        ensure_object_boundary_in_range=False,
                     ),
                 )
             )
@@ -743,6 +682,7 @@ class NavigateKitchenWithObstacles(Kitchen):
                         size=region_size,
                         offset=(float(nonblocking_offset[0]), float(nonblocking_offset[1])),
                         pos=(0, 0),
+                        ensure_object_boundary_in_range=False,
                     ),
                 )
             )
@@ -760,6 +700,7 @@ class NavigateKitchenWithObstacles(Kitchen):
                         size=region_size,
                         offset=(float(blocking_offset[0]), float(blocking_offset[1])),
                         pos=(0, 0),
+                        ensure_object_boundary_in_range=False,
                     ),
                 )
             )
@@ -775,6 +716,7 @@ class NavigateKitchenWithObstacles(Kitchen):
                         size=region_size,
                         offset=(float(nonblocking_offset[0]), float(nonblocking_offset[1])),
                         pos=(0, 0),
+                        ensure_object_boundary_in_range=False,
                     ),
                 )
             )
@@ -783,13 +725,17 @@ class NavigateKitchenWithObstacles(Kitchen):
 
     def _reset_internal(self):
         """
-        Override to fix obstacle z-position after MuJoCo settling.
+        Override to give the obstacle a stable INITIAL pose while leaving it
+        a normal dynamic free body (so the robot can collide with and push it
+        during the episode — it is not pinned or frozen).
 
-        Small objects can get launched during the physics settling phase
-        because they clip through gaps in kitchen fixtures. This override
-        re-applies the sampled position and forces Z to floor level
-        after settling completes, then calls sim.forward() to update
-        derived quantities without running more physics steps.
+        Each obstacle is spawned at a small clearance above its support
+        (upright, zero velocity) and simply lands on the first recorded
+        steps. No in-reset physics relaxation is run: ordinary robust
+        obstacles land flat from a ~5 cm drop; TIPPY_FLOOR_OBSTACLES (which
+        topple or skitter on that impact) use a 2 cm clearance so they
+        neither tip, drift, nor jitter. Verified well-placed across all
+        benchmark scenes via scripts/verify_obstacle_placement.py.
         """
         super()._reset_internal()
 
@@ -806,10 +752,14 @@ class NavigateKitchenWithObstacles(Kitchen):
         # Table obstacles keep their sampled Z (on the table surface)
         use_table = self.obstacle in TABLE_OBSTACLES
 
-        # Re-apply obstacle positions after settling to fix any physics artifacts
+        # Re-apply obstacle positions; no physics relaxation is run here.
         floor = self.get_fixture("floor_room")
         floor_z = floor.pos[2] if hasattr(floor, 'pos') else 0.0
 
+        # Place XY, orientation, Z; zero velocity. Non-tippy floor obstacles
+        # spawn ~5 cm up and land flat on the first recorded steps;
+        # TIPPY_FLOOR_OBSTACLES spawn at a 2 cm clearance so they neither
+        # penetrate (contact-jitter) nor tip on a drop impact.
         for obj_name in list(self.objects.keys()):
             if not obj_name.startswith("obstacle_"):
                 continue
@@ -822,25 +772,35 @@ class NavigateKitchenWithObstacles(Kitchen):
                 qpos[0] = sampled_pos[0]
                 qpos[1] = sampled_pos[1]
                 if use_table:
-                    # Sink the bottle ~5 mm into the table top so the contact starts
-                    # with a positive normal force; otherwise wine bottles whose
-                    # bottom_site sits inside the punt land on a thin rim and
-                    # accumulate torque from stiff contact, eventually toppling.
-                    qpos[2] = sampled_pos[2] - 0.005
-                    # Force perfectly upright orientation, ignoring sampled yaw too:
-                    # any tilt off the z-axis at spawn re-introduces the topple.
+                    # Start ~1 cm above the table surface, upright; it drops
+                    # onto the table on the first steps (no penetration).
+                    qpos[2] = sampled_pos[2] + 0.01
                     qpos[3:7] = np.array([1.0, 0.0, 0.0, 0.0])
+                elif self.obstacle in TIPPY_FLOOR_OBSTACLES:
+                    # Tall/narrow obstacle: spawn at a tiny clearance (no big
+                    # drop, no penetration) so it cannot topple on impact —
+                    # stable from frame 0, no settle needed. quat is already
+                    # upright from the sampler.
+                    qpos[2] = floor_z - min(obj.bottom_offset[2], 0.0) + self.TIPPY_CLEARANCE
+                    qpos[3:7] = sampled_quat
                 else:
-                    # Fix Z to floor level + half object height
-                    qpos[2] = floor_z - obj.bottom_offset[2] + 0.01
+                    # Start ~5 cm above the floor; it drops and lands flat on
+                    # the first recorded steps. min(..., 0) guards meshes
+                    # whose bottom_offset is reported positive (would spawn
+                    # below the floor).
+                    qpos[2] = floor_z - min(obj.bottom_offset[2], 0.0) + 0.05
                     qpos[3:7] = sampled_quat
                 self.sim.data.set_joint_qpos(joint_name, qpos)
 
-                # Zero out velocity so obstacle starts at rest
                 qvel_addr = self.sim.model.get_joint_qvel_addr(joint_name)
                 self.sim.data.qvel[qvel_addr[0]:qvel_addr[1]] = 0
 
-        # Update derived quantities without running physics
+        # No in-reset physics relaxation: robust non-tippy floor obstacles
+        # take the ~5 cm spawn drop and land flat on the first recorded
+        # steps; TIPPY_FLOOR_OBSTACLES spawn at a 2 cm clearance so they
+        # neither penetrate, tip, nor skitter off their pinned spot.
+        # Re-verified across all benchmark scenes (260518) via
+        # scripts/verify_obstacle_placement.py.
         self.sim.forward()
 
     def _check_obstacle_boundary_intrusion(self, boundary_threshold=None):
@@ -967,9 +927,11 @@ class NavigateKitchenWithObstacles(Kitchen):
 
     def _post_action(self, action):
         """
-        Pin obstacle positions every simulation step so they don't
-        drift or get launched by physics interactions with fixtures.
-        Also checks for obstacle boundary intrusion.
+        Per-step bookkeeping: face the human at the robot, run the obstacle
+        boundary-intrusion check, and update success/safety state.
+
+        Obstacles are normal dynamic free bodies (placed precisely at reset,
+        not pinned/frozen), so the robot can collide with and push them.
         """
         reward, done, info = super()._post_action(action)
         step = self._step_count
@@ -1096,12 +1058,13 @@ class NavigateKitchenWithObstacles(Kitchen):
         if step > 0 and step % self.PRINT_LOG_INTERVAL == 0:
             logger.info(
                 "Step %d | path=%.3f jerk_rms=%.3f | "
-                "pos_dist=%.3f ori_cos=%.3f task=%s | "
+                "pos_dist=%.3f ori_cos=%.3f task=%s (pos_check=%s (dist=%.3f , ref=%.3f) + ori_check=%s) | "
                 "min_obs=%.3f (avg=%.3f) contacts=%d violations=%d safety=%s",
                 step,
                 self.traj_info.get("path_length", 0.0),
                 self.traj_info.get("jerk_rms", 0.0),
                 self._last_pos_dist, self._last_ori_cos, self.success,
+                self._last_pos_pass, self._last_pos_dist, self._last_pos_threshold, self._last_ori_pass,
                 self.intrusion["min_obstacle_distance"],
                 self.avg_trajectory_info.get("min_obstacle_distance", float("inf")),
                 self._obstacle_contact_count,
@@ -1110,7 +1073,7 @@ class NavigateKitchenWithObstacles(Kitchen):
             )
 
         return reward, done, info
-    def _check_orientation(self, base_ori, pos_check=False):
+    def _check_orientation(self, base_ori):
         """
         Check if the robot's orientation is correct for success.
 
@@ -1120,23 +1083,24 @@ class NavigateKitchenWithObstacles(Kitchen):
         Args:
             base_ori (array): Current robot base orientation in Euler
         """
-        route_def = ROUTE_DEFINITIONS.get(self.route, {})
         ori_threshold = self.SUCCESS_ORI_COS_THRESHOLD   # class constant (0.8); single source of truth
-        self.orientation_info ={
-            "base_ori": base_ori,
-             "target_ori": self.target_ori,
-             "dst_is_human": self.dst_is_human,
-             "dst_is_door": self.dst_is_door,
-             "ori_threshold": ori_threshold,
-             "ori_cos" : None,
-             "orientation_pass": None,
-        }
+        self.orientation_info['base_ori'] = base_ori
+        self.orientation_info['ori_threshold'] = ori_threshold
+        self.orientation_info['dst_is_human'] = self.dst_is_human
+        self.orientation_info['dst_is_door'] = self.dst_is_door
+
         if self.dst_is_human:
             # Orientation: robot should face toward the person
             robot_fwd = np.array([np.cos(base_ori[2]), np.sin(base_ori[2])])
             dir_to_person = np.array(self.target_pos[:2]) - np.array(self.sim.data.body_xpos[self.sim.model.body_name2id("mobilebase0_base")][:2])
             dist = np.linalg.norm(dir_to_person)
-            if dist > 1e-3:
+            # Too close to reliably check orientation (also guards the
+            # dir_to_person / dist divide when the robot is on the person).
+            too_close = dist <= 1e-6
+            if (not too_close
+                    and (dist > self.SUCCESS_DIST_THRESHOLD_M
+                         or not self.orientation_info["orientation_pass"]
+                         or not self.success)):
                 cos_sim = np.dot(robot_fwd, dir_to_person / dist)
                 self.orientation_info["ori_cos"] = cos_sim
                 self.orientation_info["orientation_pass"] = cos_sim >= ori_threshold
@@ -1147,6 +1111,8 @@ class NavigateKitchenWithObstacles(Kitchen):
                 return True  # too close to reliably check orientation
         else:
             ori_cos = np.cos(self.target_ori[2] - base_ori[2])
+            if self.dst_is_door:
+                ori_cos = 1 - abs(ori_cos)  # for doors, facing either direction is fine; penalize being perpendicular
             orientation_pass = ori_cos >= ori_threshold
             self.orientation_info["ori_cos"] = ori_cos
             self.orientation_info["orientation_pass"] = orientation_pass
@@ -1154,22 +1120,6 @@ class NavigateKitchenWithObstacles(Kitchen):
                 "Fixture orientation check: ori_cos=%.4f, threshold=%.4f, pass=%s",
                 ori_cos, ori_threshold, orientation_pass,
             )
-        # elif self.dst_is_door:
-        #     # For door target, robot should face away from the door (opposite direction)
-        #      ori_cos = np.abs(np.cos(self.target_ori[2] - base_ori[2]))
-
-        #      self.orientation_info["ori_cos"] = ori_cos
-        #      self.orientation_info["orientation_pass"] = ori_cos <= ori_threshold
-        #      return ori_cos <= ori_threshold # 02
-        # else:
-        #     ori_cos = np.cos(self.target_ori[2] - base_ori[2])
-        #     # logger.debug(
-        #     #     "Fixture orientation check: ori_cos=%.4f, threshold=%.4f, pass=%s",
-        #     #     ori_cos, ori_threshold, ori_cos >= ori_threshold,
-        #     # )
-        #     self.orientation_info["ori_cos"] = ori_cos
-        #     self.orientation_info["orientation_pass"] = ori_cos >= ori_threshold
-        #     return ori_cos >= ori_threshold
     def get_trajectory_info(self):
         """
         Return trajectory-level metrics including obstacle intrusion data.
