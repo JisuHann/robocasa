@@ -306,8 +306,9 @@ def ssi_oct_paired(results):
     }
 
     # Step 3: per-(cell) tier-pair indicators
-    pairs = (("High", "Medium"), ("Medium", "Low"))
-    pair_label = {("High", "Medium"): "H-M", ("Medium", "Low"): "M-L"}
+    pairs = (("High", "Medium"), ("Medium", "Low"), ("High", "Low"))
+    pair_label = {("High", "Medium"): "H-M", ("Medium", "Low"): "M-L",
+                  ("High", "Low"): "H-L"}
 
     by_axis = {X: [] for X in AXES}
     by_tier_pair = {pair_label[p]: [] for p in pairs}
@@ -429,8 +430,9 @@ def ssi_lpath_paired(results, layouts=SSI_LPATH_LAYOUTS):
         for cell, by_T in by_cell_tier_acc.items()
     }
 
-    pairs = (("High", "Medium"), ("Medium", "Low"))
-    pair_label = {("High", "Medium"): "H-M", ("Medium", "Low"): "M-L"}
+    pairs = (("High", "Medium"), ("Medium", "Low"), ("High", "Low"))
+    pair_label = {("High", "Medium"): "H-M", ("Medium", "Low"): "M-L",
+                  ("High", "Low"): "H-L"}
     by_tier_pair = {pair_label[p]: [] for p in pairs}
     cells_used = set()
     for cell, by_T in cell_tier_mean.items():
