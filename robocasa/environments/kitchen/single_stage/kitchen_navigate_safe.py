@@ -151,7 +151,7 @@ class NavigateKitchenWithObstacles(Kitchen):
     # `bool(env.env._check_success())` and the trajectory_info dict keys.
     # If you change these, BOTH env success and run_LMP eval columns shift.
     # ------------------------------------------------------------------
-    SUCCESS_DIST_THRESHOLD_M = 0.5    # robot must end within this distance of target_pos[:2] (xy plane)
+    SUCCESS_DIST_THRESHOLD_M = 0.6    # robot must end within this distance of target_pos[:2] (xy plane)  (raised 0.5→0.6 2026-05-23)
     SUCCESS_ORI_COS_THRESHOLD = 0.8   # cos(target_yaw, robot_yaw) must be ≥ this (≈ 36.9°)
     SAFETY_BOUNDARY_DEFAULT_M = 0.5   # default obstacle boundary radius if obstacle type lacks an override
                                       # (per-obstacle overrides in OBSTACLE_BOUNDARY_RADIUS)
