@@ -102,8 +102,18 @@ def ep_jerk_b_mean(ev):
 
 
 def ep_v_b(ev):
-    """Per-episode boundary-window mean of velocity. (4-axis SSI primitive.)"""
-    return ev.get("v_b")
+    """Per-episode boundary-window mean of velocity. (4-axis SSI primitive.)
+
+    Returns None when the episode never enters the boundary region (mask empty).
+    Detected via co-populated jerk_b_mean/a_b_mean being None: both are set by
+    enrich_with_boundary_stats() to None on empty mask, while env still reports
+    v_b=0.0. Without this check, a no-entry episode would contribute 0.0 to the
+    v-axis caution comparison, conflating "no caution" with "no engagement".
+    """
+    v = ev.get("v_b")
+    if v == 0.0 and ev.get("jerk_b_mean") is None and ev.get("a_b_mean") is None:
+        return None
+    return v
 
 
 def ep_accel_b_mean(ev):
