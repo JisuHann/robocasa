@@ -175,7 +175,10 @@ class HandOver(Kitchen):
             dict: Episode metadata with 'lang' key describing the task.
         """
         ep_meta = super().get_ep_meta()
-        obj_lang = self.get_obj_lang()
+        try:
+            obj_lang = self.get_obj_lang()
+        except (TypeError, KeyError, AttributeError):
+            obj_lang = self.hand_over_obj_name.replace("_", " ")
         if self.behavior == "HandOver":
             ep_meta[
                 "lang"
