@@ -99,6 +99,22 @@ def create_env(
     env = robosuite.make(**env_kwargs)
     return env
 
+# ===== 액션 인덱스 (테이블 기준 고정) =====
+IDX_FWD_BACK = 7     # 앞으로/뒤로
+IDX_LEFT_RIGHT = 8   # 왼/오
+IDX_LEFT_TURN=9      # 왼쪽으로 돌기t
+IDX_UP = 10          # 위로
+IDX_DOWN = 11        # 아래로 (양수 가속)
+IDX_YAW = 3          # 시계/반시계 (부호로 양방향)
+IDX_PITCH = 4        # 앞/뒤로 돌기
+IDX_ROLL = 5         # 왼/오로 돌기
+IDX_GRIP = 6         # 집기(그리퍼)
+IDX_GRIP_FRONT = 0   # 그리퍼 앞으로
+IDX_GRIP_LEFT = 1    # 그리퍼 왼쪽으로
+IDX_GRIP_UP = 2      # 그리퍼 위로
+lin = 1.0
+rot = 0.5
+grip = 1.0
 
 def run_simulation(
     env,
@@ -133,7 +149,8 @@ def run_simulation(
     writer = imageio.get_writer(record_path, fps=20) if record_path else None
 
     low, high = env.action_spec
-    # obs = env.reset()
+    if action_mode != "zero":
+        obs = env.reset()
 
     # Settle physics with zero actions before recording so the first frame
     # shows objects resting on surfaces instead of mid-clip / mid-fall.
@@ -155,9 +172,15 @@ def run_simulation(
 
     pbar = tqdm(range(horizon), desc="Running simulation")
     for t in pbar:
+        action = np.zeros_like(high)
         # Generate action
         if action_mode == "random":
             action = np.random.uniform(low, high)
+        elif action_mode == "turn_left":
+            if t < 25:
+                action[IDX_LEFT_TURN] += lin
+            elif 25 <= t < 50:
+                action[IDX_GRIP_FRONT] += lin
         else:  # zero
             action = np.zeros_like(high)
 
@@ -167,8 +190,7 @@ def run_simulation(
         # Record frame
         if writer is not None:
             frame = env.sim.render(height=render_height, width=render_width, camera_name=camera_name)[::-1]
-            
-            if t ==10 and args.capture_initial_stage:
+            if action_mode == "zero" and t == 10 and args.capture_initial_stage:
                 imageio.imwrite(os.path.join(os.path.dirname(record_path), f"initial_{os.path.basename(record_path).replace('.mp4', '.png')}"), frame)
             writer.append_data(frame)
         elif render_onscreen:
@@ -184,6 +206,8 @@ def run_simulation(
             except Exception as e:
                 pass  # Some environments may not have _check_success
 
+    if action_mode != 'zero' and args.capture_initial_stage:
+        imageio.imwrite(os.path.join(os.path.dirname(record_path), f"initial_{os.path.basename(record_path).replace('.mp4', '.png')}"), frame)
     if writer is not None:
         writer.close()
         logging.info(colored(f"Video saved: {record_path}", "green"))
@@ -219,7 +243,7 @@ def main():
     parser.add_argument('--no-human', action='store_true',
                         help='Disable human in the environment')
     parser.add_argument('--action_mode', type=str, default='zero',
-                        choices=['zero', 'random'],
+                        choices=['zero', 'random', 'turn_left'],
                         help='Action mode: zero (stationary) or random')
     parser.add_argument('--skip-existing', action='store_true',
                         help='Skip recording if file already exists')
@@ -231,6 +255,7 @@ def main():
                         help='Keyword to filter out environment names')
     parser.add_argument("--capture_initial_stage", action="store_true", help="capture initial step")
     parser.add_argument("--camera_view", type=str, default="topview", help="camera view for recording and rendering")
+    parser.add_argument("--camera_shape", type=int, nargs=2, default=[1024, 1536], help="camera resolution for recording and rendering (height width)")
     args = parser.parse_args()
 
     # Determine environments to run
@@ -341,6 +366,8 @@ def main():
                     record_path=record_file,
                     action_mode=args.action_mode,
                     render_onscreen=args.render_onscreen,
+                    width=args.camera_shape[1],
+                    height=args.camera_shape[0],
                     camera_name=args.camera_view,
                     args=args,
                 )

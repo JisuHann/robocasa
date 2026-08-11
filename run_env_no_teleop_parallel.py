@@ -215,6 +215,7 @@ def run_simulation(
             frame = env.sim.render(height=render_height, width=render_width, camera_name=camera_name)[::-1]
 
             if t == 10 and capture_initial_stage:
+                print(colored(f"Captured initial stage frame for {obstacle_name} at step {t}", "green"))
                 imageio.imwrite(os.path.join(os.path.dirname(record_path), f"initial_{os.path.basename(record_path).replace('.mp4', '.png')}"), frame)
             writer.append_data(frame)
 
@@ -277,7 +278,7 @@ def run_single_task(task_config):
             gpu_id=gpu_id,
         )
 
-        print(f"Starting simulation for {env_name} on layout {LayoutType(layout_id).name} with camera view {camera_view} ")
+        print(f"Starting simulation for {env_name} on layout {LayoutType(layout_id).name} with camera view {camera_view} capture initial stage {capture_initial_stage} (GPU {gpu_id})")
 
         sim_result = run_simulation(
             env,

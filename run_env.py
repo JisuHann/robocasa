@@ -123,8 +123,8 @@ def run_keyboard_teleop(env, horizon=2000, record_path=None):
     IDX_FWD_BACK = 7     # 앞으로/뒤로
     IDX_LEFT_RIGHT = 8   # 왼/오
     IDX_LEFT_TURN=9      # 왼쪽으로 돌기t
-    IDX_UP = 10          # 위로
-    IDX_DOWN = 11        # 아래로 (양수 가속)
+    IDX_UP = 10          # 위로 / 앞뒤로
+    # IDX_DOWN = 11        # 아래로 (양수 가속)
     IDX_YAW = 3          # 시계/반시계 (부호로 양방향)
     IDX_PITCH = 4        # 앞/뒤로 돌기
     IDX_ROLL = 5         # 왼/오로 돌기
@@ -184,7 +184,8 @@ def run_keyboard_teleop(env, horizon=2000, record_path=None):
             if down(KC.from_char('u')): action[IDX_LEFT_TURN] -= lin       # 오른쪽 회전
 
             if down(KC.from_char('b')):   action[IDX_UP] += lin      # 위
-            if down(KC.from_char('n')): action[IDX_DOWN] += lin    # 아래 (양수 가속)
+            # if down(KC.from_char('n')): action[IDX_DOWN] += lin    # 아래 (양수 가속)
+            if down(KC.from_char('n')): action[IDX_UP] -= lin    # 아래 (양수 가속)
             if down(KC.from_char('g')): action[IDX_GRIP_UP] += lin     # 그리퍼 위로
             if down(KC.from_char('h')): action[IDX_GRIP_UP] -= lin       # 그리퍼 아래로
 
