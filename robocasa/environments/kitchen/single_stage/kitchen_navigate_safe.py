@@ -329,29 +329,29 @@ class NavigateKitchenWithObstacles(Kitchen):
                 ref_fixture=self.sink
             )
             human_base_pos[2] = 0.832
-            if self.layout_id == LayoutType.G_SHAPED_SMALL:
+            if (self.layout_id % 10) == LayoutType.G_SHAPED_SMALL:
                 human_base_pos[0] -= 2.5
                 human_base_pos[1] -= 2.0
-            elif self.layout_id == LayoutType.G_SHAPED_LARGE:
+            elif (self.layout_id % 10) == LayoutType.G_SHAPED_LARGE:
                 # human_base_pos[0] += 3.5
                 human_base_pos[1] -= 1.5
-            elif self.layout_id == LayoutType.U_SHAPED_SMALL:
+            elif (self.layout_id % 10) == LayoutType.U_SHAPED_SMALL:
                 human_base_pos[0] += 2.0
                 human_base_pos[1] -= 2.0
-            elif self.layout_id == LayoutType.U_SHAPED_LARGE:
+            elif (self.layout_id % 10) == LayoutType.U_SHAPED_LARGE:
                 human_base_pos[1] -= 1.5
                 human_base_pos[0] += 2.0
-            elif self.layout_id == LayoutType.L_SHAPED_LARGE:
+            elif (self.layout_id % 10) == LayoutType.L_SHAPED_LARGE:
                 human_base_pos[0] += 6.0
-            elif self.layout_id == LayoutType.L_SHAPED_SMALL:
+            elif (self.layout_id % 10) == LayoutType.L_SHAPED_SMALL:
                 human_base_pos[0] -= 2.5
-            elif self.layout_id in [LayoutType.ONE_WALL_LARGE]:
+            elif (self.layout_id % 10) in [LayoutType.ONE_WALL_LARGE]:
                 human_base_pos[1] -= 1.0
                 human_base_pos[0] += 2.0
-            elif self.layout_id in [LayoutType.ONE_WALL_SMALL]:
+            elif (self.layout_id % 10) in [LayoutType.ONE_WALL_SMALL]:
                 human_base_pos[1] -= 1.5
                 human_base_pos[0] += 0.0
-            elif self.layout_id == LayoutType.GALLEY:
+            elif (self.layout_id % 10) == LayoutType.GALLEY:
                 human_base_pos[0] -= 0.5
                 human_base_pos[1] -= 2.5
             human_base_pos[1] -= 3.0
@@ -404,7 +404,7 @@ class NavigateKitchenWithObstacles(Kitchen):
         scaling_factor = 0.5 if path_len < 2.0 else 0.6
         if self.route == 'RouteF':
             scaling_factor = 0.8
-        if self.route == 'RouteG' and self.layout_id in [LayoutType.L_SHAPED_SMALL]:
+        if self.route == 'RouteG' and (self.layout_id % 10) in [LayoutType.L_SHAPED_SMALL]:
             scaling_factor = 0.57
         logger.debug("path_len: %s scaling_factor: %s", path_len, scaling_factor)
         self._obstacle_blocking_xy = src_xy + path_dir * (path_len * scaling_factor)
@@ -425,7 +425,7 @@ class NavigateKitchenWithObstacles(Kitchen):
                 path_len_scaling = pls
 
         # Apply layout+route specific scaling (overrides route-level)
-        key = (self.layout_id, self.route)
+        key = ((self.layout_id % 10), self.route)
         if key in NONBLOCKING_SCALING:
             ps, pls = NONBLOCKING_SCALING[key]
             if ps is not None:
@@ -433,12 +433,12 @@ class NavigateKitchenWithObstacles(Kitchen):
             if pls is not None:
                 path_len_scaling = pls
         # Handle ONE_WALL layouts for RouteE (special case)
-        elif self.route == 'RouteE' and 'ONE_WALL' in LayoutType(self.layout_id).name:
+        elif self.route == 'RouteE' and 'ONE_WALL' in LayoutType((self.layout_id % 10)).name:
             logger.debug("ONE WALL in RouteE")
             perp_scaling = 1.5
             path_len_scaling = 0.6
 
-        if self.layout_id == LayoutType.GALLEY:
+        if (self.layout_id % 10) == LayoutType.GALLEY:
             logger.debug("Route in GALLEY: %s", self.route)
         logger.debug("perp_scaling: %s path_len_scaling: %s", perp_scaling, path_len_scaling)
         self._obstacle_nonblocking_xy = (
@@ -464,7 +464,7 @@ class NavigateKitchenWithObstacles(Kitchen):
             if self.blocking_mode in ('blocking', 'both'):
                 table_xy = self._obstacle_blocking_xy.copy()
                 # Apply the same BLOCKING_ADJUSTMENTS offset used for the obstacle object
-                key = (self.layout_id, self.route)
+                key = ((self.layout_id % 10), self.route)
                 if key in BLOCKING_ADJUSTMENTS:
                     offset_adj, _ = BLOCKING_ADJUSTMENTS[key]
                     if offset_adj is not None:
@@ -488,14 +488,14 @@ class NavigateKitchenWithObstacles(Kitchen):
             if self.blocking_mode in ('blocking', 'both'):
                 person_xy = self._obstacle_blocking_xy.copy()
                 # Apply the same adjustments used for non-human obstacle objects
-                key = (self.layout_id, self.route)
+                key = ((self.layout_id % 10), self.route)
                 if key in BLOCKING_ADJUSTMENTS:
                     offset_adj, _ = BLOCKING_ADJUSTMENTS[key]
                     if offset_adj is not None:
                         person_xy += np.array(offset_adj)
                 if key in BLOCKING_ADJUSTMENTS_EXTRA:
                     offset_adj, _ = BLOCKING_ADJUSTMENTS_EXTRA[key]
-                    if 'RouteD' in self.route and LayoutType.ONE_WALL_SMALL == self.layout_id:  # Only apply RouteF extra adjustments to human obstacle
+                    if 'RouteD' in self.route and LayoutType.ONE_WALL_SMALL == (self.layout_id % 10):  # Only apply RouteF extra adjustments to human obstacle
                         offset_adj += np.array([0.0, -0.3])
                     if offset_adj is not None:
                         person_xy += np.array(offset_adj)
@@ -511,13 +511,13 @@ class NavigateKitchenWithObstacles(Kitchen):
             human_dir = robot_base_pos - np.array(person_pos)
             human_dir = human_dir / (np.linalg.norm(human_dir) + 1e-8)
             human_dir[1:] = 0
-            if self.layout_id == LayoutType.G_SHAPED_LARGE:
+            if (self.layout_id % 10) == LayoutType.G_SHAPED_LARGE:
                 human_dir[0] += np.pi/2
-            elif self.layout_id == LayoutType.L_SHAPED_SMALL:
+            elif (self.layout_id % 10) == LayoutType.L_SHAPED_SMALL:
                 human_dir[0] += np.pi/4
-            elif self.layout_id == LayoutType.G_SHAPED_SMALL:
+            elif (self.layout_id % 10) == LayoutType.G_SHAPED_SMALL:
                 human_dir[0] -= np.pi/4
-            elif self.layout_id == LayoutType.WRAPAROUND:
+            elif (self.layout_id % 10) == LayoutType.WRAPAROUND:
                 human_dir[0] += -1 * np.pi/2
             # human_yaw = np.arctan2(dir_to_robot[1], dir_to_robot[0])
             self.human.set_orientation(human_dir)
@@ -633,7 +633,7 @@ class NavigateKitchenWithObstacles(Kitchen):
         if self.blocking_mode == 'blocking':
             # Blocking obstacle: placed on the direct path (midpoint)
             rot = [0, 0, 0]
-            key = (self.layout_id, self.route)
+            key = ((self.layout_id % 10), self.route)
 
             # Apply adjustments from lookup table
             if key in BLOCKING_ADJUSTMENTS:
