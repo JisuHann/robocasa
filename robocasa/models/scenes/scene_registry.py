@@ -18,7 +18,18 @@ class LayoutType(IntEnum):
     G_SHAPED_SMALL = 7
     G_SHAPED_LARGE = 8
     WRAPAROUND = 9
-    # LAYOUT_TEST = 10
+    
+    ONE_WALL_SMALL_NO_WALL = 10
+    ONE_WALL_LARGE_NO_WALL = 11
+    L_SHAPED_SMALL_NO_WALL = 12
+    L_SHAPED_LARGE_NO_WALL = 13
+    GALLEY_NO_WALL = 14
+    U_SHAPED_SMALL_NO_WALL = 15
+    U_SHAPED_LARGE_NO_WALL = 16
+    G_SHAPED_SMALL_NO_WALL = 17
+    G_SHAPED_LARGE_NO_WALL = 18
+    WRAPAROUND_NO_WALL = 19
+    # LAYOUT_TEST = 20
     # negative values correspond to groups (see LAYOUT_GROUPS_TO_IDS)
     ALL = -1
     NO_ISLAND = -2

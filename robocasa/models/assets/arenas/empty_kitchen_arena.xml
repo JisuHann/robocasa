@@ -21,6 +21,11 @@
     
     <camera mode="fixed" name="routed_one_wall_large" pos="4.030 1.574 7.486" xyaxes="-1.000 -0.003 -0.000 0.003 -0.802 0.598"/>
     <camera mode="fixed" name="routed_one_wall_large_topview" pos="2.316 -3.210 12.763" xyaxes="1.000 0.001 0.000 -0.000 1.000 0.017"/>
+    <!-- # side view from human perspective -->
+    <!-- <camera mode="fixed" name="routed_one_wall_small" pos="2.836 -5.629 2.423" xyaxes="1.000 0.025 -0.000 -0.007 0.301 0.954"/> -->
+    <camera mode="fixed" name="routed_one_wall_small" pos="-1.406 -1.322 2.806" xyaxes="-0.024 -1.000 0.000 0.499 -0.012 0.867"/>
+    <camera mode="fixed" name="routed_one_wall_small_topview" pos="3.486 -2.593 11.649" xyaxes="-0.002 1.000 0.000 -1.000 -0.002 0.017"/>
+
 
 
 
