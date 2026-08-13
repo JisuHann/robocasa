@@ -31,6 +31,7 @@ if __name__ == "__main__":
         required=False,
         help="axis to rotate around",
         choices=[
+            "none",  # keep the mesh's own orientation
             "x",
             "y",
             "z",  # 90 degrees

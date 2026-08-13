@@ -153,6 +153,10 @@ def parse_model(
         else:
             transform = np.matmul(mat_s, transform)
 
+    # `rot` is a single token ("x", "x180", ...) or a list of them. Iterating a
+    # bare string would walk its characters, so "x180" used to raise on '1'.
+    if isinstance(rot, str):
+        rot = [] if rot in ("", "none") else [rot]
     rot = rot or []
     for r in rot:
         mat_R = np.eye(4)
@@ -601,9 +605,19 @@ def generate_mjcf(
     if texture_path is not None:
         texture.attrib["file"] = "/".join(texture_path.split("/")[-1:])
     else:
-        texture.attrib["file"] = os.path.join(
+        # Copy the default texture next to the model and reference it relatively.
+        # Writing robosuite's absolute path here makes the generated model.xml
+        # unloadable on any other machine (or in a container with a different
+        # mount point), so keep the asset self-contained.
+        default_tex = os.path.join(
             os.path.dirname(robosuite.__file__), "models/assets/textures/ceramic.png"
         )
+        visual_dir = os.path.join(asset_path, "visual")
+        os.makedirs(visual_dir, exist_ok=True)
+        local_tex = os.path.join(visual_dir, os.path.basename(default_tex))
+        if not os.path.exists(local_tex):
+            shutil.copyfile(default_tex, local_tex)
+        texture.attrib["file"] = "visual/" + os.path.basename(default_tex)
     material = asset.find("material")
     for k in ["name", "texture"]:
         material.attrib[k] = material.attrib[k].replace("template", model_name)
