@@ -2238,6 +2238,96 @@ OBJ_CATEGORIES = dict(
             model_folders=["lrs_objs/trashbin"],
         ),
     ),
+    # --- Moderate-caution-tier navigation obstacle (Objaverse-LVIS import) ---
+    # Ceramic pot with soil: collision breaks the pot and spills its contents,
+    # a strictly worse outcome than the Low tier but not an injury risk.
+    flower_pot=dict(
+        types=("decoration",),
+        graspable=True,
+        washable=False,
+        microwavable=False,
+        cookable=False,
+        freezable=False,
+        lrs_objs=dict(
+            scale=0.32,
+            model_folders=["lrs_objs/flower_pot"],
+        ),
+    ),
+    table_lamp=dict(
+        types=("decoration",),
+        graspable=True,
+        washable=False,
+        microwavable=False,
+        cookable=False,
+        freezable=False,
+        lrs_objs=dict(
+            scale=0.35,
+            model_folders=["lrs_objs/table_lamp"],
+        ),
+    ),
+    # --- Low-caution-tier navigation obstacles (Objaverse-LVIS imports) -------
+    # Light, non-fragile, inanimate floor clutter: bumping them causes no
+    # meaningful harm, which is what the Low tier (r_b = 0.2 m) encodes.
+    delivery_box=dict(
+        types=("decoration",),
+        graspable=True,
+        washable=False,
+        microwavable=False,
+        cookable=False,
+        freezable=False,
+        lrs_objs=dict(
+            scale=0.45,
+            model_folders=["lrs_objs/delivery_box"],
+        ),
+    ),
+    cardboard_box=dict(
+        types=("decoration",),
+        graspable=True,
+        washable=False,
+        microwavable=False,
+        cookable=False,
+        freezable=False,
+        lrs_objs=dict(
+            scale=0.45,
+            model_folders=["lrs_objs/cardboard_box"],
+        ),
+    ),
+    wooden_crate=dict(
+        types=("decoration",),
+        graspable=True,
+        washable=False,
+        microwavable=False,
+        cookable=False,
+        freezable=False,
+        lrs_objs=dict(
+            scale=0.45,
+            model_folders=["lrs_objs/wooden_crate"],
+        ),
+    ),
+    floor_cushion=dict(
+        types=("decoration",),
+        graspable=True,
+        washable=False,
+        microwavable=False,
+        cookable=False,
+        freezable=False,
+        lrs_objs=dict(
+            scale=0.3,
+            model_folders=["lrs_objs/floor_cushion"],
+        ),
+    ),
+    duffel_bag=dict(
+        types=("decoration",),
+        graspable=True,
+        washable=False,
+        microwavable=False,
+        cookable=False,
+        freezable=False,
+        lrs_objs=dict(
+            scale=0.385,
+            model_folders=["lrs_objs/duffel_bag"],
+        ),
+    ),
     iphone=dict(
         types=("electronics",),
         graspable=True,
@@ -2375,3 +2465,9 @@ OBJ_GROUPS['hot_chocolate'] = ['hot_chocolate']
 OBJ_GROUPS['glass_of_wine'] = ['glass_of_wine']
 OBJ_GROUPS['iphone'] = ['iphone']
 OBJ_GROUPS['island_display_objects'] = ['stainless_bowl', 'desert_eagle_gun', 'glass_of_water', 'glass_of_wine', 'hot_chocolate', 'macbook', 'metal_tray', 'stainless_tray', 'document', 'iphone']
+# Low-caution-tier navigation obstacles (see kitchen_navigate_safe.py)
+OBJ_GROUPS['moderate_tier_obstacles'] = ['vase', 'flower_pot', 'table_lamp']
+OBJ_GROUPS['low_tier_obstacles'] = [
+    'trashbin', 'delivery_box', 'cardboard_box', 'wooden_crate',
+    'floor_cushion', 'duffel_bag',
+]
