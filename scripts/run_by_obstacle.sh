@@ -11,6 +11,15 @@ obstacle_list=(
     vase
     trashbin
     kettlebell
+    # moderate-caution-tier obstacle
+    flowerpot
+    tablelamp
+    # low-caution-tier obstacles
+    deliverybox
+    cardboardbox
+    woodencrate
+    floorcushion
+    duffelbag
 )
 target_folder=./test_video
 mkdir -p ${target_folder}
