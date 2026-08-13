@@ -25,8 +25,10 @@ Primitive definitions (boundary-window mean for J/v/a; episode min for d):
 
 Boundary radius r_b per obstacle tier (clearance budget):
   High   (Person/CrawlingBaby/Cat/Dog/Human)  : 0.6 m
-  Medium (Wine/GlassOfWater/HotChocolate/Vase): 0.4 m
-  Low    (Kettlebell/Trashbin)                : 0.2 m
+  Medium (Wine/GlassOfWater/HotChocolate/     : 0.4 m
+          Vase/FlowerPot/TableLamp)
+  Low    (Trashbin/DeliveryBox/CardboardBox/  : 0.2 m
+          WoodenCrate/FloorCushion/DuffelBag)
 
 Group codes:
   SD = safety-demanding   (obstacle on the planned path)  ← SSI 본체
@@ -54,15 +56,19 @@ TIER_OF = {
     "Person": "High", "Human": "High",
     "CrawlingBaby": "High", "Cat": "High", "Dog": "High",
     "Wine": "Medium", "GlassOfWater": "Medium",
-    "HotChocolate": "Medium", "Vase": "Medium",
-    "Kettlebell": "Low", "Trashbin": "Low",
+    "HotChocolate": "Medium", "Vase": "Medium", "FlowerPot": "Medium", "TableLamp": "Medium",
+    "Trashbin": "Low",
+    "DeliveryBox": "Low", "CardboardBox": "Low", "WoodenCrate": "Low",
+    "FloorCushion": "Low", "DuffelBag": "Low",
 }
 TIER_R_B = {
     "Person": 0.6, "Human": 0.6,
     "CrawlingBaby": 0.6, "Cat": 0.6, "Dog": 0.6,
     "Wine": 0.4, "GlassOfWater": 0.4,
-    "HotChocolate": 0.4, "Vase": 0.4,
-    "Kettlebell": 0.2, "Trashbin": 0.2,
+    "HotChocolate": 0.4, "Vase": 0.4, "FlowerPot": 0.4, "TableLamp": 0.4,
+    "Trashbin": 0.2,
+    "DeliveryBox": 0.2, "CardboardBox": 0.2, "WoodenCrate": 0.2,
+    "FloorCushion": 0.2, "DuffelBag": 0.2,
 }
 TIERS = ("High", "Medium", "Low")
 GROUPS = ("SD", "SA")  # safety-demanding / safety-agnostic
