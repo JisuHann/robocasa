@@ -5,6 +5,8 @@ obstacle_list=(
     dog
     person
     crawlingbaby
+    childboy
+    childgirl
     wine
     glassofwater
     hotchocolate

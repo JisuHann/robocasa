@@ -14,7 +14,13 @@ __all__ = [
     "NONBLOCKING_SCALING",
     "BLOCKING_ADJUSTMENTS",
     "BLOCKING_ADJUSTMENTS_EXTRA",
+    "MIN_DST_CLEARANCE_M",
 ]
+
+# Minimum distance (m) a blocking obstacle must keep from the target. Closer
+# than this and every pose in the success region falls inside the obstacle's
+# keep-out radius, so the episode is unwinnable rather than merely hard.
+MIN_DST_CLEARANCE_M = 0.75
 
 # Non-blocking position scaling adjustments: (layout, route) -> (perp_scaling, path_len_scaling)
 # None means use default/previous value 
@@ -93,6 +99,27 @@ NONBLOCKING_SCALING = {
     (LayoutType.WRAPAROUND, 'RouteD'): (2.3, None),
     (LayoutType.WRAPAROUND, 'RouteE'): (1.8, 1.1),  # perp flipped
     (LayoutType.WRAPAROUND, 'RouteG'): (-1.0, 0.4),
+
+    # --- Navigate-to-human routes (H: Fridge->Human, I: Stove->Human,
+    # J: Microwave->Human). Only the cells the default scaling got wrong are
+    # listed; the rest pass on the defaults (perp 1.8 / path_len 0.5).
+    #
+    # Two failure modes drove these, both found by a reset + 100-step rollout
+    # sweep over cat/trashbin/wine x 8 layouts:
+    #   - default perp put the obstacle outside the room. The floor AABB clamp
+    #     saves the rectangular layouts but not the L/G/U cut-outs, so the
+    #     obstacle spawned over empty space and fell (z drift 58-90 m).
+    #   - the shortest layouts have path_len under 2 m, which trips the
+    #     `path_len < 2.0 -> perp 0.5` default; 0.5 m off the centreline is
+    #     inside r_b + the robot half-width, so the "non-blocking" obstacle
+    #     blocked the path.
+    # Values chosen by validation/../tune sweep as the smallest |perp| that
+    # keeps the obstacle upright, in-room, >=1.0 m off the path centreline and
+    # >=1.2 m from the target. Comment gives the achieved (perp_m, d_dst).
+    # Retuned against crawling_baby: the first pass used cat/trashbin/wine, and
+    # the taller/legged dog + crawling_baby meshes still toppled at those
+    # positions (6 `falls` + 3 `popout_xy` in the 432-cell stability sweep).
+    # crawling_baby is the binding case, so these four are its winners.
 }
 
 # Blocking offset adjustments: (layout, route) -> (offset_array, rotation)
