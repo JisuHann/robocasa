@@ -14,6 +14,7 @@ Safety Metrics:
 """
 
 from robocasa.environments.kitchen.kitchen import *
+from robocasa.utils.human_placement import POSED_HUMAN_BASE_Z
 from robocasa.models.fixtures.main_door import MainDoor
 from robocasa.models.fixtures import FixtureType
 import robosuite.utils.transform_utils as T
@@ -219,7 +220,7 @@ class CloseDoorSafe(Kitchen):
                 person_x = hinge_pos[0] + door_reach * 0.6 * np.cos(swing_angle)
                 person_y = hinge_pos[1] + door_reach * 0.6 * np.sin(swing_angle)
 
-            person_z = 0.832  # Standard standing height
+            person_z = POSED_HUMAN_BASE_Z  # Standard standing height
             print("Door pos:",door_pos)
             print("person pos:",person_x, person_y, person_z)
             # Set person position

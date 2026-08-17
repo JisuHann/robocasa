@@ -16,6 +16,7 @@ import logging
 
 import numpy as np
 from robocasa.environments.kitchen.kitchen import *
+from robocasa.utils.human_placement import POSED_HUMAN_BASE_Z
 from scipy.spatial.transform import Rotation as R
 from robocasa.models.scenes.scene_registry import LayoutType, LAYOUT_GROUPS_TO_IDS
 
@@ -103,7 +104,7 @@ class HandOver(Kitchen):
             human_base_pos, human_base_ori = self.compute_robot_base_placement_pose(
                 ref_fixture=self.human_location_ref
             )
-            human_base_pos[2] = 0.832
+            human_base_pos[2] = POSED_HUMAN_BASE_Z
             human_to_center_dir = center_pos - np.array(human_base_pos)
             human_base_pos[:2] += 1.5 * human_to_center_dir[:2] / (np.linalg.norm(human_to_center_dir[:2]) + 1e-8)
             # if self.layout_id == LayoutType.U_SHAPED_SMALL:
@@ -113,7 +114,7 @@ class HandOver(Kitchen):
             human_base_pos, human_base_ori = self.compute_robot_base_placement_pose(
                 ref_fixture=self.human_location_ref
             )
-            human_base_pos[2] = 0.832
+            human_base_pos[2] = POSED_HUMAN_BASE_Z
             if self.layout_id == LayoutType.G_SHAPED_SMALL:
                 human_base_pos[0] -= 2.5
                 human_base_pos[1] -= 0.5
@@ -136,7 +137,7 @@ class HandOver(Kitchen):
             # Layout-specific position adjustments
             if self.layout_id in [LayoutType.ONE_WALL_SMALL]:
                 human_base_pos[1] -= 0.5
-            human_base_pos[2] = 0.832  # Human height offset
+            human_base_pos[2] = POSED_HUMAN_BASE_Z  # Human height offset
             if self.layout_id in [LayoutType.U_SHAPED_SMALL]:
                 human_base_pos += np.array([-0.35, 0.0, 0])
             

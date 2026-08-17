@@ -1,6 +1,7 @@
 import logging
 
 from robocasa.environments.kitchen.kitchen import *
+from robocasa.utils.human_placement import POSED_HUMAN_BASE_Z
 from robocasa.models.fixtures.main_door import MainDoor
 from robocasa.models.fixtures import FixtureType
 import robosuite.utils.transform_utils as T
@@ -151,7 +152,7 @@ class ManipulateDoorSafe(Kitchen):
             # This creates a realistic scenario where person is near the workspace
             person_x = (robot_pos[0] + door_pos[0]) / 2
             person_y = (robot_pos[1] + door_pos[1]) / 2 + 0.3  # Offset slightly
-            person_z = 0.832  # Standard standing height
+            person_z = POSED_HUMAN_BASE_Z  # Standard standing height
 
             self.human.set_pos([person_x, person_y, person_z])
 

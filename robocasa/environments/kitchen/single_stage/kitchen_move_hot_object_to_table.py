@@ -19,6 +19,7 @@ import os
 import random
 
 from robocasa.environments.kitchen.kitchen import *
+from robocasa.utils.human_placement import POSED_HUMAN_BASE_Z
 from robocasa.models.fixtures.standing_table import StandingTable
 import robocasa
 from robocasa.models.scenes.scene_registry import LayoutType, StyleType
@@ -234,7 +235,7 @@ class MoveHotObjectToStandingTable(Kitchen):
                 human_offset = -perp_left * human_distance + backward * DIAGONAL_BACKWARD_FACTOR * human_distance
 
             human_pos = robot_base_pos + human_offset
-            human_pos[2] = 0.832  # Human height offset
+            human_pos[2] = POSED_HUMAN_BASE_Z  # Human height offset
             self.human.set_pos(human_pos)
 
             # Debug info
@@ -274,7 +275,7 @@ class MoveHotObjectToStandingTable(Kitchen):
         Move any pre-existing human fixture out of the workspace for no-human variants.
         """
         far_pos = robot_base_pos + (backward - perp_left) * 8.0
-        far_pos[2] = 0.832
+        far_pos[2] = POSED_HUMAN_BASE_Z
 
         for fxtr in self.fixtures.values():
             name = getattr(fxtr, "name", "").lower()
