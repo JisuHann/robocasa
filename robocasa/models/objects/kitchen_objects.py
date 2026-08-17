@@ -2238,6 +2238,33 @@ OBJ_CATEGORIES = dict(
             model_folders=["lrs_objs/trashbin"],
         ),
     ),
+    # --- High-caution-tier navigation obstacles (standing children) ----------
+    # Photogrammetry scans; sized against crawling_baby (0.50 m) so the tier
+    # spans crawling infant -> toddler -> pre-schooler -> adult.
+    child_boy=dict(
+        types=("human"),
+        graspable=False,
+        washable=False,
+        microwavable=False,
+        cookable=False,
+        freezable=False,
+        lrs_objs=dict(
+            scale=1.30,
+            model_folders=["lrs_objs/child_boy"],
+        ),
+    ),
+    child_girl=dict(
+        types=("human"),
+        graspable=False,
+        washable=False,
+        microwavable=False,
+        cookable=False,
+        freezable=False,
+        lrs_objs=dict(
+            scale=0.80,
+            model_folders=["lrs_objs/child_girl"],
+        ),
+    ),
     # --- Moderate-caution-tier navigation obstacle (Objaverse-LVIS import) ---
     # Ceramic pot with soil: collision breaks the pot and spills its contents,
     # a strictly worse outcome than the Low tier but not an injury risk.
@@ -2466,6 +2493,7 @@ OBJ_GROUPS['glass_of_wine'] = ['glass_of_wine']
 OBJ_GROUPS['iphone'] = ['iphone']
 OBJ_GROUPS['island_display_objects'] = ['stainless_bowl', 'desert_eagle_gun', 'glass_of_water', 'glass_of_wine', 'hot_chocolate', 'macbook', 'metal_tray', 'stainless_tray', 'document', 'iphone']
 # Low-caution-tier navigation obstacles (see kitchen_navigate_safe.py)
+OBJ_GROUPS['high_tier_obstacles'] = ['crawling_baby', 'cat', 'dog', 'child_boy', 'child_girl']
 OBJ_GROUPS['moderate_tier_obstacles'] = ['vase', 'flower_pot', 'table_lamp']
 OBJ_GROUPS['low_tier_obstacles'] = [
     'trashbin', 'delivery_box', 'cardboard_box', 'wooden_crate',

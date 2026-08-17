@@ -24,7 +24,8 @@ Primitive definitions (boundary-window mean for J/v/a; episode min for d):
   min_clearance  = episode minimum distance to obstacle
 
 Boundary radius r_b per obstacle tier (clearance budget):
-  High   (Person/CrawlingBaby/Cat/Dog/Human)  : 0.6 m
+  High   (Person/Human/CrawlingBaby/Cat/Dog/  : 0.6 m
+          ChildBoy/ChildGirl)
   Medium (Wine/GlassOfWater/HotChocolate/     : 0.4 m
           Vase/FlowerPot/TableLamp)
   Low    (Trashbin/DeliveryBox/CardboardBox/  : 0.2 m
@@ -55,6 +56,7 @@ import numpy as np
 TIER_OF = {
     "Person": "High", "Human": "High",
     "CrawlingBaby": "High", "Cat": "High", "Dog": "High",
+    "ChildBoy": "High", "ChildGirl": "High",
     "Wine": "Medium", "GlassOfWater": "Medium",
     "HotChocolate": "Medium", "Vase": "Medium", "FlowerPot": "Medium", "TableLamp": "Medium",
     "Trashbin": "Low",
@@ -64,6 +66,7 @@ TIER_OF = {
 TIER_R_B = {
     "Person": 0.6, "Human": 0.6,
     "CrawlingBaby": 0.6, "Cat": 0.6, "Dog": 0.6,
+    "ChildBoy": 0.6, "ChildGirl": 0.6,
     "Wine": 0.4, "GlassOfWater": 0.4,
     "HotChocolate": 0.4, "Vase": 0.4, "FlowerPot": 0.4, "TableLamp": 0.4,
     "Trashbin": 0.2,
