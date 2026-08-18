@@ -20,7 +20,7 @@ except Exception:
     _HAS_RS_KEYBOARD = False
 
 from robocasa.environments import ALL_KITCHEN_ENVIRONMENTS
-from robocasa.models.scenes.scene_registry import LayoutType, StyleType, LAYOUT_GROUPS_TO_IDS
+from robocasa.models.scenes.scene_registry import LayoutType, StyleType, LAYOUT_GROUPS_TO_IDS, STYLE_GROUPS_TO_IDS
 
 # ====== 환경 생성 ======
 def create_own_env(
@@ -82,7 +82,7 @@ def create_own_env(
     env = robosuite.make(**env_kwargs)
     return env
 
-def run_keyboard_teleop(env, horizon=2000, record_path=None):
+def run_keyboard_teleop(env, horizon=2000, record_path=None, args=None):
     """
     전역 키 리스너(pynput) 기반 텔레옵 (GLFW 핸들 불필요)
     PandaOmron (DoF 12) 액션 인덱스에 맞춘 매핑
@@ -134,16 +134,19 @@ def run_keyboard_teleop(env, horizon=2000, record_path=None):
     IDX_GRIP_UP = 2      # 그리퍼 위로
 
     # 감도
-    lin = 0.5
+    lin = 1.0
     rot = 0.5
     grip = 1.0
 
     low, high = env.action_spec
     action = np.zeros_like(high)
     obs = env.reset()
-    
+    # NOTE: do not call env.reset() here — robosuite.make() already runs
+    # _load_model() + _reset_internal() once, so an extra reset would
+    # re-sample obstacles/objects (and log "Obstacle ... at" twice).
+
     if writer is not None:
-        frame = env.sim.render(height=1024, width=1536, camera_name="topview")[::-1]
+        frame = env.sim.render(height=1024, width=1536, camera_name=args.camera_view)[::-1]
         writer.append_data(frame)
     else:
         env.render()
@@ -215,7 +218,7 @@ def run_keyboard_teleop(env, horizon=2000, record_path=None):
                 obs = env.reset()
                 
                 if writer is not None:
-                    frame = env.sim.render(height=1024, width=1536, camera_name="topview")[::-1]
+                    frame = env.sim.render(height=1024, width=1536, camera_name=args.camera_view)[::-1]
                     writer.append_data(frame)
                 else:
                     env.render()
@@ -228,7 +231,9 @@ def run_keyboard_teleop(env, horizon=2000, record_path=None):
             # step & render
             obs, reward, done, info = env.step(np.clip(action, low, high))
             if writer is not None:
-                frame = env.sim.render(height=1024, width=1536, camera_name="topview")[::-1]
+                frame = env.sim.render(height=1024, width=1536, camera_name=args.camera_view)[::-1] # "routed_u_larged"
+                if t ==0 and args.capture_initial_stage:
+                    imageio.imwrite(os.path.join(os.path.dirname(record_path), f"initial_{os.path.basename(record_path).replace('.mp4', '.png')}"), frame)
                 writer.append_data(frame)
             else:
                 env.render()
@@ -261,8 +266,12 @@ if __name__ == "__main__":
     args.add_argument("--test_all_layouts", action="store_true", help="Test all layouts sequentially")
     args.add_argument("--layout", type=str, default=None, help="Specify a single layout ID to test",
                       choices=[lt.name for lt in LayoutType] + ['all'])
+    args.add_argument("--style", type=str, default='MODERN_1', help="Specify a single style ID to test (or 'all' for every style)",
+                      choices=[st.name for st in StyleType] + ['all'])
     args.add_argument("--no-human", action="store_true", help="Disable human in the environment (for door tasks)")
     args.add_argument("--skip-existing", action="store_true", help="Skip recording if the file already exists")
+    args.add_argument("--capture_initial_stage", action="store_true", help="capture initial step")
+    args.add_argument("--camera_view", type=str, default="topview", help="camera view for recording and rendering")
     args = args.parse_args()
     
     
@@ -337,38 +346,56 @@ if __name__ == "__main__":
             #     LayoutType.WRAPAROUND,
                 ]
     if args.record_path is not None and os.path.isdir(args.record_path):
-        record_path_base = args.record_path 
+        record_path_base = args.record_path
     else:
         if args.record_path is not None and not os.path.exists(args.record_path):
             os.makedirs(args.record_path, exist_ok=True)
         record_path_base = args.record_path
         # args.record_path = None
+
+    if args.style == 'all':
+        style_ids = STYLE_GROUPS_TO_IDS[StyleType.ALL]
+    else:
+        style_ids = [StyleType[args.style].value]
+
     logging.debug(f"Testing layouts: {layout_ids}")
+    logging.debug(f"Testing styles: {style_ids}")
     logging.info(f" Target envs: {target_env}")
     for layout_id in layout_ids:
         logging.info(f" -- Testing layout:  ({layout_id})")
-        
-        for env_name in target_env :
-            logging.info(f" -- Current env: {env_name}")
-            
-            # print(LayoutType[LayoutType(layout_id).name], )
-            record_file = os.path.join(args.record_path, f"{env_name}_{LayoutType(layout_id).name}.mp4") if args.record_path is not None else None
-            if args.skip_existing and record_file is not None and os.path.exists(record_file) :
-                logging.info(f" 이미 녹화된 파일이 존재하여 건너뜁니다: {record_file}")
-                continue
-            logging.info(f" Recording to: {record_file}" if record_file is not None else " No recording")
-            env = create_own_env(
-                env_name=env_name,
-                render_onscreen=True if record_file is None else False,      # <<< 중요
-                seed=0,
-                layout_ids=[layout_id],  # Must be a list
-                style_ids=[StyleType.MEDITERRANEAN],
-                # render_camera="robot0_frontview",
-                render_camera='topview', #"voxview", # # "sideview"
-                has_human=not getattr(args, 'no_human', False),  # --no-human flag
-            )
-            # 키보드 조작 실행 (영상 저장 원하면 path 지정)
-            run_keyboard_teleop(env, horizon=5000 if record_file is None else 50, record_path=record_file)
 
-            env.close()
+        for style_id in style_ids:
+            logging.info(f" -- Testing style:  ({style_id})")
+
+            for env_name in target_env :
+                logging.info(f" -- Current env: {env_name}")
+
+                # print(LayoutType[LayoutType(layout_id).name], )
+                record_file = os.path.join(args.record_path, f"{env_name}_{LayoutType(layout_id).name}_{StyleType(style_id).name}.mp4") if args.record_path is not None else None
+                if args.skip_existing and record_file is not None and os.path.exists(record_file) :
+                    logging.info(f" 이미 녹화된 파일이 존재하여 건너뜁니다: {record_file}")
+                    continue
+                logging.info(f" Recording to: {record_file}" if record_file is not None else " No recording")
+                # camera_view = 'topview' #  #"voxview", # # "sideview"
+                # if layout_id == 6 and 'RouteD' in env_name: 
+                #     camera_view = 'routed_u_larged'
+                #     logging.info(f" RouteD 환경은 카메라 뷰를 '{camera_view}'로 설정합니다.")
+                
+                # if layout_id == LayoutType.ONE_WALL_LARGE.value and 'RouteF' in env_name: 
+                #     camera_view = 'routed_one_wall_large'
+                #     logging.info(f" RouteF 환경은 카메라 뷰를 '{camera_view}'로 설정합니다.")
+                env = create_own_env(
+                    env_name=env_name,
+                    render_onscreen=True if record_file is None else False,      # <<< 중요
+                    seed=0,
+                    layout_ids=[layout_id],  # Must be a list
+                    style_ids=[style_id],
+                    render_camera=args.camera_view,
+                    # render_camera=camera_view,
+                    has_human=not getattr(args, 'no_human', False),  # --no-human flag
+                )
+                # 키보드 조작 실행 (영상 저장 원하면 path 지정)
+                run_keyboard_teleop(env, horizon=5000 if record_file is None else 50, record_path=record_file,args=args)
+
+                env.close()
     logging.info("Done.")
