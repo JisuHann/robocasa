@@ -10,13 +10,25 @@ import mujoco
 import mujoco.viewer
 import numpy as np
 import robosuite
-from pynput.keyboard import Controller, Key, Listener
 from robosuite.devices import Device
 from robosuite.utils.binding_utils import MjRenderContextOffscreen, MjSim
 from robosuite.utils.mjcf_utils import array_to_string as a2s
 from robosuite.utils.mjcf_utils import find_elements
 from robosuite.utils.mjcf_utils import string_to_array as s2a
 from termcolor import colored
+
+# pynput's X backend uses python-xlib, which can fail over SSH X11 forwarding
+# ("no xauthority details available"). The keyboard handling exists only to
+# catch Q (quit) and N (next object) — the mujoco viewer already has its own
+# key_callback that can do this without pynput. We defer deciding which to use
+# until runtime (see _make_keyboard below).
+try:
+    from pynput.keyboard import Controller, Key, Listener
+    _PYNPUT_IMPORTED = True
+except Exception as _e:
+    print(colored(f"[demo_objects] pynput import failed ({_e.__class__.__name__}: {_e}); "
+                  "using mujoco viewer key_callback only.", "yellow"))
+    _PYNPUT_IMPORTED = False
 
 import robocasa
 from robocasa.models.objects.kitchen_object_utils import sample_kitchen_object
@@ -175,16 +187,22 @@ def read_model(
 def render_model(
     sim,
     cam_settings=None,
+    state=None,
 ):
     if cam_settings is None:
         cam_settings = {}
 
-    kill = False
-
     def key_callback(keycode):
-        if chr(keycode) == "q":
-            nonlocal kill
-            kill = not kill
+        if state is None:
+            return
+        try:
+            ch = chr(keycode).lower()
+        except (ValueError, OverflowError):
+            return
+        if ch == "q":
+            state["kill"] = 1
+        elif ch == "n":
+            state["reset"] = 1
 
     # mujoco.viewer.launch(sim.model._model, sim.data._data)
     viewer = mujoco.viewer.launch_passive(
@@ -202,68 +220,74 @@ def render_model(
     return viewer
 
 
-class DemoKeyboard(Device):
+class _ViewerKeyboard:
+    """Mujoco-viewer-driven keyboard stand-in.
+
+    Exposes the same `start_control` / `get_controller_state` surface
+    as the pynput-based DemoKeyboard, but the key state is written by
+    the viewer's key_callback via a shared dict.
     """
-    A minimalistic driver class for a Keyboard.
-    Args:
-        pos_sensitivity (float): Magnitude of input position command scaling
-        rot_sensitivity (float): Magnitude of scale input rotation commands scaling
-    """
+
+    def __init__(self):
+        self._state = {"reset": 0, "kill": 0}
+
+    def start_control(self):
+        self._state["reset"] = 0
+        self._state["kill"] = 0
+
+    def get_controller_state(self):
+        return dict(self._state)
+
+    @property
+    def state(self):
+        return self._state
+
+
+class _PynputKeyboard(Device):
+    """Keyboard listener backed by pynput (requires a working display connection)."""
 
     def __init__(self):
         self._reset_state = 0
         self._kill_state = 0
-
-        # make a thread to listen to keyboard and register our callback functions
         self.listener = Listener(on_press=self.on_press, on_release=self.on_release)
-
-        # start listening
         self.listener.start()
 
     def start_control(self):
-        """
-        Method that should be called externally before controller can
-        start receiving commands.
-        """
         self._reset_state = 0
         self._kill_state = 0
 
     def get_controller_state(self):
-        """
-        Grabs the current state of the keyboard.
-        Returns:
-            dict: A dictionary containing dpos, orn, unmodified orn, grasp, and reset
-        """
-
-        return dict(
-            reset=self._reset_state,
-            kill=self._kill_state,
-        )
+        return dict(reset=self._reset_state, kill=self._kill_state)
 
     def on_press(self, key):
-        """
-        Key handler for key presses.
-        Args:
-            key (str): key that was pressed
-        """
         pass
 
     def on_release(self, key):
-        """
-        Key handler for key releases.
-        Args:
-            key (str): key that was pressed
-        """
-
         try:
-            # user-commanded quit
             if key.char == "q":
                 self._kill_state = 1
             elif key.char == "n":
                 self._reset_state = 1
-
-        except AttributeError as e:
+        except AttributeError:
             pass
+
+
+def _make_keyboard():
+    """Try pynput; on any failure (e.g. python-xlib handshake error over SSH
+    X11 forwarding), fall back to the viewer-driven keyboard."""
+    if _PYNPUT_IMPORTED:
+        try:
+            return _PynputKeyboard()
+        except Exception as e:
+            print(colored(
+                f"[demo_objects] pynput Listener failed ({e.__class__.__name__}: {e}); "
+                "falling back to mujoco viewer key_callback.",
+                "yellow",
+            ))
+    return _ViewerKeyboard()
+
+
+DemoKeyboard = _make_keyboard
 
 
 if __name__ == "__main__":
@@ -271,7 +295,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--mjcf",
         type=str,
-        default="/Users/hyunw3/robotics/robotics-safety/benchmark/robocasa/robocasa/models/assets/objects/lrs_objs/main_door/model.xml",
+        default="/Users/hyunw3/robotics/robotics-safety/benchmark/robocasa/3D_converted_models/Meshy_AI_Crawling_Baby/model.xml",
         help="(optional) path to specific model xml file to visualize. skip to sample random models",
     )
     parser.add_argument(
@@ -353,9 +377,14 @@ if __name__ == "__main__":
 
         device.start_control()
 
+        # When pynput is unavailable, route viewer keypresses (Q/N) into the
+        # _ViewerKeyboard's shared state dict so the main loop below picks them up.
+        shared_state = device.state if isinstance(device, _ViewerKeyboard) else None
+
         viewer = render_model(
             sim=sim,
             cam_settings=cam_settings,
+            state=shared_state,
         )
 
         time.sleep(0.5)  # add delay to prevent ghost windows from opening

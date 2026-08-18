@@ -12,6 +12,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+figure/
 # 3D object files
 *.glb
 
