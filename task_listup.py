@@ -55,186 +55,22 @@ handover_tasks = [
     "HandOverSpongeNear",
     
 ]
-navigate_safe_tasks = [
-    # Person Blocking + Route
-    "NavigateKitchenHumanBlockingRouteA",
-    "NavigateKitchenHumanBlockingRouteB",
-    "NavigateKitchenHumanBlockingRouteC",
-    "NavigateKitchenHumanBlockingRouteD",
-    "NavigateKitchenHumanBlockingRouteE",
-    
-    "NavigateKitchenHumanBlockingRouteG",
+# Generated from the task module rather than hand-listed: the classes are
+# themselves generated (obstacle x route x blocking mode), so a literal list
+# silently goes stale whenever the obstacle roster or the routes change --
+# which is how the new tier obstacles ended up missing from every sweep.
+def _navigate_safe_tasks():
+    # Read the classes the task module actually generated rather than
+    # recomputing the cross product: some obstacle/route pairs are skipped
+    # (the human cannot be both the obstacle and the target on Route F), and a
+    # recomputed list would name classes that do not exist.
+    from robocasa.environments.kitchen.single_stage.kitchen_navigate_safe import (
+        _NAV_CLASSES,
+    )
+    return sorted(_NAV_CLASSES)
 
-    # Person Non-Blocking + Route
-    "NavigateKitchenHumanNonBlockingRouteA",
-    "NavigateKitchenHumanNonBlockingRouteB",
-    "NavigateKitchenHumanNonBlockingRouteC",
-    "NavigateKitchenHumanNonBlockingRouteD",
-    "NavigateKitchenHumanNonBlockingRouteE",
-    "NavigateKitchenHumanNonBlockingRouteG",
 
-    # Dog Blocking + Route
-    "NavigateKitchenDogBlockingRouteA",
-    "NavigateKitchenDogBlockingRouteB",
-    "NavigateKitchenDogBlockingRouteC",
-    "NavigateKitchenDogBlockingRouteD",
-    "NavigateKitchenDogBlockingRouteE",
-    "NavigateKitchenDogBlockingRouteF",
-    "NavigateKitchenDogBlockingRouteG",
-
-    # Dog Non-Blocking + Route
-    "NavigateKitchenDogNonBlockingRouteA",
-    "NavigateKitchenDogNonBlockingRouteB",
-    "NavigateKitchenDogNonBlockingRouteC",
-    "NavigateKitchenDogNonBlockingRouteD",
-    "NavigateKitchenDogNonBlockingRouteE",
-    "NavigateKitchenDogNonBlockingRouteF",
-    "NavigateKitchenDogNonBlockingRouteG",
-
-    # Cat Blocking + Route
-    "NavigateKitchenCatBlockingRouteA",
-    "NavigateKitchenCatBlockingRouteB",
-    "NavigateKitchenCatBlockingRouteC",
-    "NavigateKitchenCatBlockingRouteD",
-    "NavigateKitchenCatBlockingRouteE",
-    "NavigateKitchenCatBlockingRouteF",
-    "NavigateKitchenCatBlockingRouteG",
-
-    # Cat Non-Blocking + Route
-    "NavigateKitchenCatNonBlockingRouteA",
-    "NavigateKitchenCatNonBlockingRouteB",
-    "NavigateKitchenCatNonBlockingRouteC",
-    "NavigateKitchenCatNonBlockingRouteD",
-    "NavigateKitchenCatNonBlockingRouteE",
-    "NavigateKitchenCatNonBlockingRouteF",
-    "NavigateKitchenCatNonBlockingRouteG",
-
-    # Wine Blocking + Route
-    "NavigateKitchenWineBlockingRouteA",
-    "NavigateKitchenWineBlockingRouteB",
-    "NavigateKitchenWineBlockingRouteC",
-    "NavigateKitchenWineBlockingRouteD",
-    "NavigateKitchenWineBlockingRouteE",
-    "NavigateKitchenWineBlockingRouteF",
-    "NavigateKitchenWineBlockingRouteG",
-
-    # Wine Non-Blocking + Route
-    "NavigateKitchenWineNonBlockingRouteA",
-    "NavigateKitchenWineNonBlockingRouteB",
-    "NavigateKitchenWineNonBlockingRouteC",
-    "NavigateKitchenWineNonBlockingRouteD",
-    "NavigateKitchenWineNonBlockingRouteE",
-    "NavigateKitchenWineNonBlockingRouteF",
-    "NavigateKitchenWineNonBlockingRouteG",
-
-    # Kettlebell Blocking + Route
-    "NavigateKitchenKettlebellBlockingRouteA",
-    "NavigateKitchenKettlebellBlockingRouteB",
-    "NavigateKitchenKettlebellBlockingRouteC",
-    "NavigateKitchenKettlebellBlockingRouteD",
-    "NavigateKitchenKettlebellBlockingRouteE",
-    "NavigateKitchenKettlebellBlockingRouteF",
-    "NavigateKitchenKettlebellBlockingRouteG",
-
-    # Kettlebell Non-Blocking + Route
-    "NavigateKitchenKettlebellNonBlockingRouteA",
-    "NavigateKitchenKettlebellNonBlockingRouteB",
-    "NavigateKitchenKettlebellNonBlockingRouteC",
-    "NavigateKitchenKettlebellNonBlockingRouteD",
-    "NavigateKitchenKettlebellNonBlockingRouteE",
-    "NavigateKitchenKettlebellNonBlockingRouteF",
-    "NavigateKitchenKettlebellNonBlockingRouteG",
-
-    # Glass of Water Blocking + Route
-    "NavigateKitchenGlassOfWaterBlockingRouteA",
-    "NavigateKitchenGlassOfWaterBlockingRouteB",
-    "NavigateKitchenGlassOfWaterBlockingRouteC",
-    "NavigateKitchenGlassOfWaterBlockingRouteD",
-    "NavigateKitchenGlassOfWaterBlockingRouteE",
-    "NavigateKitchenGlassOfWaterBlockingRouteF",
-    "NavigateKitchenGlassOfWaterBlockingRouteG",
-
-    # Glass of Water Non-Blocking + Route
-    "NavigateKitchenGlassOfWaterNonBlockingRouteA",
-    "NavigateKitchenGlassOfWaterNonBlockingRouteB",
-    "NavigateKitchenGlassOfWaterNonBlockingRouteC",
-    "NavigateKitchenGlassOfWaterNonBlockingRouteD",
-    "NavigateKitchenGlassOfWaterNonBlockingRouteE",
-    "NavigateKitchenGlassOfWaterNonBlockingRouteF",
-    "NavigateKitchenGlassOfWaterNonBlockingRouteG",
-
-    # Hot Chocolate Blocking + Route
-    "NavigateKitchenHotChocolateBlockingRouteA",
-    "NavigateKitchenHotChocolateBlockingRouteB",
-    "NavigateKitchenHotChocolateBlockingRouteC",
-    "NavigateKitchenHotChocolateBlockingRouteD",
-    "NavigateKitchenHotChocolateBlockingRouteE",
-    "NavigateKitchenHotChocolateBlockingRouteF",
-    "NavigateKitchenHotChocolateBlockingRouteG",
-
-    # Hot Chocolate Non-Blocking + Route
-    "NavigateKitchenHotChocolateNonBlockingRouteA",
-    "NavigateKitchenHotChocolateNonBlockingRouteB",
-    "NavigateKitchenHotChocolateNonBlockingRouteC",
-    "NavigateKitchenHotChocolateNonBlockingRouteD",
-    "NavigateKitchenHotChocolateNonBlockingRouteE",
-    "NavigateKitchenHotChocolateNonBlockingRouteF",
-    "NavigateKitchenHotChocolateNonBlockingRouteG",
-
-    # Vase Blocking + Route
-    "NavigateKitchenVaseBlockingRouteA",
-    "NavigateKitchenVaseBlockingRouteB",
-    "NavigateKitchenVaseBlockingRouteC",
-    "NavigateKitchenVaseBlockingRouteD",
-    "NavigateKitchenVaseBlockingRouteE",
-    "NavigateKitchenVaseBlockingRouteF",
-    "NavigateKitchenVaseBlockingRouteG",
-
-    # Vase Non-Blocking + Route
-    "NavigateKitchenVaseNonBlockingRouteA",
-    "NavigateKitchenVaseNonBlockingRouteB",
-    "NavigateKitchenVaseNonBlockingRouteC",
-    "NavigateKitchenVaseNonBlockingRouteD",
-    "NavigateKitchenVaseNonBlockingRouteE",
-    "NavigateKitchenVaseNonBlockingRouteF",
-    "NavigateKitchenVaseNonBlockingRouteG",
-
-    # Crawling Baby Blocking + Route
-    "NavigateKitchenCrawlingBabyBlockingRouteA",
-    "NavigateKitchenCrawlingBabyBlockingRouteB",
-    "NavigateKitchenCrawlingBabyBlockingRouteC",
-    "NavigateKitchenCrawlingBabyBlockingRouteD",
-    "NavigateKitchenCrawlingBabyBlockingRouteE",
-    "NavigateKitchenCrawlingBabyBlockingRouteF",
-    "NavigateKitchenCrawlingBabyBlockingRouteG",
-
-    # Crawling Baby Non-Blocking + Route
-    "NavigateKitchenCrawlingBabyNonBlockingRouteA",
-    "NavigateKitchenCrawlingBabyNonBlockingRouteB",
-    "NavigateKitchenCrawlingBabyNonBlockingRouteC",
-    "NavigateKitchenCrawlingBabyNonBlockingRouteD",
-    "NavigateKitchenCrawlingBabyNonBlockingRouteE",
-    "NavigateKitchenCrawlingBabyNonBlockingRouteF",
-    "NavigateKitchenCrawlingBabyNonBlockingRouteG",
-
-    # Trashbin Blocking + Route
-    "NavigateKitchenTrashbinBlockingRouteA",
-    "NavigateKitchenTrashbinBlockingRouteB",
-    "NavigateKitchenTrashbinBlockingRouteC",
-    "NavigateKitchenTrashbinBlockingRouteD",
-    "NavigateKitchenTrashbinBlockingRouteE",
-    "NavigateKitchenTrashbinBlockingRouteF",
-    "NavigateKitchenTrashbinBlockingRouteG",
-
-    # Trashbin Non-Blocking + Route
-    "NavigateKitchenTrashbinNonBlockingRouteA",
-    "NavigateKitchenTrashbinNonBlockingRouteB",
-    "NavigateKitchenTrashbinNonBlockingRouteC",
-    "NavigateKitchenTrashbinNonBlockingRouteD",
-    "NavigateKitchenTrashbinNonBlockingRouteE",
-    "NavigateKitchenTrashbinNonBlockingRouteF",
-    "NavigateKitchenTrashbinNonBlockingRouteG",
-]
+navigate_safe_tasks = _navigate_safe_tasks()
 
 # Move hot object to standing table tasks (robot turns away from human)
 move_hot_object_to_table_tasks = [

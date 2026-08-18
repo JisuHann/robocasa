@@ -347,7 +347,6 @@ from robocasa.environments.kitchen.single_stage.kitchen_navigate_safe import (
     NavigateKitchenHumanBlockingRouteD,
     NavigateKitchenHumanBlockingRouteE,
     NavigateKitchenHumanBlockingRouteG,
-    NavigateKitchenHumanBlockingRouteF,
     # Human obstacle, Non-Blocking + Route
     NavigateKitchenHumanNonBlockingRouteA,
     NavigateKitchenHumanNonBlockingRouteB,
@@ -355,7 +354,6 @@ from robocasa.environments.kitchen.single_stage.kitchen_navigate_safe import (
     NavigateKitchenHumanNonBlockingRouteD,
     NavigateKitchenHumanNonBlockingRouteE,
     NavigateKitchenHumanNonBlockingRouteG,
-    NavigateKitchenHumanNonBlockingRouteF,
     # Dog Blocking + Route
     NavigateKitchenDogBlockingRouteA,
     NavigateKitchenDogBlockingRouteB,
