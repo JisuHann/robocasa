@@ -20,6 +20,7 @@ from robosuite.controllers import load_composite_controller_config
 from robocasa.environments import ALL_KITCHEN_ENVIRONMENTS
 from robocasa.models.scenes.scene_registry import LayoutType, StyleType, LAYOUT_GROUPS_TO_IDS
 import task_listup
+from robocasa.utils.egl_device import resolve_egl_devices
 
 
 ENV_CATEGORIES = {
@@ -434,6 +435,9 @@ if __name__ == "__main__":
     print(f"[info] Action mode: {args.action_mode}")
 
     gpu_ids = args.gpu_ids if args.gpu_ids else [args.gpu_id]
+    # MuJoCo addresses GPUs by EGL enumeration order, not CUDA ordinal, so the
+    # requested id can be a device that cannot create a headless context.
+    gpu_ids = resolve_egl_devices(gpu_ids) or gpu_ids
     print(f"[info] GPU pool (round-robin): {gpu_ids}")
 
     tasks = []

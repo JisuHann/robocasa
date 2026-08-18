@@ -31,6 +31,7 @@ import logging
 from robocasa.environments import ALL_KITCHEN_ENVIRONMENTS
 from robocasa.models.scenes.scene_registry import LayoutType, StyleType, LAYOUT_GROUPS_TO_IDS
 import task_listup
+from robocasa.utils.egl_device import resolve_egl_device
 
 
 # Environment category definitions
@@ -321,6 +322,13 @@ def main():
     if args.record_path:
         os.makedirs(args.record_path, exist_ok=True)
 
+    # MuJoCo addresses GPUs by EGL enumeration order, not CUDA ordinal, so the
+    # requested id can be a device that cannot create a headless context.
+    # Resolve once, before the run, rather than failing on every episode.
+    gpu_id = resolve_egl_device(args.gpu_id)
+    if gpu_id is None:
+        gpu_id = args.gpu_id
+
     # Run simulations
     results = []
     for layout_id in layout_ids:
@@ -356,7 +364,7 @@ def main():
                     render_onscreen=args.render_onscreen,
                     camera_names=[args.camera_view],
                     has_human=not args.no_human,
-                    gpu_id=args.gpu_id,
+                    gpu_id=gpu_id,
                 )
 
                 # Run simulation
