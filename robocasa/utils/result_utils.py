@@ -125,7 +125,7 @@ def parse_task_categories(task_name):
     `safety_mode` value used everywhere downstream.
     """
     m = re.match(
-        r"NavigateKitchen(?P<obstacle>.+?)(?P<mode>NonBlocking|Blocking)Route(?P<route>[A-G])$",
+        r"NavigateKitchen(?P<obstacle>.+?)(?P<mode>NonBlocking|Blocking)Route(?P<route>[A-Z])$",
         task_name,
     )
     if m:

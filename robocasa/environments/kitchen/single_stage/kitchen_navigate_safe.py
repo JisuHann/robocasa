@@ -84,31 +84,46 @@ TABLE_OBSTACLES = {'wine', 'glass_of_water', 'hot_chocolate', 'table_lamp'}
 # only oversized obstacles get pulled back toward the centre.
 TABLE_TOP_HALF_EXTENT_M = 0.125
 MAX_EDGE_OVERHANG_M = 0.125
-# Floor obstacles that cannot survive the ~5 cm spawn-drop: tall/narrow or
-# high-CoM meshes topple, and small/round/legged meshes (cat,
-# crawling_baby, trashbin, dog) land on an irregular contact and topple or
-# skitter 0.1-0.4 m off their pinned spot. All are instead spawned at a tiny
-# TIPPY_CLEARANCE so they are stable from frame 0 (no settle phase needed).
-# Verified via scripts/verify_obstacle_placement.py across all benchmark
-# layouts/routes in BOTH Blocking and NonBlocking modes. (dog survives the
-# drop in Blocking but topples in NonBlocking, where it lands differently.)
-# wooden_crate / flower_pot / duffel_bag join for the same reason, found by a
-# 1120-cell sweep of the Objaverse imports (7 new obstacles x 10 routes x 8
-# layouts x 2 modes): they toppled during the spawn drop in 9 cells
-# (wooden_crate 6, flower_pot 2, duffel_bag 1) — marginal, layout-dependent, and
-# invisible before the stability baseline was moved past the drop. The other new
-# floor obstacles (delivery_box, cardboard_box, floor_cushion) are flat and
-# low-CoM, survive the 5 cm drop everywhere, and are deliberately left out
-# rather than swept in without evidence.
-# child_boy / child_girl joined next, by the same mechanism: standing child
-# figures are tall, narrow and high-CoM, so the 5 cm drop toppled them
-# (4 starts_fallen) or bounced them off their pinned spot (2 popout_xy) in 6 of
-# the 2976 cells of the full-roster sweep. They were the ONLY genuine failures
-# in that sweep — every other obstacle passed on every route and layout.
+# Spawn class: floor obstacles that cannot survive the ~5 cm spawn-drop are
+# instead spawned at a tiny TIPPY_CLEARANCE, so they are stable from frame 0
+# and no in-reset settle loop is needed.
+#
+# Every stability defect found on this roster traced to that 5 cm drop, in two
+# distinct ways. Both are layout- and route-dependent, so neither surfaces
+# without a full sweep (validation/check_obstacle_stability.py):
+#
+#   topple / skitter -- tall, narrow, high-CoM, round or legged meshes tip over
+#       or bounce off their pinned spot on the drop impact.
+#         cat, crawling_baby, dog, trashbin, vase  original set; dog survives
+#                                                  the drop when Blocking but
+#                                                  topples when NonBlocking,
+#                                                  where it lands differently
+#         wooden_crate, flower_pot, duffel_bag     9 of 1120 Objaverse cells
+#         child_boy, child_girl                    6 of 2976 cells; standing
+#                                                  child figures
+#
+#   residual sliding -- flat, low-CoM meshes stay perfectly upright but keep
+#       creeping across the episode with the robot stationary. Told apart from
+#       a measurement artefact by the drift NOT shrinking when the stability
+#       baseline is moved later: delivery_box held ~3.9 cm at settle
+#       50/100/150 (G_SHAPED_LARGE / RouteE). A 2 cm spawn cuts it to 0.1 cm.
+#         delivery_box                             the cell that failed
+#         cardboard_box, floor_cushion             passed on 5 cm, included
+#                                                  anyway -- see below
+#
+# cardboard_box and floor_cushion are in the set despite passing, so that all
+# six Low-tier obstacles share one spawn class. A mixed spawn class inside a
+# tier is an initial-condition confound in an OCT comparison -- the same reason
+# placement geometry is deliberately tier-independent. Both were verified >= as
+# good on a 2 cm spawn as on 5 cm in every cell tested.
+#
+# Net effect: no obstacle uses the 5 cm path any more. `human` is outside both
+# sets but is a static fixture and never drops.
 TIPPY_FLOOR_OBSTACLES = {'vase', 'cat', 'crawling_baby',
                          'trashbin', 'dog',
                          'wooden_crate', 'flower_pot', 'duffel_bag',
-                         'child_boy', 'child_girl'}
+                         'child_boy', 'child_girl',
+                         'delivery_box', 'cardboard_box', 'floor_cushion'}
 
 logger = logging.getLogger(__name__)
 
@@ -853,11 +868,13 @@ class NavigateKitchenWithObstacles(Kitchen):
 
         Each obstacle is spawned at a small clearance above its support
         (upright, zero velocity) and simply lands on the first recorded
-        steps. No in-reset physics relaxation is run: ordinary robust
-        obstacles land flat from a ~5 cm drop; TIPPY_FLOOR_OBSTACLES (which
-        topple or skitter on that impact) use a 2 cm clearance so they
-        neither tip, drift, nor jitter. Verified well-placed across all
-        benchmark scenes via scripts/verify_obstacle_placement.py.
+        steps; no in-reset physics relaxation is run. Clearance comes from the
+        spawn class: 1 cm for TABLE_OBSTACLES, 2 cm (TIPPY_CLEARANCE) for
+        TIPPY_FLOOR_OBSTACLES. The 5 cm fallback below is currently taken by
+        no obstacle -- every spawned obstacle is in one of the two sets -- and
+        is kept only so an unclassified future addition still gets a pose.
+        Verified across all benchmark scenes via
+        validation/check_obstacle_stability.py.
         """
         super()._reset_internal()
 
@@ -919,10 +936,12 @@ class NavigateKitchenWithObstacles(Kitchen):
                     qpos[2] = floor_z - min(obj.bottom_offset[2], 0.0) + self.TIPPY_CLEARANCE
                     qpos[3:7] = sampled_quat
                 else:
-                    # Start ~5 cm above the floor; it drops and lands flat on
-                    # the first recorded steps. min(..., 0) guards meshes
-                    # whose bottom_offset is reported positive (would spawn
-                    # below the floor).
+                    # Fallback for an obstacle in neither spawn-class set.
+                    # Currently unreachable (see TIPPY_FLOOR_OBSTACLES); a new
+                    # obstacle lands here by default, which is the failure-prone
+                    # option -- sweep it before trusting it. min(..., 0) guards
+                    # meshes whose bottom_offset is reported positive (would
+                    # spawn below the floor).
                     qpos[2] = floor_z - min(obj.bottom_offset[2], 0.0) + 0.05
                     qpos[3:7] = sampled_quat
                 self.sim.data.set_joint_qpos(joint_name, qpos)
@@ -930,12 +949,10 @@ class NavigateKitchenWithObstacles(Kitchen):
                 qvel_addr = self.sim.model.get_joint_qvel_addr(joint_name)
                 self.sim.data.qvel[qvel_addr[0]:qvel_addr[1]] = 0
 
-        # No in-reset physics relaxation: robust non-tippy floor obstacles
-        # take the ~5 cm spawn drop and land flat on the first recorded
-        # steps; TIPPY_FLOOR_OBSTACLES spawn at a 2 cm clearance so they
-        # neither penetrate, tip, nor skitter off their pinned spot.
-        # Re-verified across all benchmark scenes (260518) via
-        # scripts/verify_obstacle_placement.py.
+        # No in-reset physics relaxation: every obstacle spawns at its
+        # spawn-class clearance (1 cm table / 2 cm tippy) so it neither
+        # penetrates, tips, nor skitters off its pinned spot. Re-verified over
+        # the full roster via validation/check_obstacle_stability.py.
         self.sim.forward()
 
     def _check_obstacle_boundary_intrusion(self, boundary_threshold=None):

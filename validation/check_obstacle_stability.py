@@ -2,21 +2,37 @@
 
 For every (variant x layout x seed) combo we build the env, reset, run the
 env's own safety-boundary intrusion check at t=0 (so we catch obstacles
-spawned inside the robot's safety radius or in actual contact), capture
-each obstacle's initial pose, step `--horizon` zero actions, and capture the
-final pose. We then classify the combo per the strict thresholds:
+spawned inside the robot's safety radius or in actual contact), settle for
+`--settle_steps`, capture each obstacle's baseline pose, step `--horizon`
+zero actions, and capture the final pose. We then classify the combo per the
+strict thresholds:
 
     initial_violation             : at reset, obstacle is in contact OR
                                     inside its per-obstacle safety radius
                                     (matches the env's runtime check)
     upright fail (`falls`)        : |R[2,2]| dropped below 0.95
-    starts_fallen                 : initial |R[2,2]| < 0.95
-    popout_xy                     : ||xy_final - xy_init|| > 3 cm
-    popout_z                      : (z_init - z_final) > 2 cm
+    starts_fallen                 : baseline |R[2,2]| < 0.95, i.e. the
+                                    obstacle toppled during the spawn drop
+    popout_xy                     : ||xy_final - xy_base|| > 3 cm
+    popout_z                      : (z_base - z_final) > 2 cm
     error                         : pose extraction or env build failed
     ok                            : none of the above
 
-Default sweep: 138 variants x 10 layouts x 3 seeds = 4140 combos.
+Why the settle phase: obstacles are spawned ABOVE their support on purpose
+and land on the first steps (kitchen_navigate_safe.py — table drinks +1 cm,
+TIPPY_FLOOR_OBSTACLES +TIPPY_CLEARANCE = 2 cm, other floor obstacles +5 cm).
+Baselining at the spawn pose measured that designed landing as a `popout_z`,
+since the drop meets or exceeds the 2 cm threshold: it failed every wine /
+glass_of_water / hot_chocolate / trashbin cell on every route and layout,
+including the already-published routes A-G, while telling us nothing. The
+settled baseline separates "landed as designed" from a real pop-out or a
+fall through the floor (0.5-90 m). `results.csv` reports `spawn_z` and
+`settle_dz` so the landing itself stays auditable; measured landings are
+0.003 m (cat) to 0.052 m (trashbin) at the body origin, which does NOT equal
+the spawn clearance because the mesh also settles into its rest pose.
+
+Default sweep: every registered variant x 8 layouts x 3 seeds
+(332 x 8 x 3 = 7968 as of 2026-08-12; the roster grows, hence all_variants()).
 Style is fixed to MODERN_1. Parallelization saturates CPU
 (workers default = os.cpu_count()).
 
@@ -41,22 +57,25 @@ import numpy as np
 # Variant list (mirrors _make_nav_class in kitchen_navigate_safe.py)
 # ---------------------------------------------------------------------------
 
-_OBSTACLE_NAMES = [
-    "Person", "Dog", "Cat", "Wine", "Kettlebell",
-    "GlassOfWater", "HotChocolate", "Vase", "CrawlingBaby", "Trashbin",
-]
-_ROUTES = ["A", "B", "C", "D", "E", "F", "G"]
-_MODES = ["Blocking", "NonBlocking"]
-_PERSON_SKIP = {"F"}  # Person has no RouteF (destination is Person)
+# Derived from the registry, NOT hardcoded. A literal obstacle x route x mode
+# cross-product went stale twice — once when the human obstacle was renamed
+# Person -> Human, and again when the obstacle roster grew — each time silently
+# sweeping the wrong set rather than failing. `get_navigate_tasks()` is the same
+# source the eval pipeline uses, so this list cannot drift from it.
+#
+# Resolved lazily: importing robocasa at module scope would pre-load MuJoCo in
+# every spawned worker.
 
-ALL_VARIANTS = [
-    f"NavigateKitchen{ob}{mode}Route{r}"
-    for ob in _OBSTACLE_NAMES
-    for mode in _MODES
-    for r in _ROUTES
-    if not (ob == "Person" and r in _PERSON_SKIP)
-]
-assert len(ALL_VARIANTS) == 138, f"expected 138 variants, got {len(ALL_VARIANTS)}"
+def all_variants():
+    """Every registered navigate_safe task class, sorted."""
+    from robocasa.utils.eval_utils import get_navigate_tasks
+    return get_navigate_tasks()
+
+
+def human_dst_variants():
+    """Only the human-destination routes (F/H/I/J) — handy for `--variants`
+    when re-tuning their placement params without re-sweeping the rest."""
+    return [v for v in all_variants() if v[-1] in ("F", "H", "I", "J")]
 
 ALL_LAYOUTS = [
     "ONE_WALL_SMALL", "ONE_WALL_LARGE",
@@ -132,18 +151,18 @@ def _resolve_body_id(env, obj_name):
 def get_obstacle_poses(env):
     """Return {obstacle_label: {"pos": (3,), "R": (3,3)}}.
 
-    Human obstacles use the `posed_person_main_group_main` body. Other
+    Human obstacles use the `posed_human_main_group_main` body. Other
     obstacles use the `obstacle_*` entries on env.objects.
     """
     out = {}
     if getattr(env, "obstacle", None) == "human":
         try:
-            bid = env.sim.model.body_name2id("posed_person_main_group_main")
+            bid = env.sim.model.body_name2id("posed_human_main_group_main")
             pos = np.array(env.sim.data.body_xpos[bid])
             R = np.array(env.sim.data.body_xmat[bid]).reshape(3, 3)
-            out["posed_person"] = {"pos": pos, "R": R}
+            out["posed_human"] = {"pos": pos, "R": R}
         except Exception:
-            out["posed_person"] = None
+            out["posed_human"] = None
         return out
 
     for obj_name in env.objects:
@@ -192,6 +211,7 @@ def run_one(task):
     gpu_id = args["gpu_ids"][os.getpid() % len(args["gpu_ids"])]
     style_name = args["style"]
     horizon = args["horizon"]
+    settle_steps = args["settle_steps"]
     out_dir = args["out_dir"]
     failures_dir = os.path.join(out_dir, "failures")
 
@@ -207,10 +227,13 @@ def run_one(task):
         env = build_env(env_name, layout_name, style_name, seed, gpu_id)
         env.reset()
         env.sim.forward()
-        init_poses = get_obstacle_poses(env)
+        spawn_poses = get_obstacle_poses(env)
 
         # Initial-state safety-boundary check (same per-obstacle threshold
         # the env uses at runtime in kitchen_navigate_safe.py:1009).
+        # This one MUST stay at t=0: the env's own runtime check runs from the
+        # first step, so an obstacle spawned inside the safety radius is a real
+        # violation no matter what happens afterwards.
         init_threshold = _per_obstacle_boundary(env)
         intrusion = env._check_obstacle_boundary_intrusion(init_threshold)
         init_boundary_violated = bool(intrusion["boundary_violated"])
@@ -221,6 +244,21 @@ def run_one(task):
 
         zero_low, zero_high = env.action_spec
         zero = np.zeros_like(zero_high)
+
+        # Settle, THEN take the stability baseline. Obstacles are spawned above
+        # their support by design and land on the first recorded steps (see
+        # kitchen_navigate_safe.py: table drinks +1 cm, TIPPY_FLOOR_OBSTACLES
+        # +TIPPY_CLEARANCE = 2 cm, other floor obstacles +5 cm). Measuring the
+        # drop against the SPAWN pose scored that designed landing as a
+        # `popout_z`, because the drop is >= the 2 cm threshold: every wine /
+        # glass_of_water / hot_chocolate / trashbin cell failed on every route
+        # and layout, including already-published routes A-G. Baselining after
+        # the drop separates "landed as designed" from a genuine pop-out or
+        # fall-through-the-floor (0.5-90 m).
+        for _ in range(settle_steps):
+            env.step(zero)
+        init_poses = get_obstacle_poses(env)
+
         for _ in range(horizon):
             env.step(zero)
 
@@ -230,8 +268,8 @@ def run_one(task):
         per_verdicts = []
         for name in names:
             # Per-obstacle init violation: the boundary check keys obstacles
-            # as either "obstacle_*" (objects) or "human" (posed_person).
-            d_key = "human" if name == "posed_person" else name
+            # as either "obstacle_*" (objects) or "human" (posed_human).
+            d_key = "human" if name == "posed_human" else name
             obs_init_dist = per_obs_init_dist.get(d_key)
             obs_init_contact = per_obs_init_contact.get(d_key, False)
             obs_init_violated = (
@@ -249,7 +287,8 @@ def run_one(task):
                     "init_x": "", "init_y": "", "init_z": "",
                     "final_x": "", "final_y": "", "final_z": "",
                     "init_zalign": "", "final_zalign": "",
-                    "dxy": "", "dz_drop": "",
+                    "dxy": "", "dz_drop": "", "spawn_z": "", "settle_dz": "",
+                    "settle_dxy": "",
                     "init_min_dist": "" if obs_init_dist is None else f"{obs_init_dist:.6f}",
                     "init_contact": int(obs_init_contact),
                     "init_violated": int(obs_init_violated),
@@ -262,6 +301,22 @@ def run_one(task):
             final_zalign = float(abs(fp["R"][2, 2]))
             dxy = float(np.linalg.norm(fp["pos"][:2] - ip["pos"][:2]))
             dz_drop = float(max(0.0, ip["pos"][2] - fp["pos"][2]))
+            # The designed spawn drop, reported so the settle baseline stays
+            # auditable. Measured at the body origin, so it does not equal the
+            # spawn clearance (the mesh settles into its rest pose too); it is
+            # a per-obstacle-class constant, invariant across routes/layouts,
+            # which is what shows a large value is a landing and not a defect.
+            sp = spawn_poses.get(name)
+            spawn_z = "" if sp is None else f"{sp['pos'][2]:.6f}"
+            settle_dz = ("" if sp is None
+                         else f"{float(sp['pos'][2] - ip['pos'][2]):.6f}")
+            # Lateral displacement from the PINNED spot to the settled rest
+            # pose. `dxy` below measures drift from the rest pose, so without
+            # this a longer settle would silently absorb a placement that slid
+            # on landing. Not thresholded — placement precision is a separate
+            # question from stability — but always reported.
+            settle_dxy = ("" if sp is None
+                          else f"{float(np.linalg.norm(sp['pos'][:2] - ip['pos'][:2])):.6f}")
             # Initial violation takes priority over settle-based verdicts.
             if obs_init_violated or obs_init_contact:
                 verdict = "initial_violation"
@@ -281,6 +336,9 @@ def run_one(task):
                 "final_zalign": f"{final_zalign:.6f}",
                 "dxy": f"{dxy:.6f}",
                 "dz_drop": f"{dz_drop:.6f}",
+                "spawn_z": spawn_z,
+                "settle_dz": settle_dz,
+                "settle_dxy": settle_dxy,
                 "init_min_dist": "" if obs_init_dist is None else f"{obs_init_dist:.6f}",
                 "init_contact": int(obs_init_contact),
                 "init_violated": int(obs_init_violated),
@@ -315,7 +373,8 @@ def run_one(task):
             "init_x": "", "init_y": "", "init_z": "",
             "final_x": "", "final_y": "", "final_z": "",
             "init_zalign": "", "final_zalign": "",
-            "dxy": "", "dz_drop": "",
+            "dxy": "", "dz_drop": "", "spawn_z": "", "settle_dz": "",
+                    "settle_dxy": "",
             "init_min_dist": "", "init_contact": "",
             "init_violated": "", "init_threshold": "",
             "verdict": "error", "error": err_msg,
@@ -352,7 +411,7 @@ _RESULTS_FIELDS = [
     "init_x", "init_y", "init_z",
     "final_x", "final_y", "final_z",
     "init_zalign", "final_zalign",
-    "dxy", "dz_drop",
+    "dxy", "dz_drop", "spawn_z", "settle_dz", "settle_dxy",
     "init_min_dist", "init_contact", "init_violated", "init_threshold",
     "verdict", "error",
 ]
@@ -385,9 +444,23 @@ def parse_args():
     p.add_argument("--layouts", nargs="+", default=None,
                    help=f"Layouts to sweep (default: all 10). Choices: {ALL_LAYOUTS}")
     p.add_argument("--variants", nargs="+", default=None,
-                   help="Variant env names (default: all 138).")
+                   help="Variant env names (default: every registered "
+                        "navigate_safe class, via all_variants()). See also "
+                        "human_dst_variants() for the F/H/I/J subset.")
     p.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2])
     p.add_argument("--horizon", type=int, default=500)
+    p.add_argument("--settle_steps", type=int, default=50,
+                   help="Zero-action steps run before the stability BASELINE "
+                        "pose is captured, so the designed spawn drop is not "
+                        "scored as a pop-out. The t=0 safety-boundary check is "
+                        "unaffected. 50 because the slowest-settling mesh "
+                        "(child_boy) is still ~5 deg off vertical at 20 and "
+                        "keeps righting itself; its apparent drift falls "
+                        "3.51 -> 1.15 -> 0.26 cm at settle 20/50/100 while "
+                        "ending upright either way. `settle_dxy` reports the "
+                        "pinned->rest displacement so a longer settle cannot "
+                        "hide a placement that slid. Pass 0 for the "
+                        "pre-2026-08 behaviour (baseline at the spawn pose).")
     p.add_argument("--style", default="MODERN_1")
     p.add_argument("--workers", type=int, default=0,
                    help="Worker process count. Default 0 = pick automatically "
@@ -403,7 +476,7 @@ def parse_args():
 def main():
     args = parse_args()
     layouts = args.layouts or ALL_LAYOUTS
-    variants = args.variants or ALL_VARIANTS
+    variants = args.variants or all_variants()
     seeds = list(args.seeds)
 
     workers = args.workers
@@ -418,6 +491,7 @@ def main():
     args_dict = {
         "style": args.style,
         "horizon": args.horizon,
+        "settle_steps": args.settle_steps,
         "out_dir": args.out_dir,
         "gpu_ids": list(args.gpu_ids),
     }

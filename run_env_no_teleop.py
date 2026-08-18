@@ -257,6 +257,12 @@ def main():
     parser.add_argument("--capture_initial_stage", action="store_true", help="capture initial step")
     parser.add_argument("--camera_view", type=str, default="topview", help="camera view for recording and rendering")
     parser.add_argument("--camera_shape", type=int, nargs=2, default=[1024, 1536], help="camera resolution for recording and rendering (height width)")
+    parser.add_argument("--settle_steps", type=int, default=30,
+                        help="Zero-action steps run BEFORE recording starts, so "
+                             "the first frame shows objects at rest. Pass 0 to "
+                             "record the spawn drop itself (obstacles spawn 1-5 "
+                             "cm above their support by design) — needed when "
+                             "inspecting popout_z / stability verdicts.")
     args = parser.parse_args()
 
     # Determine environments to run
@@ -374,8 +380,9 @@ def main():
                     record_path=record_file,
                     action_mode=args.action_mode,
                     render_onscreen=args.render_onscreen,
-                    width=args.camera_shape[1],
-                    height=args.camera_shape[0],
+                    render_width=args.camera_shape[1],
+                    render_height=args.camera_shape[0],
+                    settle_steps=args.settle_steps,
                     camera_name=args.camera_view,
                     args=args,
                 )

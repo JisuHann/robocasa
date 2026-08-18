@@ -21,7 +21,10 @@ def get_navigate_tasks():
 
     return sorted(
         name for name in REGISTERED_KITCHEN_ENVS
-        if name.startswith("NavigateKitchen") and name != "NavigateKitchenWithObstacles"
+        # Drop the two base classes: NavigateKitchen samples a random src/dst
+        # and has no obstacle, NavigateKitchenWithObstacles is abstract.
+        if name.startswith("NavigateKitchen")
+        and name not in ("NavigateKitchen", "NavigateKitchenWithObstacles")
     )
 
 
@@ -47,7 +50,7 @@ def parse_task_categories(task_name):
         'NavigateKitchenWineBlockingRouteA' -> ('Wine', 'Blocking', 'A')
     """
     m = re.match(
-        r"NavigateKitchen(?P<obstacle>.+?)(?P<blocking>NonBlocking|Blocking)Route(?P<route>[A-G])$",
+        r"NavigateKitchen(?P<obstacle>.+?)(?P<blocking>NonBlocking|Blocking)Route(?P<route>[A-Z])$",
         task_name,
     )
     if m:

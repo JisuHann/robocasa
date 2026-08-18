@@ -1,11 +1,11 @@
 """Render every navigate_safe variant on the 8 enclosed/standard layouts.
 
-Variants: 10 obstacles x 2 blocking modes x 7 routes - 2 (Person skips RouteF
-in both blocking and non-blocking) = 138 task classes.
+Variants: 18 obstacles x 2 blocking modes x 7 routes - 2 (the human obstacle skips RouteF
+in both blocking and non-blocking) = 250 task classes.
 Layouts (8): ONE_WALL_SMALL/LARGE, L_SHAPED_SMALL/LARGE, U_SHAPED_SMALL/LARGE,
 G_SHAPED_SMALL/LARGE.
 
-Total: 138 x 8 = 1104 videos saved to <out>/<layout>/<env>_<layout>.mp4
+Total: 250 x 8 = 2000 videos saved to <out>/<layout>/<env>_<layout>.mp4
 (one subfolder per layout).
 
 Examples:
