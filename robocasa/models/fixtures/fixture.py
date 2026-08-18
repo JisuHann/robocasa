@@ -62,7 +62,7 @@ class FixtureType(IntEnum):
     STOOL = 20
     ISLAND = 21
     COUNTER_NON_CORNER = 22
-    POSED_PERSON = 23
+    POSED_HUMAN = 23
     FRIDGE = 24
 
 
