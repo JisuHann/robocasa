@@ -288,9 +288,22 @@ class Floor(Wall):
         )
         self.pos = np.array(self.pos)
     def get_reset_regions(self, *args, **kwargs):
+        # The floor is a box of half-thickness size[2] centred on its origin, so
+        # its walkable surface is size[2] ABOVE that origin. Kitchen's placement
+        # initializer builds the support plane as
+        # `fixture.pos + [0, 0, reset_region["offset"][2]]`
+        # (environments/kitchen/kitchen.py), and UniformRandomSampler then seats
+        # the object at `z_offset + support_z - obj.bottom_offset[z]`
+        # (utils/placement_samplers.py). Returning a zero z-offset here handed the
+        # sampler the MID-plane, sinking every floor object half_thickness (2 cm)
+        # below the surface -- 1 cm net after the default +1 cm z_offset. Objects
+        # then spawned interpenetrating the floor and were ejected by the contact
+        # solver during the settle in Kitchen._reset_internal (the wooden_crate,
+        # light with a 32-piece convex decomposition, reached ~14 m/s and knocked
+        # the main_door open on its way past).
         return {
             "bottom" : {
-                "offset" : (0,0,0),
+                "offset" : (0, 0, self.size[2]),
                 "size" : (self.size[0], self.size[1])
             },
         }
