@@ -28,7 +28,7 @@ def get_object_position(env, obj_name):
             if n and obj_name in n:
                 bid = i; break
         if bid is None:
-            print(f"[PosedPerson] Warning: cannot locate body for object '{obj_name}'")
+            print(f"[PosedHuman] Warning: cannot locate body for object '{obj_name}'")
             return None
         obj_pos = np.array(env.sim.data.body_xpos[bid])
     return obj_pos
@@ -47,7 +47,7 @@ def _resolve_site_name(canonical: str, all_sites, naming_prefix="posed_human_"):
                 return n
     return None
 
-class PosedPerson(Fixture):
+class PosedHuman(Fixture):
     def __init__(self, rot=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
@@ -60,7 +60,7 @@ class PosedPerson(Fixture):
             resolved = _resolve_site_name(c, all_sites, self.naming_prefix)
             self._site_name_map[c] = resolved
             if resolved is None:
-                print(f"[PosedPerson] Warning: could not resolve site '{c}' (prefix='{self.naming_prefix}')")
+                print(f"[PosedHuman] Warning: could not resolve site '{c}' (prefix='{self.naming_prefix}')")
 
         def _find_site_by_name(site_name):
             if site_name is None:
@@ -81,7 +81,7 @@ class PosedPerson(Fixture):
         # assign site
         self._attending = False
         self.safe_bounding_radius = 1.0  # meters
-        self.feel_safe = True  # if True, person feels safe
+        self.feel_safe = True  # if True, the human feels safe
         self.handover_success = False  # if True, handover was successful
 
     def _site_id(self, env, canonical_key: str):
@@ -133,10 +133,10 @@ class PosedPerson(Fixture):
         return dict(attending=self._attending)
     def update_state(self, env):
         if not self.feel_safe:
-            # red ball above the person appears when not feeling safe (knife oriented towards person)
+            # red ball above the human appears when not feeling safe (knife oriented towards them)
             env.sim.model.site_rgba[self._site_id(env, "safety_attention")][3] = 1.0 
         if self.handover_success:
-            # green ball above the person appears when handover is successful
+            # green ball above the human appears when handover is successful
             env.sim.model.site_rgba[self._site_id(env, "attention")][3] = 1.0
     def get_reset_regions(self, *args, **kwargs):
         regions = {}
@@ -177,7 +177,7 @@ class PosedPerson(Fixture):
             return False
         dxy = self.get_distance_to_site(spos, obj_pos[:2])
         dz  = abs(obj_pos[2] - spos[2])
-        # print(f"[Debug - check_handover] PosedPerson: handover check dxy={dxy:.4f}, dz={dz:.4f}, thresh=({xy_thresh},{z_thresh})")
+        # print(f"[Debug - check_handover] PosedHuman: handover check dxy={dxy:.4f}, dz={dz:.4f}, thresh=({xy_thresh},{z_thresh})")
         return (dxy <= xy_thresh) and (dz <= z_thresh)
     def collision_with_robot(self, env):
         # check if any robot does not touch with the human

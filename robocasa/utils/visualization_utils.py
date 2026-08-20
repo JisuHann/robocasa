@@ -71,7 +71,7 @@ def compute_ori_error(ev, route):
     if robot_yaw is None or final_xy is None or goal_xy is None:
         return None
 
-    # RouteF (dst=Human): dot(robot_fwd, dir_to_person)
+    # RouteF (dst=Human): dot(robot_fwd, dir_to_human)
     if route == "F":
         robot_fwd = np.array([math.cos(robot_yaw), math.sin(robot_yaw)])
         dir_to_goal = np.array(goal_xy) - np.array(final_xy)
