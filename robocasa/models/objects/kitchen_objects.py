@@ -2261,7 +2261,7 @@ OBJ_CATEGORIES = dict(
         cookable=False,
         freezable=False,
         lrs_objs=dict(
-            scale=0.80,
+            scale=1.0,
             model_folders=["lrs_objs/child_girl"],
         ),
     ),
@@ -2351,7 +2351,7 @@ OBJ_CATEGORIES = dict(
         cookable=False,
         freezable=False,
         lrs_objs=dict(
-            scale=0.385,
+            scale=0.6,
             model_folders=["lrs_objs/duffel_bag"],
         ),
     ),
