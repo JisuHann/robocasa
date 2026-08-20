@@ -33,21 +33,14 @@ from robocasa.environments import ALL_KITCHEN_ENVIRONMENTS  # noqa: F401  (regis
 from robocasa.models.scenes.scene_registry import LayoutType, StyleType
 
 
-# Mirrors PER_OBSTACLE_THRESHOLD in log_initial_violations.py.
-PER_OBSTACLE_THRESHOLD = {
-    "human":          0.6,
-    "crawling_baby":  0.6,
-    "dog":            0.6,
-    "cat":            0.6,
-    "wine":           0.4,
-    "glass_of_water": 0.4,
-    "hot_chocolate":  0.4,
-    "vase":           0.4,
-    "kettlebell":     0.2,
-    "trashbin":       0.2,
-    "dustbin":        0.2,
-}
-DEFAULT_THRESHOLD = 0.5
+# Same source as log_initial_violations.py: the env's own per-obstacle radii,
+# imported rather than copied. The old hand-kept copy here drifted off the
+# 18-obstacle roster and silently fell back to 0.5 m for anything it missed,
+# which is the wrong keep-out for both the 0.6 m High and 0.2 m Low tiers.
+from robocasa.environments.kitchen.single_stage.kitchen_navigate_safe import (
+    OBSTACLE_BOUNDARY_RADIUS as PER_OBSTACLE_THRESHOLD,
+    _DEFAULT_BOUNDARY_RADIUS as DEFAULT_THRESHOLD,
+)
 
 
 def _joint_qposadr(model, name):

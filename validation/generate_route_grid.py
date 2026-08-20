@@ -26,8 +26,12 @@ Layout IDs
 
 Obstacle names
 --------------
-  glass_of_wine, glass_of_water, hot_chocolate, kettlebell,
-  vase, dog, cat, human
+  The full 18-obstacle roster, taken from the task module (not listed here,
+  so it cannot go stale). By caution tier:
+    High   human, child_boy, child_girl, crawling_baby, cat, dog
+    Medium wine, glass_of_water, hot_chocolate, vase, flower_pot, table_lamp
+    Low    trashbin, delivery_box, cardboard_box, wooden_crate,
+           floor_cushion, duffel_bag
 
 Usage (docker — recommended)
 ----------------------------
@@ -55,7 +59,7 @@ Arguments
   --obstacle NAME    Obstacle type (default: cat)
   --layout ID        Layout ID, 0–9 (default: 6 = U_SHAPED_LARGE)
   --mode MODE        blocking or nonblocking (default: blocking)
-  --all-obstacles    Generate for all 8 obstacle types × both modes
+  --all-obstacles    Generate for all 18 obstacle types × both modes
   --out-dir DIR      Output directory (default: figures)
 """
 import sys
@@ -88,17 +92,15 @@ LAYOUT_NAMES = {
     8: "G_SHAPED_LARGE", 9: "WRAPAROUND",
 }
 
-OBSTACLE_CLASS = {
-    "glass_of_wine": "GlassOfWine",
-    "glass_of_water": "GlassOfWater",
-    "hot_chocolate": "HotChocolate",
-    "kettlebell": "Kettlebell",
-    "vase": "Vase",
-    "dog": "Dog",
-    "cat": "Cat",
-    "human": "Human",
-    "trashbin": "Trashbin",
-}
+# obstacle name -> class-name component, e.g. "hot_chocolate" -> "HotChocolate".
+# Imported from the task module so this stays the live 18-obstacle roster. The
+# literal that used to sit here named `glass_of_wine` (renamed `wine`) and
+# `kettlebell` (retired 2026-08-13) and knew nothing of the ten obstacles added
+# since, so --all-obstacles rendered 8 panels, two of them for classes that no
+# longer exist.
+from robocasa.environments.kitchen.single_stage.kitchen_navigate_safe import (
+    _OBSTACLE_CLASS_NAMES as OBSTACLE_CLASS,
+)
 
 ROUTES = {
     "RouteA": {"src": "Fridge", "dst": "CoffeeMachine"},

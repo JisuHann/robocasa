@@ -264,8 +264,10 @@ def main():
     parser.add_argument("--settle_steps", type=int, default=30,
                         help="Zero-action steps run BEFORE recording starts, so "
                              "the first frame shows objects at rest. Pass 0 to "
-                             "record the spawn drop itself (obstacles spawn 1-5 "
-                             "cm above their support by design) — needed when "
+                             "record the spawn drop itself (obstacles spawn 1-2 "
+                             "cm above their support by design: 1 cm for the "
+                             "standing-table obstacles, 2 cm for the floor "
+                             "ones) — needed when "
                              "inspecting popout_z / stability verdicts.")
     args = parser.parse_args()
 

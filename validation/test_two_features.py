@@ -1,7 +1,12 @@
 """
-Test script for two new features in kitchen_navigate_safe.py:
+Test script for two features in kitchen_navigate_safe.py:
 1. Human always faces toward robot every step
-2. Drink obstacles (glass_of_wine, glass_of_water, hot_chocolate) placed on standing table
+2. TABLE_OBSTACLES placed on the standing table rather than the floor
+
+TABLE_OBSTACLES is wine / glass_of_water / hot_chocolate / table_lamp -- the
+three drinks plus the lamp, which is not a drink but shares their spawn surface.
+`wine` was spelled `glass_of_wine` when this file was written; that name matches
+no class today, so every test below that used it errored out instead of running.
 """
 import sys
 import os
@@ -30,7 +35,7 @@ def test_human_faces_robot(env_name="NavigateKitchenHumanBlockingRouteA", layout
     """
     Test Feature 1: Human always faces toward the robot.
 
-    Checks that after each step, the person body's forward direction
+    Checks that after each step, the human body's forward direction
     points toward the robot base.
     """
     print(f"\n{'='*60}")
@@ -59,37 +64,38 @@ def test_human_faces_robot(env_name="NavigateKitchenHumanBlockingRouteA", layout
         action[1] = np.random.uniform(-0.3, 0.3)  # base y
         obs, reward, done, info = env.step(action)
 
-        # Get person and robot positions
+        # Get human and robot positions
         try:
-            person_id = env.sim.model.body_name2id("posed_person_main_group_main")
+            # Body is posed_HUMAN_*, not posed_person_*.
+            human_id = env.sim.model.body_name2id("posed_human_main_group_main")
             robot_id = env.sim.model.body_name2id("mobilebase0_base")
         except Exception as e:
             print(f"  [SKIP] Could not find body IDs: {e}")
             env.close()
             return False
 
-        person_pos = env.sim.data.body_xpos[person_id]
+        human_pos = env.sim.data.body_xpos[human_id]
         robot_pos = env.sim.data.body_xpos[robot_id]
 
-        # Get person's forward direction from its quaternion
-        person_quat = env.sim.data.body_xquat[person_id]
-        person_mat = T.quat2mat(person_quat)
-        person_fwd = person_mat[:2, 0]  # X-axis in body frame projected to XY
+        # Get human's forward direction from its quaternion
+        human_quat = env.sim.data.body_xquat[human_id]
+        human_mat = T.quat2mat(human_quat)
+        human_fwd = human_mat[:2, 0]  # X-axis in body frame projected to XY
 
-        # Expected direction: person -> robot
-        dir_to_robot = robot_pos[:2] - person_pos[:2]
+        # Expected direction: human -> robot
+        dir_to_robot = robot_pos[:2] - human_pos[:2]
         dist = np.linalg.norm(dir_to_robot)
         if dist < 0.01:
             continue
         dir_to_robot = dir_to_robot / dist
 
-        angle_error = angle_between(person_fwd, dir_to_robot)
+        angle_error = angle_between(human_fwd, dir_to_robot)
         max_angle_errors.append(np.degrees(angle_error))
 
         if step_i % 10 == 0:
             print(f"  Step {step_i}: angle_error={np.degrees(angle_error):.1f}°, "
                   f"robot=[{robot_pos[0]:.2f},{robot_pos[1]:.2f}], "
-                  f"person=[{person_pos[0]:.2f},{person_pos[1]:.2f}]")
+                  f"human=[{human_pos[0]:.2f},{human_pos[1]:.2f}]")
 
     env.close()
 
@@ -105,14 +111,14 @@ def test_human_faces_robot(env_name="NavigateKitchenHumanBlockingRouteA", layout
         return False
 
 
-def test_drink_on_table(env_name="NavigateKitchenGlassOfWineBlockingRouteA", layout_id=0):
+def test_table_obstacle_on_table(env_name="NavigateKitchenWineBlockingRouteA", layout_id=0):
     """
-    Test Feature 2: Drink obstacles placed on standing table.
+    Test Feature 2: TABLE_OBSTACLES placed on the standing table.
 
     Checks that the obstacle is above floor level (on the table).
     """
     print(f"\n{'='*60}")
-    print(f"TEST 2: Drink obstacle on standing table")
+    print(f"TEST 2: Table obstacle on standing table")
     print(f"  env={env_name}, layout={layout_id}")
     print(f"{'='*60}")
 
@@ -179,12 +185,13 @@ def test_drink_on_table(env_name="NavigateKitchenGlassOfWineBlockingRouteA", lay
     return obstacle_found
 
 
-def test_non_drink_still_on_floor(env_name="NavigateKitchenDogBlockingRouteA", layout_id=0):
+def test_floor_obstacle_still_on_floor(env_name="NavigateKitchenDogBlockingRouteA", layout_id=0):
     """
-    Test that non-drink obstacles (dog, cat, etc.) are still on the floor.
+    Test that obstacles outside TABLE_OBSTACLES (dog, cat, vase, the boxes,
+    ...) are still spawned on the floor.
     """
     print(f"\n{'='*60}")
-    print(f"TEST 3: Non-drink obstacle still on floor")
+    print(f"TEST 3: Floor obstacle still on floor")
     print(f"  env={env_name}, layout={layout_id}")
     print(f"{'='*60}")
 
@@ -222,21 +229,22 @@ if __name__ == "__main__":
     # Test 1: Human facing robot
     results["human_faces_robot"] = test_human_faces_robot()
 
-    # Test 2: Drink on table - test multiple drink types
-    for drink_env in [
-        "NavigateKitchenGlassOfWineBlockingRouteA",
+    # Test 2: on the standing table - one env per TABLE_OBSTACLES member
+    for table_env in [
+        "NavigateKitchenWineBlockingRouteA",
         "NavigateKitchenGlassOfWaterBlockingRouteB",
         "NavigateKitchenHotChocolateBlockingRouteC",
+        "NavigateKitchenTableLampBlockingRouteA",
     ]:
-        key = f"drink_on_table_{drink_env}"
+        key = f"on_table_{table_env}"
         try:
-            results[key] = test_drink_on_table(drink_env)
+            results[key] = test_table_obstacle_on_table(table_env)
         except Exception as e:
-            print(f"  [ERROR] {drink_env}: {e}")
+            print(f"  [ERROR] {table_env}: {e}")
             results[key] = False
 
-    # Test 3: Non-drink still on floor
-    results["non_drink_on_floor"] = test_non_drink_still_on_floor()
+    # Test 3: everything else still on the floor
+    results["floor_obstacle_on_floor"] = test_floor_obstacle_still_on_floor()
 
     # Summary
     print(f"\n{'='*60}")

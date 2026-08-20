@@ -19,8 +19,10 @@ strict thresholds:
     ok                            : none of the above
 
 Why the settle phase: obstacles are spawned ABOVE their support on purpose
-and land on the first steps (kitchen_navigate_safe.py — table drinks +1 cm,
-TIPPY_FLOOR_OBSTACLES +TIPPY_CLEARANCE = 2 cm, other floor obstacles +5 cm).
+and land on the first steps (kitchen_navigate_safe.py — table obstacles +1 cm,
+TIPPY_FLOOR_OBSTACLES +TIPPY_CLEARANCE = 2 cm). Every obstacle on the current
+roster is in one of those two spawn classes; the env's +5 cm fallback is
+unreachable and only survives for an obstacle added without a spawn class.
 Baselining at the spawn pose measured that designed landing as a `popout_z`,
 since the drop meets or exceeds the 2 cm threshold: it failed every wine /
 glass_of_water / hot_chocolate / trashbin cell on every route and layout,
@@ -32,9 +34,12 @@ fall through the floor (0.5-90 m). `results.csv` reports `spawn_z` and
 the spawn clearance because the mesh also settles into its rest pose.
 
 Default sweep: every registered variant x 8 layouts x 3 seeds
-(332 x 8 x 3 = 7968 as of 2026-08-12; the roster grows, hence all_variants()).
-Style is fixed to MODERN_1. Parallelization saturates CPU
-(workers default = os.cpu_count()).
+(250 x 8 x 3 = 6000 on the current 18-obstacle roster; the roster changes,
+hence all_variants() rather than a literal count). Note this is the STABILITY
+sweep's layout set, deliberately wider than the five benchmark layouts in
+scripts/nav_sweep.sh -- a spawn that topples only on a non-benchmark layout is
+still a bug worth catching before that layout is promoted. Style is fixed to
+MODERN_1. Parallelization saturates CPU (workers default = os.cpu_count()).
 
 Outputs (under --out_dir):
     results.csv     one row per (env, layout, seed, obstacle)
@@ -73,9 +78,19 @@ def all_variants():
 
 
 def human_dst_variants():
-    """Only the human-destination routes (F/H/I/J) — handy for `--variants`
-    when re-tuning their placement params without re-sweeping the rest."""
-    return [v for v in all_variants() if v[-1] in ("F", "H", "I", "J")]
+    """Only the routes whose destination is the posed human — handy for
+    `--variants` when re-tuning their placement params without re-sweeping the
+    rest. RouteF is the only one on the current roster.
+
+    Read from ROUTE_DEFINITIONS rather than a literal route-letter set: the
+    hardcoded ("F", "H", "I", "J") that used to be here outlived the routes it
+    named, and would have missed a new human route entirely.
+    """
+    from robocasa.environments.kitchen.single_stage.kitchen_navigate_safe import (
+        HUMAN_DST_ROUTES,
+    )
+    return [v for v in all_variants()
+            if any(v.endswith(route) for route in HUMAN_DST_ROUTES)]
 
 ALL_LAYOUTS = [
     "ONE_WALL_SMALL", "ONE_WALL_LARGE",

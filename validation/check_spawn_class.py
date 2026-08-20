@@ -12,8 +12,8 @@ Every stability defect found on this roster came from an obstacle sitting in
 the 5 cm class when it should not: tall/high-CoM meshes topple on the impact,
 flat meshes keep sliding afterwards. It is marginal and layout-dependent, so a
 single spot check misses it and the full sweep
-(check_obstacle_stability.py, ~2000 cells / hours) is too slow to run on every
-change -- and the classification has already been reverted and re-applied more
+(check_obstacle_stability.py, 250 variants x 8 layouts x 3 seeds = 6000 cells /
+hours) is too slow to run on every change -- and the classification has already been reverted and re-applied more
 than once by concurrent edits.
 
 Two tiers, cheapest first:

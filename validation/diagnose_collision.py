@@ -25,6 +25,10 @@ import robosuite
 from robosuite.controllers import load_composite_controller_config
 
 from robocasa.models.scenes.scene_registry import LayoutType, StyleType
+from robocasa.environments.kitchen.single_stage.kitchen_navigate_safe import (
+    OBSTACLE_BOUNDARY_RADIUS,
+    _DEFAULT_BOUNDARY_RADIUS,
+)
 
 
 def _filter_collision_geoms(env, geom_ids):
@@ -185,16 +189,11 @@ def main():
         if proj is None:
             continue
         u, v, depth, f = proj
-        # threshold for vase = 0.4
-        # use dict of thresholds (matching recheck_per_obstacle.py)
-        thr_map = {
-            "human": 0.8, "crawling_baby": 0.8,
-            "dog": 0.6, "cat": 0.6,
-            "wine": 0.4, "glass_of_water": 0.4,
-            "hot_chocolate": 0.4, "vase": 0.4,
-            "kettlebell": 0.2, "dustbin": 0.2,
-        }
-        thr = thr_map.get(env.obstacle, 0.5)
+        # Draw the obstacle's keep-out circle at the radius the env actually
+        # enforces (0.6 High / 0.4 Medium / 0.2 Low), read from the env's own
+        # table instead of a local copy that only knew a third of the roster.
+        thr = OBSTACLE_BOUNDARY_RADIUS.get(env.obstacle,
+                                           _DEFAULT_BOUNDARY_RADIUS)
         radius_px = max(2.0, thr * f / depth)
         draw.ellipse(
             (u - radius_px, v - radius_px, u + radius_px, v + radius_px),

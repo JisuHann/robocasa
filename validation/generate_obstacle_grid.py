@@ -16,6 +16,9 @@ Usage:
 
     # All routes for a layout
     python generate_obstacle_grid.py --layout 6 --all-routes
+
+One panel per obstacle: 18 for most routes, 17 for RouteF, where the
+posed_human is the destination and so cannot also be the obstacle.
 """
 import sys
 import os
@@ -47,15 +50,23 @@ LAYOUT_NAMES = {
     8: "G_SHAPED_LARGE", 9: "WRAPAROUND",
 }
 
+# (obstacle name, class-name component) for the full 18-obstacle roster, in
+# caution-tier order (High, then Medium, then Low) so the grid reads top-left
+# to bottom-right as decreasing caution. Names come from the task module: the
+# literal that used to sit here still listed `glass_of_wine` (renamed `wine`)
+# and `kettlebell` (retired 2026-08-13), and was missing the ten obstacles
+# added since, so the grid silently showed 8 of 18.
+from robocasa.environments.kitchen.single_stage.kitchen_navigate_safe import (
+    _OBSTACLE_CLASS_NAMES,
+    HIGH_TIER_OBSTACLES,
+    MODERATE_TIER_OBSTACLES,
+    LOW_TIER_OBSTACLES,
+)
+
 OBSTACLES = [
-    ("glass_of_wine", "GlassOfWine"),
-    ("glass_of_water", "GlassOfWater"),
-    ("hot_chocolate", "HotChocolate"),
-    ("kettlebell", "Kettlebell"),
-    ("vase", "Vase"),
-    ("dog", "Dog"),
-    ("cat", "Cat"),
-    ("human", "Human"),
+    (obs, _OBSTACLE_CLASS_NAMES[obs])
+    for tier in (HIGH_TIER_OBSTACLES, MODERATE_TIER_OBSTACLES, LOW_TIER_OBSTACLES)
+    for obs in tier
 ]
 
 ROUTES = ["RouteA", "RouteB", "RouteC", "RouteD", "RouteE", "RouteF", "RouteG"]

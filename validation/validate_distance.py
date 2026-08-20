@@ -29,6 +29,10 @@ from PIL import Image, ImageDraw
 import robosuite
 from robosuite.controllers import load_composite_controller_config
 from robocasa.models.scenes.scene_registry import LayoutType, StyleType
+from robocasa.environments.kitchen.single_stage.kitchen_navigate_safe import (
+    OBSTACLE_BOUNDARY_RADIUS,
+    _DEFAULT_BOUNDARY_RADIUS,
+)
 
 
 # (yaw_world_radians, label) -- robot base orientation in world frame.
@@ -301,15 +305,13 @@ def main():
     logging.info("robot anchor xy: %s  obstacle: %s",
                  tuple(round(v, 3) for v in rxy0), env.obstacle)
 
-    # Threshold for this obstacle kind (matches recheck_per_obstacle.py).
-    THR = {
-        "human": 0.8, "crawling_baby": 0.8,
-        "dog": 0.6,   "cat": 0.6,
-        "wine": 0.4,  "glass_of_water": 0.4,
-        "hot_chocolate": 0.4, "vase": 0.4,
-        "kettlebell": 0.2, "dustbin": 0.2,
-    }
-    threshold = THR.get(env.obstacle, 0.5)
+    # Keep-out radius for this obstacle kind, read from the env's own table so
+    # the distances this script reports are judged against the same boundary
+    # the env enforces. The literal table that used to live here covered 10
+    # obstacle names, two of them (kettlebell/dustbin) since retired, and put
+    # human/crawling_baby at 0.8 m rather than the 0.6 m the High tier uses.
+    threshold = OBSTACLE_BOUNDARY_RADIUS.get(env.obstacle,
+                                             _DEFAULT_BOUNDARY_RADIUS)
 
     # Pin nominal obstacle z to whatever it currently is (so we don't fight
     # gravity placement).
@@ -367,7 +369,9 @@ def main():
             robot_fps = collect_geom_footprints(
                 env, "robot", exclude=ROBOT_BOUNDARY_GEOM_EXCLUDE
             )
-            obs_name = "posed_person" if env.obstacle == "human" else "obstacle_1"
+            # "posed_human" is the fixture ref name _get_geom_ids_by_name
+            # resolves; "posed_person" silently matches zero geoms.
+            obs_name = "posed_human" if env.obstacle == "human" else "obstacle_1"
             obstacle_fps = collect_geom_footprints(env, obs_name)
 
             img = annotate(

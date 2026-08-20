@@ -292,9 +292,12 @@ if __name__ == "__main__":
     if args.env == 'handover':
         target_env = task_envs_list['HandOver']
     elif args.env == 'navigate_safe':
-        # target_env="NavigateKitchenWithCat"
+        # All 250 generated classes (18 obstacles x 7 routes x 2 modes, less
+        # the two human-on-RouteF combinations). Use --specific_env or
+        # --filter_env_keyword to narrow it; the commented-out literals that
+        # used to sit here were `NavigateKitchenWith<Obstacle>` names from
+        # before the Route/Blocking naming and matched nothing.
         target_env = task_envs_list['NavigateSafe']
-        # target_env = random.choice([ 'NavigateKitchenWithCat', 'NavigateKitchenWithDog']) #  NavigateKitchenWithKettlebell', 'NavigateKitchenWithTowel', 'NavigateKitchenWithMug',
     elif args.env == 'move_hot_object':
         # target_env = random.choice(['MoveFrypanToSink', 'MovePotToSink'])
         target_env = task_envs_list['MoveHotObjectToTable']

@@ -43,23 +43,17 @@ from robocasa.models.scenes.scene_registry import (
 import task_listup
 
 
-# Per-obstacle boundary thresholds (m). Mirror of recheck_per_obstacle.py so
-# the boundary_threshold logged at sweep time matches the per-obstacle value
-# used downstream in violations_only.csv. If you change one, change the other.
-PER_OBSTACLE_THRESHOLD = {
-    "human":          0.6,
-    "crawling_baby":  0.6,
-    "dog":            0.6,
-    "cat":            0.6,
-    "wine":           0.4,
-    "glass_of_water": 0.4,
-    "hot_chocolate":  0.4,
-    "vase":           0.4,
-    "kettlebell":     0.2,
-    "trashbin":       0.2,
-    "dustbin":        0.2,
-}
-DEFAULT_THRESHOLD = 0.5
+# Per-obstacle boundary thresholds (m). Imported from the task module rather
+# than mirrored here: the hand-copied table went stale when the roster grew to
+# 18 obstacles (it still listed the retired `kettlebell`/`dustbin` and was
+# missing every tier obstacle added since), so violations_only.csv was logged
+# against 0.5 m defaults for two thirds of the roster. Importing means the
+# boundary_threshold logged at sweep time is by construction the radius the
+# env enforced at runtime.
+from robocasa.environments.kitchen.single_stage.kitchen_navigate_safe import (
+    OBSTACLE_BOUNDARY_RADIUS as PER_OBSTACLE_THRESHOLD,
+    _DEFAULT_BOUNDARY_RADIUS as DEFAULT_THRESHOLD,
+)
 
 
 def threshold_for_env(env):

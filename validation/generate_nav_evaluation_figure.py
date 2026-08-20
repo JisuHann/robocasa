@@ -5,14 +5,22 @@ generate_nav_evaluation_figure.py — Three-axis evaluation space figure
 
 Generates an academic figure for the SAFEHRI-NAV task showing:
   Top row:    7 route geometries (A–G) as rendered top-down panels with path arrows
-  Middle row: 8 obstacle types (4 unsafe + 4 safe) as rendered panels
+  Middle row: 18 obstacle types (6 per caution tier) as rendered panels
   Bottom row: Blocking vs non-blocking mode comparison (2 panels)
 
 Caption: "Three-axis evaluation space of SAFEHRI-NAV. Top: Seven route geometries
-(A–G). Middle: Eight obstacle types organized into unsafe (living entities, fragile
-objects) and safe (robust items) categories. Bottom: Blocking (obstacle on path) vs.
-non-blocking (obstacle beside path) modes. Each episode crosses one setting from
-each axis, yielding 110 valid scenarios."
+(A–G). Middle: Eighteen obstacle types, six in each of three caution tiers — High
+(living entities, keep-out 0.6 m), Medium (fragile objects, 0.4 m) and Low (robust
+clutter, 0.2 m). Bottom: Blocking (obstacle on path) vs. non-blocking (obstacle
+beside path) modes. Each episode crosses one setting from each axis, yielding 250
+task classes: 18 x 7 x 2 minus the two human-on-RouteF combinations, since the
+posed_human is RouteF's destination and cannot also be its obstacle."
+
+The tiers are deliberately equal-sized so a per-tier mean is taken over the same
+number of obstacle types. The obstacle roster is imported from the task module,
+not listed here — the literal that used to sit below drifted to naming
+`glass_of_wine` (renamed `wine`) and `kettlebell` (retired 2026-08-13), and the
+figure silently rendered error panels for both.
 
 Usage (docker):
     docker exec robocasa-container python /workspace/benchmark/robocasa/generate_nav_evaluation_figure.py \\
@@ -55,18 +63,39 @@ ROUTES = {
     "G": {"src": "Microwave", "dst": "Sink"},
 }
 
-# Organized by safety category
-OBSTACLES_UNSAFE = [
-    ("human", "Human", "Human"),
-    ("dog", "Dog", "Dog"),
-    ("cat", "Cat", "Cat"),
-    ("glass_of_wine", "GlassOfWine", "Wine Glass"),
-    ("glass_of_water", "GlassOfWater", "Water Glass"),
-    ("hot_chocolate", "HotChocolate", "Hot Choc."),
-]
-OBSTACLES_SAFE = [
-    ("kettlebell", "Kettlebell", "Kettlebell"),
-    ("vase", "Vase", "Vase"),
+# Organized by caution tier, six obstacles each. Names and tier membership come
+# from the task module so the figure cannot drift off the live roster.
+from robocasa.environments.kitchen.single_stage.kitchen_navigate_safe import (
+    _OBSTACLE_CLASS_NAMES,
+    _OBSTACLE_DISPLAY_NAMES,
+    HIGH_TIER_OBSTACLES,
+    MODERATE_TIER_OBSTACLES,
+    LOW_TIER_OBSTACLES,
+)
+
+# Shorter captions where the display name would not fit under a panel.
+_PANEL_LABEL_OVERRIDES = {
+    "hot_chocolate": "Hot Choc.",
+    "glass_of_water": "Water Glass",
+    "crawling_baby": "Baby",
+    "cardboard_box": "Cardbd. Box",
+}
+
+
+def _tier_entries(names):
+    """(internal name, class-name component, panel caption) per obstacle."""
+    return [
+        (n, _OBSTACLE_CLASS_NAMES[n],
+         _PANEL_LABEL_OVERRIDES.get(n, _OBSTACLE_DISPLAY_NAMES[n].title()))
+        for n in names
+    ]
+
+
+# (tier label, tag colour, entries) in decreasing caution order.
+OBSTACLE_TIERS = [
+    ("High",   "#D32F2F", _tier_entries(HIGH_TIER_OBSTACLES)),
+    ("Medium", "#F57C00", _tier_entries(MODERATE_TIER_OBSTACLES)),
+    ("Low",    "#388E3C", _tier_entries(LOW_TIER_OBSTACLES)),
 ]
 
 LAYOUT_NAMES = {
@@ -212,7 +241,8 @@ def render_obstacle_panel(obs_internal, obs_cls, layout_id, img_size=400):
     candidates = [
         f"NavigateKitchen{obs_cls}BlockingRouteA",
     ]
-    # Alternate names for docker compatibility
+    # Alternate names for docker compatibility. GlassOfWine was the pre-rename
+    # spelling of Wine; kept as a fallback for older images only.
     ALT_NAMES = {"GlassOfWine": "Wine", "GlassOfWater": "Water",
                  "HotChocolate": "HotChoc"}
     if obs_cls in ALT_NAMES:
@@ -273,8 +303,8 @@ def generate(layout_id=6, out_dir="figures"):
 
     # ── Row 1: Routes (7 panels) ──
     n_routes = 7
-    # ── Row 2: Obstacles (8 panels: 6 unsafe + 2 safe) ──
-    n_obs = 8
+    # ── Row 2: Obstacles (18 panels: 6 per caution tier) ──
+    n_obs = sum(len(entries) for _, _, entries in OBSTACLE_TIERS)
     # ── Row 3: Modes (2 panels) ──
     n_modes = 2
 
@@ -335,7 +365,7 @@ def generate(layout_id=6, out_dir="figures"):
     print("Row 2: Obstacle types...")
     draw.rectangle([0, y_cursor, row_label_w - 5, y_cursor + row_h],
                    fill="#FFF3E0", outline="#FFB74D", width=1)
-    section_text = "Obstacle\nTypes\n(8 types)"
+    section_text = f"Obstacle\nTypes\n({n_obs} types)"
     lines = section_text.split("\n")
     ty = y_cursor + (row_h - len(lines) * 16) // 2
     for line in lines:
@@ -344,19 +374,18 @@ def generate(layout_id=6, out_dir="figures"):
                   fill="#E65100", font=font_section)
         ty += 16
 
-    all_obstacles = OBSTACLES_UNSAFE + OBSTACLES_SAFE
-    for idx, (obs_int, obs_cls, obs_display) in enumerate(all_obstacles):
+    all_obstacles = [
+        (obs_int, obs_cls, obs_display, tier_label, tier_color)
+        for tier_label, tier_color, entries in OBSTACLE_TIERS
+        for obs_int, obs_cls, obs_display in entries
+    ]
+    for idx, (obs_int, obs_cls, obs_display, cat_text, cat_color) in enumerate(all_obstacles):
         x = row_label_w + pad + idx * (panel_size + pad)
         y = y_cursor
 
         print(f"  {obs_display}")
         img = render_obstacle_panel(obs_int, obs_cls, layout_id, panel_size)
         canvas.paste(img, (x, y))
-
-        # Category color
-        is_unsafe = idx < len(OBSTACLES_UNSAFE)
-        cat_color = "#D32F2F" if is_unsafe else "#388E3C"
-        cat_text = "unsafe" if is_unsafe else "safe"
 
         bb = draw.textbbox((0, 0), obs_display, font=font_label)
         lw = bb[2] - bb[0]

@@ -8,6 +8,13 @@ G_SHAPED_SMALL/LARGE.
 Total: 250 x 8 = 2000 videos saved to <out>/<layout>/<env>_<layout>.mp4
 (one subfolder per layout).
 
+This is a WIDER sweep than the benchmark itself. The released benchmark is the
+five layouts in scripts/nav_sweep.sh (ONE_WALL_SMALL, L_SHAPED_SMALL,
+L_SHAPED_LARGE, G_SHAPED_SMALL, G_SHAPED_LARGE) = 250 x 5 = 1250 tasks; the
+extra three here are rendered to eyeball placement on layouts that are tuned in
+nav_placement_params.py but not part of the released set. For the benchmark
+figures use scripts/nav_sweep.sh, which also builds the per-tier overlays.
+
 Examples:
     python render_final_layouts.py
     python render_final_layouts.py --gpus 0 1 2 3        # one layout per GPU

@@ -1,9 +1,10 @@
-"""Cross-check the four tables that define an obstacle, and fail loudly.
+"""Cross-check the five tables that define an obstacle, and fail loudly.
 
-An obstacle is defined in four places that nothing keeps in sync:
+An obstacle is defined in five places that nothing keeps in sync:
 
     _OBSTACLE_CLASS_NAMES      registers it and generates its task classes
     OBSTACLE_BOUNDARY_RADIUS   the r_b the env scores boundary intrusion at
+    TIER_TO_OBSTACLES          the tier tuples the sweep and figures group by
     TIER_OF                    the caution tier SSI aggregates by
     TIER_R_B                   the r_b SSI reports per tier
 
@@ -14,8 +15,13 @@ Every mismatch found so far has failed SILENTLY rather than raising:
     Medium nor Low but something in between.
   * missing from TIER_OF -> `compute_ssi` does `if ell is None: continue`,
     so every episode of that obstacle runs, burns GPU, and is then dropped
-    from the metric with no warning. `Kettlebell` sits here today: 20 task
-    classes, 160 instances at 8 layouts.
+    from the metric with no warning. `Kettlebell` sat here until it was
+    retired from the navigation roster on 2026-08-13, silently costing 20
+    task classes / 160 instances at 8 layouts.
+  * missing from a TIER_TO_OBSTACLES tuple -> it is scored, but the sweep and
+    the tier figures never render it, so a tier's per-obstacle mean is taken
+    over fewer types than the roster has. The Moderate tuple listed only its
+    three floor obstacles this way, omitting the three table drinks.
   * r_b disagreeing between the env and SSI -> the env scores against one
     radius while the paper reports another.
 
@@ -41,16 +47,32 @@ def load_tables():
     from robocasa.environments.kitchen.single_stage.kitchen_navigate_safe import (
         OBSTACLE_BOUNDARY_RADIUS, _DEFAULT_BOUNDARY_RADIUS,
         _OBSTACLE_CLASS_NAMES, TABLE_OBSTACLES, TIPPY_FLOOR_OBSTACLES,
+        TIER_TO_OBSTACLES,
     )
     from robocasa.utils.ssi import TIER_OF, TIER_R_B
+    # obstacle key -> the tier tuple it appears in, so a key in none of them
+    # (or in two) is visible per row rather than only in the balance summary.
+    tier_tuple_of = {}
+    for tier, members in TIER_TO_OBSTACLES.items():
+        for key in members:
+            tier_tuple_of.setdefault(key, []).append(tier)
     return dict(
         radius=OBSTACLE_BOUNDARY_RADIUS, default_radius=_DEFAULT_BOUNDARY_RADIUS,
         classes=_OBSTACLE_CLASS_NAMES, table=TABLE_OBSTACLES,
         tippy=TIPPY_FLOOR_OBSTACLES, tier_of=TIER_OF, tier_rb=TIER_R_B,
+        tier_tuple_of=tier_tuple_of,
     )
 
 
+# `human` is the posed_human fixture, not a spawned free body: _reset_internal
+# returns before the pin loop for it, so it never drops and needs no spawn
+# class. Mirrors NON_SPAWNED in validation/check_spawn_class.py.
+NON_SPAWNED = {"human"}
+
+
 def spawn_class(key, t):
+    if key in NON_SPAWNED:
+        return "fixture (no drop)"
     if key in t["table"]:
         return "table (+1 cm)"
     if key in t["tippy"]:
@@ -78,6 +100,15 @@ def check(quiet=False):
             issues.append("no TIER_R_B entry")
         if rb_env is not None and rb_ssi is not None and abs(rb_env - rb_ssi) > 1e-9:
             issues.append(f"r_b disagrees: env={rb_env} ssi={rb_ssi}")
+        tuples = t["tier_tuple_of"].get(key, [])
+        if not tuples:
+            issues.append("in no TIER_TO_OBSTACLES tuple -> never swept or "
+                          "plotted, and its tier's mean is short one type")
+        elif len(tuples) > 1:
+            issues.append(f"in {len(tuples)} TIER_TO_OBSTACLES tuples: {tuples}")
+        elif tier is not None and tuples[0] != tier:
+            issues.append(f"tier disagrees: TIER_TO_OBSTACLES={tuples[0]} "
+                          f"TIER_OF={tier}")
         if issues:
             problems.append((key, cls, issues))
         by_tier[tier].append(key)

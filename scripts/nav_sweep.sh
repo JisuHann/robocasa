@@ -4,6 +4,12 @@
 #
 #   scripts/nav_sweep.sh [LAYOUT ...]
 #
+# One clip per registered navigate_safe class per layout. The roster is 18
+# obstacles x 7 routes x 2 blocking modes minus the two human-on-RouteF
+# combinations (the posed_human is RouteF's target and cannot also be its
+# obstacle) = 250 classes per layout. With the five default layouts below
+# that is the full 250 x 5 = 1250-task benchmark.
+#
 # Output tree (under figures/nav_sweep):
 #   videos/<LAYOUT>/<obstacle>/NavigateKitchen<Obs><Mode>Route<R>_<LAYOUT>_<STYLE>.mp4
 #   overlay/<LAYOUT>/<tier>/{diff,grid}/...
@@ -38,6 +44,11 @@ if [ -z "${ROBOCASA_EGL_DEVICE:-}" ]; then
     fi
 fi
 
+# Caution tiers, 6 obstacles each. Mirrors HIGH_TIER_OBSTACLES /
+# MODERATE_TIER_OBSTACLES / LOW_TIER_OBSTACLES in kitchen_navigate_safe.py
+# (and TIER_OF in robocasa/utils/ssi.py). Keep all three in sync: the tiers
+# are deliberately equal-sized so a per-tier mean is taken over the same
+# number of obstacle types.
 HIGH=(human child_boy child_girl crawling_baby cat dog)
 MODERATE=(wine glass_of_water hot_chocolate vase flower_pot table_lamp)
 LOW=(trashbin delivery_box cardboard_box wooden_crate floor_cushion duffel_bag)
@@ -52,7 +63,8 @@ for L in "${LAYOUTS[@]}"; do
     MUJOCO_GL=egl python run_env_no_teleop_parallel.py \
         --env navigate_safe --layout "$L" \
         --record_path "$RAW" --horizon "$HORIZON" \
-        --num_workers "$WORKERS" --gpu_ids $ROBOCASA_EGL_DEVICE --skip-existing
+        --num_workers "$WORKERS" --gpu_ids $ROBOCASA_EGL_DEVICE --skip-existing 
+        # --filter_env_keyword "RouteE" 
 
     echo "[$L] recorded $(ls "$RAW"/*.mp4 2>/dev/null | wc -l) clips"
 

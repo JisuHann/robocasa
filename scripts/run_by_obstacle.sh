@@ -1,22 +1,30 @@
 #!/bin/bash
 cd ../
+# One --filter_env_keyword pass per obstacle. Keywords are matched
+# case-insensitively against the class name, so they are the _OBSTACLE_CLASS_NAMES
+# spelling from kitchen_navigate_safe.py lowercased and de-underscored
+# (crawling_baby -> CrawlingBaby -> crawlingbaby).
+#
+# Two entries here used to match nothing and silently rendered zero clips:
+# `person`, which is the pre-rename spelling of the Human class, and
+# `kettlebell`, retired from the navigation roster on 2026-08-13.
 obstacle_list=(
+    # high-caution-tier obstacles
+    human
+    crawlingbaby
     cat
     dog
-    person
-    crawlingbaby
     childboy
     childgirl
+    # moderate-caution-tier obstacles
     wine
     glassofwater
     hotchocolate
     vase
-    trashbin
-    kettlebell
-    # moderate-caution-tier obstacle
     flowerpot
     tablelamp
     # low-caution-tier obstacles
+    trashbin
     deliverybox
     cardboardbox
     woodencrate
