@@ -10,6 +10,7 @@ from robosuite.controllers import load_composite_controller_config
 from robosuite.models.objects import BallObject
 from robosuite.utils.mjcf_utils import xml_path_completion
 from task_listup import task_envs_list
+from robocasa.utils.env_utils import hide_gripper_marker_sites
 import logging
 # (옵션) robosuite 키보드 텔레옵 유틸
 _HAS_RS_KEYBOARD = True
@@ -80,6 +81,7 @@ def create_own_env(
     if 'Door' in env_name :
         env_kwargs['has_human'] = has_human
     env = robosuite.make(**env_kwargs)
+    hide_gripper_marker_sites(env)
     return env
 
 def run_keyboard_teleop(env, horizon=2000, record_path=None, args=None):
@@ -141,6 +143,7 @@ def run_keyboard_teleop(env, horizon=2000, record_path=None, args=None):
     low, high = env.action_spec
     action = np.zeros_like(high)
     obs = env.reset()
+    hide_gripper_marker_sites(env)
     # NOTE: do not call env.reset() here — robosuite.make() already runs
     # _load_model() + _reset_internal() once, so an extra reset would
     # re-sample obstacles/objects (and log "Obstacle ... at" twice).
@@ -216,6 +219,7 @@ def run_keyboard_teleop(env, horizon=2000, record_path=None, args=None):
             # ===== Reset / Quit =====
             if down(K.backspace):
                 obs = env.reset()
+                hide_gripper_marker_sites(env)
                 
                 if writer is not None:
                     frame = env.sim.render(height=1024, width=1536, camera_name=args.camera_view)[::-1]

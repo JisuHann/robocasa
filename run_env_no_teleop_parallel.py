@@ -18,6 +18,7 @@ import robosuite
 from robosuite.controllers import load_composite_controller_config
 
 from robocasa.environments import ALL_KITCHEN_ENVIRONMENTS
+from robocasa.utils.env_utils import hide_gripper_marker_sites
 from robocasa.models.scenes.scene_registry import LayoutType, StyleType, LAYOUT_GROUPS_TO_IDS
 import task_listup
 from robocasa.utils.egl_device import resolve_egl_devices
@@ -78,6 +79,7 @@ def create_env_offscreen(
     if "Door" in env_name and "NoHuman" not in env_name:
         env_kwargs['has_human'] = has_human
     env = robosuite.make(**env_kwargs)
+    hide_gripper_marker_sites(env)
     return env
 
 
@@ -198,6 +200,7 @@ def run_simulation(
     if writer is not None:
         if capture_initial_stage:
             env.reset()
+            hide_gripper_marker_sites(env)
         frame = env.sim.render(height=render_height, width=render_width, camera_name=camera_name)[::-1]
         writer.append_data(frame)
 

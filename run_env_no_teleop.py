@@ -29,6 +29,7 @@ from robosuite.controllers import load_composite_controller_config
 import logging
 
 from robocasa.environments import ALL_KITCHEN_ENVIRONMENTS
+from robocasa.utils.env_utils import hide_gripper_marker_sites
 from robocasa.models.scenes.scene_registry import LayoutType, StyleType, LAYOUT_GROUPS_TO_IDS
 import task_listup
 from robocasa.utils.egl_device import resolve_egl_device
@@ -98,6 +99,7 @@ def create_env(
         env_kwargs['has_human'] = has_human
 
     env = robosuite.make(**env_kwargs)
+    hide_gripper_marker_sites(env)
     return env
 
 # ===== 액션 인덱스 (테이블 기준 고정) =====
@@ -152,6 +154,7 @@ def run_simulation(
     low, high = env.action_spec
     if action_mode != "zero":
         obs = env.reset()
+        hide_gripper_marker_sites(env)
 
     # Settle physics with zero actions before recording so the first frame
     # shows objects resting on surfaces instead of mid-clip / mid-fall.
@@ -163,6 +166,7 @@ def run_simulation(
     if writer is not None:
         if args.capture_initial_stage:
             obs = env.reset()
+            hide_gripper_marker_sites(env)
         frame = env.sim.render(height=render_height, width=render_width, camera_name=camera_name)[::-1]
         writer.append_data(frame)
     elif render_onscreen:

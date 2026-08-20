@@ -108,3 +108,29 @@ if __name__ == "__main__":
     info = run_random_rollouts(
         env, num_rollouts=3, num_steps=100, video_path="/tmp/test.mp4"
     )
+
+
+def hide_gripper_marker_sites(env):
+    """Drop robosuite's gripper marker sites from anything this env renders.
+
+    The gripper XMLs carry group-1 sites for manipulation debugging: grip_site
+    (red sphere at the grasp point) and grip_site_cylinder, a 10 m cylinder
+    along the grasp axis that reads as a green ray across the whole frame
+    (robosuite/models/assets/grippers/*.xml). On navigation tasks the arm is
+    parked, so they are pure noise in recorded clips.
+
+    Clearing visualization group 1 leaves the model untouched — same mechanism
+    robosuite itself uses for geomgroup in MujocoEnv._reset_internal. Call this
+    after robosuite.make() and after every env.reset(): a reset attaches a fresh
+    render context whose MjvOption starts from the defaults again.
+    """
+    contexts = [getattr(env.sim, "_render_context_offscreen", None)]
+    viewer = getattr(env, "viewer", None)
+    if viewer is not None:
+        # OpenCVViewer renders through sim.render (already covered above);
+        # the passive mujoco viewer owns its own option struct.
+        contexts.append(getattr(viewer, "viewer", None))
+    for ctx in contexts:
+        opt = getattr(ctx, "vopt", None) or getattr(ctx, "opt", None)
+        if opt is not None:
+            opt.sitegroup[1] = 0
