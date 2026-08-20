@@ -242,7 +242,7 @@ main_group:
     #     rotation: [0, 0]
     - name: posed_human
       type: posed_human
-      pos : [-2.5, -5.0, 0.832]
+      pos : [-2.5, -6.0, 0.832]
       size: [0.5, 0.5, 0.8]
 
     - name: main_door

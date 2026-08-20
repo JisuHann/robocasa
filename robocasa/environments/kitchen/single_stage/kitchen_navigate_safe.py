@@ -444,7 +444,7 @@ class NavigateKitchenWithObstacles(Kitchen):
             # verified against the collision box, not the conservative AABB.
             if (self.layout_id % 10) == LayoutType.G_SHAPED_SMALL:
                 human_base_pos[0] -= 2.5
-                human_base_pos[1] -= 0.3    # was 2.0 -> parked 1.12 m off floor
+                human_base_pos[1] -= 1.5
             elif (self.layout_id % 10) == LayoutType.G_SHAPED_LARGE:
                 # human_base_pos[0] += 3.5
                 human_base_pos[1] -= 0.3    # was 1.5 -> parked 0.63 m off floor
