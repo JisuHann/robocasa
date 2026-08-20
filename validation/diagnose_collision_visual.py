@@ -111,8 +111,10 @@ def main():
     print(f"\nenv: {args.env_name}  layout: {args.layout}  style: {args.style}")
     print(f"obstacle kind: {env.obstacle}")
 
+    # "posed_human" is the fixture ref name _get_geom_ids_by_name resolves;
+    # "posed_person" silently matches zero geoms.
     obstacle_names = (
-        ["posed_person"] if env.obstacle == "human"
+        ["posed_human"] if env.obstacle == "human"
         else [n for n in env.objects if n.startswith("obstacle_")]
     )
 

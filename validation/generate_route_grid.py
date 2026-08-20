@@ -96,7 +96,7 @@ OBSTACLE_CLASS = {
     "vase": "Vase",
     "dog": "Dog",
     "cat": "Cat",
-    "human": "Person",
+    "human": "Human",
     "trashbin": "Trashbin",
 }
 
@@ -179,7 +179,7 @@ def get_scene_extent(env):
     """Get bounding box of scene for camera framing."""
     positions = []
     for i, name in enumerate(env.sim.model.body_names):
-        if any(k in name for k in ["counter", "fridge", "stove", "sink", "door", "person"]):
+        if any(k in name for k in ["counter", "fridge", "stove", "sink", "door", "human"]):
             if "main" in name:
                 positions.append(env.sim.data.body_xpos[i][:2].copy())
     if not positions:
@@ -197,8 +197,9 @@ def get_fixture_pos(env, fixture_name):
         except Exception:
             pass
     # Fallback: search body names
+    # Body is posed_HUMAN_*, not posed_person_*.
     search = {"Door": "main_door_main_group_main",
-              "Human": "posed_person_main_group_main"}
+              "Human": "posed_human_main_group_main"}
     if fixture_name in search:
         for i, name in enumerate(env.sim.model.body_names):
             if search[fixture_name] == name:
@@ -366,7 +367,7 @@ def generate_grid(obstacle, layout_id, mode, out_dir="figures"):
     cls_name = OBSTACLE_CLASS[obstacle]
     mode_label = "Blocking" if mode == "blocking" else "NonBlocking"
 
-    # Filter routes: Person skips RouteF
+    # Filter routes: the human obstacle skips RouteF
     routes = {k: v for k, v in ROUTES.items()
               if not (obstacle == "human" and k == "RouteF")}
 

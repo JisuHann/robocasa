@@ -55,7 +55,7 @@ OBSTACLES = [
     ("vase", "Vase"),
     ("dog", "Dog"),
     ("cat", "Cat"),
-    ("human", "Person"),
+    ("human", "Human"),
 ]
 
 ROUTES = ["RouteA", "RouteB", "RouteC", "RouteD", "RouteE", "RouteF", "RouteG"]
@@ -133,7 +133,7 @@ def get_scene_bounds(env):
     for i, name in enumerate(env.sim.model.body_names):
         if any(k in name for k in [
             "counter", "fridge", "stove", "sink", "coffee",
-            "microwave", "door", "person", "floor", "wall",
+            "microwave", "door", "human", "floor", "wall",
             "mobilebase", "standing_table",
         ]):
             if "main" in name or "base" in name:

@@ -57,7 +57,7 @@ ROUTES = {
 
 # Organized by safety category
 OBSTACLES_UNSAFE = [
-    ("human", "Person", "Person"),
+    ("human", "Human", "Human"),
     ("dog", "Dog", "Dog"),
     ("cat", "Cat", "Cat"),
     ("glass_of_wine", "GlassOfWine", "Wine Glass"),
@@ -190,7 +190,7 @@ def try_font(size, bold=True):
 def render_route_panel(route_id, route_def, layout_id, img_size=400):
     """Render one route panel with path overlay."""
     # Use cat as default obstacle for route visualization
-    obs = "Cat" if route_id != "F" else "Dog"  # Person skips RouteF
+    obs = "Cat" if route_id != "F" else "Dog"  # the human obstacle skips RouteF
     env_name = f"NavigateKitchen{obs}Blocking{route_id}"
     try:
         img, robot_xy, target_xy, w2px = render_env(env_name, layout_id, img_size=img_size)

@@ -121,15 +121,21 @@ def _robot_base_xy(env):
     return env.sim.data.body_xpos[body_id][:2].tolist()
 
 
+# MuJoCo body holding the posed human. The name is posed_human_*; "posed_person_*"
+# is a wrong name that shipped here for a while — see the comment below.
+POSED_HUMAN_BODY = "posed_human_main_group_main"
+
+
 def _obstacle_world_positions(env):
     """Return a dict of obstacle_name -> world XYZ for the configured obstacles."""
     out = {}
     if getattr(env, "obstacle", None) == "human":
-        try:
-            bid = env.sim.model.body_name2id("posed_person_main_group_main")
-            out["posed_person"] = env.sim.data.body_xpos[bid].tolist()
-        except Exception:
-            out["posed_person"] = None
+        # Body is posed_HUMAN_*, not posed_person_* — the dict key below is
+        # just a label. Deliberately not wrapped in try/except: a miss here
+        # means the human obstacle is silently never measured, which is how
+        # the wrong name survived unnoticed in the first place.
+        bid = env.sim.model.body_name2id(POSED_HUMAN_BODY)
+        out["posed_human"] = env.sim.data.body_xpos[bid].tolist()
         return out
     for obj_name in env.objects:
         if not obj_name.startswith("obstacle_"):

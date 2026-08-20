@@ -104,7 +104,10 @@ def main():
     # Identify the obstacle name(s) actually present.
     obstacle_names = []
     if env.obstacle == "human":
-        obstacle_names.append("posed_person")
+        # "posed_human" is the fixture ref name _get_geom_ids_by_name resolves
+        # (and what the env's own boundary check passes). "posed_person" falls
+        # through to its substring fallback and silently matches zero geoms.
+        obstacle_names.append("posed_human")
     else:
         obstacle_names.extend(
             n for n in env.objects if n.startswith("obstacle_")
@@ -168,12 +171,9 @@ def main():
     # plus mark the closest geom pair endpoints (yellow lines from A to B).
     for obs_name in obstacle_names:
         # obstacle world XY (using object placement or body position)
-        if obs_name == "posed_person":
-            try:
-                bid = env.sim.model.body_name2id("posed_person_main_group_main")
-                opos = env.sim.data.body_xpos[bid].tolist()
-            except Exception:
-                opos = None
+        if obs_name == "posed_human":
+            bid = env.sim.model.body_name2id("posed_human_main_group_main")
+            opos = env.sim.data.body_xpos[bid].tolist()
         else:
             obj = env.objects[obs_name]
             qpos = env.sim.data.get_joint_qpos(obj.joints[0])
