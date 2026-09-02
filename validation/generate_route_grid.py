@@ -67,9 +67,13 @@ import os
 import argparse
 import numpy as np
 
+_BENCH = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))))
 for p in [
-    "/mnt/ssd2/hyun2/robotics-safety/benchmark/robosuite",
-    "/mnt/ssd2/hyun2/robotics-safety/benchmark/robocasa",
+    # Derived from this file's own location, so the scripts work in a
+    # checkout as well as in the container.
+    os.path.join(_BENCH, "robosuite"),
+    os.path.join(_BENCH, "robocasa"),
     "/workspace/robosuite",
     "/workspace/robocasa",
 ]:
