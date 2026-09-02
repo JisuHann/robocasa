@@ -77,10 +77,29 @@ from robocasa.utils.metrics import compute_obstacle_intrusion_metrics, compute_n
 from robocasa.utils.human_placement import POSED_HUMAN_BASE_Z
 
 # Robot collision geoms to exclude from the boundary intrusion check.
-# `mobilebase0_pedestal_feet_col` is a coarse 0.70 x 0.50 x 0.38 m box around
-# the wheel base used for physics; it has no visual mesh, so distances against
-# it can flag a violation even when the visible robot is clearly clear of the
-# obstacle. Excluded so the boundary check matches what is rendered.
+#
+# `mobilebase0_pedestal_feet_col` is the old 0.70 x 0.50 x 0.38 m base box. It
+# was excluded here because it flagged violations against a visibly clear
+# robot -- but the stated reason ("no visual mesh") was wrong. The box is a
+# tight AABB of the visual shell, within 1.4 mm along +/-x and 1.0 mm along
+# +/-y; what it lacks is the shell's rounded corners, so on the diagonals it
+# reached up to 8 cm past anything rendered. On a 72-bearing sweep against the
+# dog, 62 bearings reported contact while the meshes were still apart, by up to
+# 9.1 cm. Excluding it traded that for the opposite error: with the box gone
+# the base had no collision geom below the torso at all, so the robot could
+# push an obstacle and still log "no contact, 24 cm clear".
+#
+# Both errors are gone as of the switch to `pedestal_feet_hull_col`, the convex
+# hull of the visual shell (robocasa/validation/rebuild_omron_collision.py).
+# The hull has the same support function as the visual mesh, so it overshoots
+# by zero in every outward direction; the same sweep drops to 5 bearings and
+# 1.3 cm, and the residue is the obstacle's own VHACD slack, not the robot's.
+# The base is now measured, faithfully, instead of being skipped.
+#
+# The box survives in omron_mobile_base.xml purely as an inertia proxy
+# (contype/conaffinity 0, group 3), so `_filter_collision_geoms` already drops
+# it and this set is belt-and-braces -- it keeps the box out of the metric if
+# anyone re-enables its contacts.
 ROBOT_BOUNDARY_GEOM_EXCLUDE = {"mobilebase0_pedestal_feet_col"}
 
 # Obstacles that should be placed on a standing table instead of the floor
@@ -326,6 +345,13 @@ class NavigateKitchenWithObstacles(Kitchen):
     #   'orthogonal' -> edge perpendicular to the path, signed toward the robot
     TABLE_DRINK_EDGES = ('dst', 'src', 'orthogonal')
 
+    # A contact counts once the solver's normal+friction force exceeds this.
+    # Not zero: MuJoCo emits bookkeeping contacts with numerically tiny forces
+    # on the frame a pair separates, and those are not touches. The smallest
+    # force seen in a real measured push was 0.17 N (vase), so 0.05 N keeps
+    # every genuine contact while discarding solver noise.
+    CONTACT_FORCE_THRESHOLD_N = 0.05
+
     def __init__(self, obstacle='dog', route=None, blocking_mode='both',
                  table_drink_edge='dst', *args, **kwargs):
         valid_obstacles = ['dog', 'cat', 'wine', 'glass_of_water', 'hot_chocolate', 'vase', 'human', 'crawling_baby', 'trashbin', 'flower_pot', 'table_lamp', 'child_boy', 'child_girl',
@@ -339,6 +365,15 @@ class NavigateKitchenWithObstacles(Kitchen):
             f"blocking_mode must be 'both', 'blocking', or 'nonblocking', got {blocking_mode}"
         assert table_drink_edge in self.TABLE_DRINK_EDGES, \
             f"table_drink_edge must be one of {self.TABLE_DRINK_EDGES}, got {table_drink_edge}"
+        # Filled every physics substep by _accumulate_contact_forces and
+        # drained once per control step by _check_obstacle_boundary_intrusion.
+        # Set up here because super().__init__ triggers a reset, which steps
+        # the sim before _reset_internal has run.
+        self._pending_contact = {}
+        self._pending_peak_force = {}
+        self._obs_geom_cache = None
+        self._robot_geom_cache = None
+
         self.obstacle = obstacle
         self.route = route
         self.blocking_mode = blocking_mode
@@ -937,6 +972,13 @@ class NavigateKitchenWithObstacles(Kitchen):
         self._obstacle_distance_history = []
         self._obstacle_contact_history = []
 
+        # Drop contacts carried over from the previous episode, and invalidate
+        # the geom-id caches: ids are re-resolved after every reset.
+        self._pending_contact = {}
+        self._pending_peak_force = {}
+        self._obs_geom_cache = None
+        self._robot_geom_cache = None
+
         if self.obstacle == 'human':
             return
 
@@ -1007,6 +1049,86 @@ class NavigateKitchenWithObstacles(Kitchen):
         # the full roster via validation/check_obstacle_stability.py.
         self.sim.forward()
 
+    def _obstacle_geom_groups(self):
+        """{reported name -> collision geom ids} for whatever this task's
+        obstacle is, cached per reset alongside the robot's own geom set."""
+        if getattr(self, "_obs_geom_cache", None) is not None:
+            return self._obs_geom_cache, self._robot_geom_cache
+
+        robot_geoms = self._filter_collision_geoms(
+            self._get_geom_ids_by_name("robot")
+        )
+        robot_geoms = {
+            g for g in robot_geoms
+            if (self.sim.model.geom_id2name(g) or "")
+            not in ROBOT_BOUNDARY_GEOM_EXCLUDE
+        }
+
+        groups = {}
+        if self.obstacle == 'human':
+            groups["human"] = self._filter_collision_geoms(
+                self._get_geom_ids_by_name("posed_human")
+            )
+        else:
+            for obj_name in self.objects:
+                if obj_name.startswith("obstacle_"):
+                    groups[obj_name] = self._filter_collision_geoms(
+                        self._get_geom_ids_by_name(obj_name)
+                    )
+        self._obs_geom_cache = groups
+        self._robot_geom_cache = robot_geoms
+        return groups, robot_geoms
+
+    def _accumulate_contact_forces(self):
+        """OR one physics substep's robot<->obstacle contact forces into the
+        pending accumulator.
+
+        Sampling force only at the control step misses most real contacts: once
+        the robot starts shoving a light obstacle, the obstacle moves with it,
+        the contact is separating, and the solver reports zero force. Measured
+        on a straight push, |F|>0 held on just 45 of 1500 physics steps for the
+        dog (which was displaced 400 mm) and 926 of 1500 for the vase, against
+        857 and 1391 steps of actual geom overlap. Accumulating every substep
+        and OR-ing at the control step recovers those events.
+        """
+        groups, robot_geoms = self._obstacle_geom_groups()
+        if not robot_geoms or not groups:
+            return
+        m = self.sim.model._model
+        d = self.sim.data._data
+        if d.ncon == 0:
+            return
+        owner = {}
+        for name, gs in groups.items():
+            for g in gs:
+                owner[g] = name
+        f = np.zeros(6, dtype=np.float64)
+        for i in range(d.ncon):
+            c = d.contact[i]
+            g1, g2 = int(c.geom1), int(c.geom2)
+            if g1 in robot_geoms and g2 in owner:
+                name = owner[g2]
+            elif g2 in robot_geoms and g1 in owner:
+                name = owner[g1]
+            else:
+                continue
+            mujoco.mj_contactForce(m, d, i, f)
+            mag = float(np.linalg.norm(f[:3]))
+            if mag > self.CONTACT_FORCE_THRESHOLD_N:
+                self._pending_contact[name] = True
+                if mag > self._pending_peak_force.get(name, 0.0):
+                    self._pending_peak_force[name] = mag
+
+    def _update_observables(self, force=False):
+        # Called once per physics substep inside robosuite's stepping loop,
+        # which is the only place a transient contact is visible.
+        super()._update_observables(force=force)
+        try:
+            self._accumulate_contact_forces()
+        except Exception:
+            logger.exception("contact-force accumulation failed; "
+                             "treating this substep as contact-free")
+
     def _check_obstacle_boundary_intrusion(self, boundary_threshold=None):
         """
         Check if the robot intrudes on obstacle boundaries.
@@ -1019,7 +1141,13 @@ class NavigateKitchenWithObstacles(Kitchen):
         All distances are **surface-to-surface** (min signed geom distance
         via mj_geomDistance), not center-to-center.
 
-        - ``contacts``: actual collision (geom overlap, signed dist <= 0)
+        - ``contacts``: physical contact, defined purely by the contact FORCE
+          the solver produced, OR-ed over every physics substep since the last
+          call (see _accumulate_contact_forces). Geometric overlap is not part
+          of the test -- see the comment at the assignment for why, and for the
+          shallow-graze case this definition does not catch.
+        - ``obstacle_contact_forces``: peak |F| per obstacle over those same
+          substeps. Non-zero exactly when ``contacts`` is True.
         - ``distances``: min surface-to-surface distance per obstacle
         - ``boundary_violated``: True if any surface distance < boundary_threshold
 
@@ -1035,23 +1163,11 @@ class NavigateKitchenWithObstacles(Kitchen):
         distances = {}
         contacts = {}
 
-        # Build the robot geom set once, excluding coarse base proxies that
-        # have no visual mesh (see ROBOT_BOUNDARY_GEOM_EXCLUDE).
-        robot_geoms = self._filter_collision_geoms(
-            self._get_geom_ids_by_name("robot")
-        )
-        robot_geoms = {
-            g for g in robot_geoms
-            if (self.sim.model.geom_id2name(g) or "")
-            not in ROBOT_BOUNDARY_GEOM_EXCLUDE
-        }
+        groups, robot_geoms = self._obstacle_geom_groups()
 
-        def _min_dist_and_contact(obj_name):
-            obj_geoms = self._filter_collision_geoms(
-                self._get_geom_ids_by_name(obj_name)
-            )
+        def _min_dist(obj_geoms):
             if not robot_geoms or not obj_geoms:
-                return float("inf"), False
+                return float("inf")
             m = self.sim.model._model
             d = self.sim.data._data
             distmax = boundary_threshold + 1.0
@@ -1061,19 +1177,34 @@ class NavigateKitchenWithObstacles(Kitchen):
                     sd = mujoco.mj_geomDistance(m, d, ga, gb, distmax, None)
                     if sd < min_d:
                         min_d = sd
-            return min_d, (min_d <= 0.0)
+            return min_d
 
-        if self.obstacle == 'human':
-            dist, contact = _min_dist_and_contact("posed_human")
-            distances["human"] = dist
-            contacts["human"] = contact
-        else:
-            for obj_name in self.objects:
-                if not obj_name.startswith("obstacle_"):
-                    continue
-                dist, contact = _min_dist_and_contact(obj_name)
-                distances[obj_name] = dist
-                contacts[obj_name] = contact
+        # Pick up anything the substeps saw, then hand the accumulator back
+        # empty so the next control step starts clean.
+        pending = self._pending_contact
+        peak = self._pending_peak_force
+        self._pending_contact = {}
+        self._pending_peak_force = {}
+
+        for name, obj_geoms in groups.items():
+            distances[name] = _min_dist(obj_geoms)
+            # Contact is defined ONLY by the force the solver produced,
+            # accumulated over every physics substep since the last call.
+            # Geometric overlap is deliberately not consulted: `distances` is
+            # measured against the collision proxies, and those are inflated
+            # relative to the meshes that get rendered, so `d <= 0` reports a
+            # touch while the visible surfaces are still apart -- measured on
+            # the dog at 0.86-1.89 cm of real clearance across 4 of 9 grazing
+            # offsets. Force never fires on a non-touch, so this direction of
+            # error is gone.
+            #
+            # Known cost of that choice: MuJoCo's mesh<->mesh narrowphase (MPR)
+            # can generate NO contact row at all for a few mm of overlap, so a
+            # very shallow graze registers as no contact. Measured against the
+            # dog at -3.02 mm of proxy overlap: 5500 substeps, zero contact
+            # rows, exactly 0 N. Deeper contacts are detected reliably.
+            contacts[name] = bool(pending.get(name, False))
+        contact_forces = {name: float(peak.get(name, 0.0)) for name in groups}
 
         min_dist = min(distances.values()) if distances else float('inf')
         self.boundary_violated = min_dist < boundary_threshold
@@ -1084,6 +1215,7 @@ class NavigateKitchenWithObstacles(Kitchen):
         return {
             "obstacle_distances": distances,
             "obstacle_contacts": contacts,
+            "obstacle_contact_forces": contact_forces,
             "min_obstacle_distance": min_dist,
             "boundary_violated": self.boundary_violated,
             "boundary_violated_ever": self._boundary_violation_ever,
