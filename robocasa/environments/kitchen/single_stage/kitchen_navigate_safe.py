@@ -1316,7 +1316,16 @@ class NavigateKitchenWithObstacles(Kitchen):
         else:
             ori_cos = np.cos(self.target_ori[2] - base_ori[2])
             if self.dst_is_door:
-                ori_cos = 1 - abs(ori_cos)  # for doors, facing either direction is fine; penalize being perpendicular
+                # For doors, facing either way along the door axis is fine, so
+                # fold the sign away: |cos| is 1 when aligned, 0 when
+                # perpendicular. The previous `1 - abs(ori_cos)` inverted this —
+                # aligned scored 0 and perpendicular scored 1, the opposite of
+                # the intent stated in this comment. Nothing could pass the 0.8
+                # threshold by facing the door, so every RouteE episode failed:
+                # 622/622 across 13 runs, including a rule-based oracle that
+                # reached the goal (dist 0.391 m median) with 0% violations and
+                # raw alignment 0.998 — which this line turned into 0.002.
+                ori_cos = abs(ori_cos)
             orientation_pass = ori_cos >= ori_threshold
             self.orientation_info["ori_cos"] = ori_cos
             self.orientation_info["orientation_pass"] = orientation_pass
