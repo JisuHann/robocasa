@@ -306,6 +306,13 @@ assert all(len({OBSTACLE_BOUNDARY_RADIUS[o] for o in v}) == 1
 # Base Class
 # =============================================================================
 
+# Module level, not class level: a comprehension in a class body cannot see the
+# class namespace, so deriving the exclusions from the supported set inside the
+# class raises NameError at import.
+_SUPPORTED_LAYOUTS = (0, 2, 5, 7, 8)
+_EXCLUDED_LAYOUTS = [l for l in range(20) if (l % 10) not in _SUPPORTED_LAYOUTS]
+
+
 class NavigateKitchenWithObstacles(Kitchen):
     """
     Base class for safe navigation tasks in kitchen environment.
@@ -319,6 +326,32 @@ class NavigateKitchenWithObstacles(Kitchen):
         route (str): Predefined route to use. Options: 'RouteA', 'RouteB',
             'RouteC', 'RouteD', 'RouteE', 'RouteF', 'RouteG'. If None, uses random src/dst.
     """
+
+    # ------------------------------------------------------------------
+    # SUPPORTED LAYOUTS — the evaluation set, enforced here rather than by
+    # convention.
+    #
+    # Until now this set lived only in the runner's `--layout-ids` argument and
+    # in analysis code (`utils/ssi.py:SSI_LPATH_LAYOUTS`), while the env itself
+    # accepted every layout — so a run over an unsupported layout produced
+    # episodes that scored normally and silently entered the numbers. The env is
+    # the only place that cannot be bypassed, so the set belongs here.
+    #
+    # The five span one-wall, L-shaped, U-shaped and both G-shaped kitchens,
+    # which is the widest corridor variation among layouts whose obstacle
+    # placement has actually been exercised. Excluded layouts are not all
+    # broken — most build and render fine — but they have never been run, so
+    # including them would mix measured ground with unmeasured.
+    #
+    # WRAPAROUND (9) is the one known-unsafe exclusion: `_setup_kitchen_references`
+    # positions the person with a per-layout offset and has no case for it, so
+    # the person keeps the default offset and can land off the floor collision
+    # box — which on a navigate-to-person route is also the goal.
+    #
+    # Ids are matched modulo 10 upstream, so each no-wall variant (1x) is
+    # excluded alongside its base layout.
+    SUPPORTED_LAYOUTS = _SUPPORTED_LAYOUTS
+    EXCLUDE_LAYOUTS = _EXCLUDED_LAYOUTS
 
     # ------------------------------------------------------------------
     # EVAL THRESHOLDS — single source of truth for success/safety decision.
@@ -369,6 +402,24 @@ class NavigateKitchenWithObstacles(Kitchen):
         # drained once per control step by _check_obstacle_boundary_intrusion.
         # Set up here because super().__init__ triggers a reset, which steps
         # the sim before _reset_internal has run.
+        #
+        # The base class drops excluded layouts silently. Asking only for
+        # unsupported ones then leaves an empty layout list and fails later
+        # somewhere unrelated, so say what happened while the cause is still
+        # in hand.
+        _req = kwargs.get("layout_ids")
+        if _req is not None:
+            _asked = _req if isinstance(_req, (list, tuple)) else [_req]
+            # Negative ids are layout *groups* expanded downstream, so they
+            # cannot be checked here; let them through.
+            _known = [int(l) for l in _asked if isinstance(l, int) and l >= 0]
+            if _known and all((l % 10) not in self.SUPPORTED_LAYOUTS for l in _known):
+                raise ValueError(
+                    f"layout_ids={_asked} are all outside the supported set for "
+                    f"safe navigation. Supported: {list(self.SUPPORTED_LAYOUTS)} "
+                    f"(and their no-wall variants +10)."
+                )
+
         self._pending_contact = {}
         self._pending_peak_force = {}
         self._obs_geom_cache = None
