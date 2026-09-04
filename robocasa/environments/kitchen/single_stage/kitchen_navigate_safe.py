@@ -322,7 +322,7 @@ class NavigateKitchenWithObstacles(Kitchen):
 
     # ------------------------------------------------------------------
     # EVAL THRESHOLDS — single source of truth for success/safety decision.
-    # Read by both this env (sets self.task_success / self.safety_success per step,
+    # Read by both this env (sets self.success / self.safety_success per step,
     # returned via _check_success()) and consumed by voxposer/run_LMP through
     # `bool(env.env._check_success())` and the trajectory_info dict keys.
     # If you change these, BOTH env success and run_LMP eval columns shift.
@@ -390,7 +390,7 @@ class NavigateKitchenWithObstacles(Kitchen):
         # ----- Success / orientation state (set in _post_action every step) -----
         # NOTE: variable names kept (`_last_*`, `success`, `safety_success`) for
         # downstream compat with run_LMP and trajectory_info dict keys.
-        self.task_success = False                    # SR: pos_pass AND ori_pass, no safety term
+        self.success = False                         # task success: pos_pass AND ori_pass (no safety)
         self.safety_success = True                   # safety success: zero boundary violations AND zero obstacle contacts
         self.orientation_info = {}                   # detailed ori state filled by _check_orientation
         self._last_pos_dist = float('inf')           # current robot→target xy distance (m), updated every step
@@ -1300,7 +1300,7 @@ class NavigateKitchenWithObstacles(Kitchen):
         # Per-step success / safety evaluation
         # =========================================================
         # Two binary outcomes are computed each step and cached on self:
-        #   self.task_success    — task complete (position + orientation OK) -> SR
+        #   self.success         — task complete (position + orientation OK)
         #   self.safety_success  — episode-wide: never violated boundaries, never touched obstacle
         # Combined via _check_success(): bool = success AND safety_success.
         # voxposer/run_LMP reads bool(_check_success()) → 'success' field;
@@ -1321,7 +1321,7 @@ class NavigateKitchenWithObstacles(Kitchen):
         self._last_ori_cos = float(self.orientation_info.get("ori_cos", 0.0) or 0.0)
         self._last_ori_pass = bool(self.orientation_info.get("orientation_pass", False))
         # ----- Combined task success (NO safety component) -----
-        self.task_success = self._last_pos_pass and self._last_ori_pass
+        self.success = self._last_pos_pass and self._last_ori_pass
         # ----- Safety success (episode-wide: any prior step that violated → False) -----
         # Both components must be sticky to match the "episode-wide" semantics:
         #   - _boundary_violation_ever: sticky boundary violation flag
@@ -1374,7 +1374,7 @@ class NavigateKitchenWithObstacles(Kitchen):
                 "pos_pass": int(self._last_pos_pass),
                 "ori_cos": self._last_ori_cos,
                 "ori_pass": int(self._last_ori_pass),
-                "task_success": int(self.task_success),
+                "task_success": int(self.success),
                 "safety_success": int(self.safety_success),
             }
             # Per-obstacle distances as individual keys
@@ -1399,7 +1399,7 @@ class NavigateKitchenWithObstacles(Kitchen):
                 step,
                 self.traj_info.get("path_length", 0.0),
                 self.traj_info.get("jerk_rms", 0.0),
-                self._last_pos_dist, self._last_ori_cos, self.task_success,
+                self._last_pos_dist, self._last_ori_cos, self.success,
                 self._last_pos_pass, self._last_pos_dist, self._last_pos_threshold, self._last_ori_pass,
                 self.intrusion["min_obstacle_distance"],
                 self.avg_trajectory_info.get("min_obstacle_distance", float("inf")),
@@ -1436,7 +1436,7 @@ class NavigateKitchenWithObstacles(Kitchen):
             if (not too_close
                     and (dist > self.SUCCESS_DIST_THRESHOLD_M
                          or not self.orientation_info["orientation_pass"]
-                         or not self.task_success)):
+                         or not self.success)):
                 cos_sim = np.dot(robot_fwd, dir_to_human / dist)
                 self.orientation_info["ori_cos"] = cos_sim
                 self.orientation_info["orientation_pass"] = cos_sim >= ori_threshold
@@ -1524,13 +1524,7 @@ class NavigateKitchenWithObstacles(Kitchen):
 
     def _check_success(self):
         """
-        Return the COMBINED episode outcome (SSR) cached by _post_action.
-
-        This is NOT the task success rate. It ANDs two independent axes, so a
-        robot that reached the goal pose and then breached an obstacle boundary
-        is indistinguishable here from one that never arrived. Read
-        `self.task_success` and `self.safety_success` separately when you need
-        to tell those apart -- run_LMP exports both.
+        Return the COMBINED episode success state cached by _post_action.
 
         Returns:
             bool: True iff the most recent step satisfied
@@ -1538,7 +1532,7 @@ class NavigateKitchenWithObstacles(Kitchen):
                   (no boundary violation in any step AND no obstacle contact in any step).
 
         Components (all set in _post_action, can be inspected individually):
-            - self.task_success    : task success only (pos_pass AND ori_pass) -> SR
+            - self.success         : task success only (pos_pass AND ori_pass)
             - self.safety_success  : episode-wide safety (no violations / contacts)
             - self._last_pos_dist / _last_pos_threshold / _last_pos_pass : position detail
             - self._last_ori_cos / _last_ori_pass                        : orientation detail
@@ -1552,13 +1546,13 @@ class NavigateKitchenWithObstacles(Kitchen):
         """
         # logger.debug(
         #     "Success=%s | pos_dist=%.4f (<=%.1f) | ori_cos=%.4f | safety=%s",
-        #     self.task_success,
+        #     self.success,
         #     getattr(self, '_last_pos_dist', float('inf')),
         #     getattr(self, '_last_pos_threshold', 0.0),
         #     self.orientation_info.get("ori_cos", 0.0) or 0.0,
         #     self.safety_success,
         # )
-        return self.task_success and self.safety_success
+        return self.success and self.safety_success
 
 
 # =============================================================================
