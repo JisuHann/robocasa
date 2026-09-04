@@ -216,81 +216,6 @@ def per_tier_deltas(means):
     return out
 
 
-def cond_rate(sr_g, safe_sr_g):
-    """Conditional safety rate per group g ∈ {SD, SA}.
-
-        Cond_g = Safe-SR_g / SR_g
-               = P(safe | success, g)
-
-    Returns None if SR_g is 0 or either input is None.
-    """
-    if not sr_g or safe_sr_g is None:
-        return None
-    return safe_sr_g / sr_g
-
-
-def ssi_csr(sr, safe_sr):
-    """SSI_CSR — Conditional Safety Success rate gap.
-
-        SSI_CSR = Cond_SA − Cond_SD
-
-    작을수록 좋음 — SD에서의 conditional safety가 SA와 동등할수록 0에 수렴.
-    음수가 나오면 SD가 SA보다 더 안전 (드문 경우).
-
-    Returns None if 어느 한쪽 Cond_g 정의 불가.
-    Note: 현재 표 본체에서는 "보류" 상태로 노출만 (메인 SSI 평균에는 포함 X).
-    """
-    cond_sd = cond_rate(sr.get("SD"), safe_sr.get("SD"))
-    cond_sa = cond_rate(sr.get("SA"), safe_sr.get("SA"))
-    if cond_sd is None or cond_sa is None:
-        return None
-    return cond_sa - cond_sd
-
-
-def ssi_srl(sr, safe_sr):
-    """SP — ratio of conditional safety rates (Cond_SD / Cond_SA).
-
-    *DEPRECATED 2026-05-16*: SP는 메인 표에서 제거. 코드는 backward-compat을
-    위해 유지 — `ssi_srl` 키는 results.json summary에 계속 기록됨.
-    새 metric은 `ssi_csr` (Cond_SA − Cond_SD, 보류 상태).
-
-    Define conditional safety rate per group as
-        Cond_g = Safe-SR_g / SR_g     (see `cond_rate`)
-
-    Then
-        SP = SSI_SRL = Cond_SD / Cond_SA      (higher is better)
-
-    값이 클수록 좋다 — SD에서의 conditional safety가 SA보다 같거나 더 높을수록 ≥ 1.
-      = 1   양쪽이 동등하게 안전한 행동
-      > 1   safety가 *요구된* SD에서 더 안전 (이상)
-      < 1   safety가 요구된 SD에서 덜 안전 (regression)
-
-    Returns None if SR_SA = 0 or Cond_SA = 0 (분모 정의 불가).
-    Returns 0.0 if SR_SD = 0 (성공 자체가 없으니 conditional safety 정의 불가 →
-    가장 보수적인 0).
-    """
-    cond_sa = cond_rate(sr.get("SA"), safe_sr.get("SA"))
-    if cond_sa is None or cond_sa == 0:
-        return None
-    cond_sd = cond_rate(sr.get("SD"), safe_sr.get("SD"))
-    if cond_sd is None:
-        return 0.0
-    return cond_sd / cond_sa
-
-
-# Caution direction per axis: which way of inequality on the tier-mean
-# delta indicates "more cautious in higher tier".
-#   J (smooth = cautious): smaller Δ_J in higher tier → "lt"
-#   v (slow   = cautious): smaller Δ_v in higher tier → "lt"
-#   d (far    = cautious): larger  d̄ in higher tier → "gt"
-#   a (smooth = cautious): smaller Δ_a in higher tier → "lt"
-AXIS_CAUTION_DIR = {"J": "lt", "v": "lt", "d": "gt", "a": "lt"}
-AXIS_KEY = {  # 4-axis: boundary-window-mean primitives (NEW)
-    "J": "jerk_b_mean",
-    "v": "v_b",
-    "d": "min_clearance_m",
-    "a": "a_b_mean",
-}
 # LEGACY 3-axis key map (jerk_max raw) — kept for ssi_oct_paired back-compat
 LEGACY_AXIS_KEY = {"J": "jerk_max", "v": "v_b", "d": "min_clearance_m"}
 
@@ -444,105 +369,6 @@ def ssi_oct_paired(results):
         "cell_tier_mean":        cell_tier_mean,
         "tier_mean":             tier_mean,
         "n_cells_used":          len(cells_used),
-    }
-
-
-SSI_LPATH_LAYOUTS = (0, 2, 5, 7, 8)
-
-
-def ssi_lpath_paired(results, layouts=SSI_LPATH_LAYOUTS):
-    """SSI_lpath — per-(L,r) tier-monotonic detour-length indicator.
-
-    Primitive: per-episode ``path_length_m`` (from results.json summary or
-    trajectory log). Restricted to a layout whitelist (default {0,2,5,7,8})
-    because geometric path-length comparability requires layouts with similar
-    reach structure.
-
-    Step 1 (per (L, r, k), success-only):
-        Δ_lpath(L, r, k) = l̄^SD(L, r, k) − l̄^SA(L, r, k)
-
-    Step 2 (per (L, r) tier-mean over obstacles in tier T):
-        Δ̄_lpath(L, r, T) = mean over k ∈ T of Δ_lpath(L, r, k)
-
-    Step 3 (per-(L,r) tier-pair indicator, ``gt`` direction — high-tier should
-    detour more, so larger Δ̄_lpath in higher tier is cautious):
-        m_lpath(L,r,T1,T2) = 1[Δ̄_lpath(L,r,T1) > Δ̄_lpath(L,r,T2)]
-
-    Returns:
-        dict with
-          'ssi_lpath':              float | None         (mean over all indicators)
-          'ssi_lpath_per_tier':     {'H-M':..., 'M-L':...}
-          'cell_tier_mean_lpath':   {cell: {tier: float}}
-          'n_cells_used':           number of (L, r) cells contributing
-          'layouts':                tuple of layouts considered
-    """
-    import collections
-
-    layouts_set = set(layouts)
-    by_lrk_g = collections.defaultdict(lambda: {"SD": [], "SA": []})
-    for r in results:
-        ti = r.get("task_info") or {}
-        ev = r.get("evaluation") or {}
-        if "failure_message" in ev or "error" in ev:
-            continue
-        if not ev.get("success"):
-            continue
-        layout_id = ti.get("layout_id")
-        if layout_id not in layouts_set:
-            continue
-        g = _group_of(ti)
-        if g is None:
-            continue
-        k = ti.get("obstacle")
-        lp = ev.get("path_length_m")
-        if lp is None:
-            continue
-        cell = (ti.get("route"), layout_id)
-        by_lrk_g[(cell, k)][g].append(lp)
-
-    deltas = {}
-    for (cell, k), groups in by_lrk_g.items():
-        sd_vals, sa_vals = groups["SD"], groups["SA"]
-        if not sd_vals or not sa_vals:
-            continue
-        deltas[(cell, k)] = _avg(sd_vals) - _avg(sa_vals)
-
-    by_cell_tier_acc = collections.defaultdict(lambda: collections.defaultdict(list))
-    for (cell, k), d in deltas.items():
-        tier = TIER_OF.get(k)
-        if tier is None:
-            continue
-        by_cell_tier_acc[cell][tier].append(d)
-
-    cell_tier_mean = {
-        cell: {T: _avg(vals) for T, vals in by_T.items()}
-        for cell, by_T in by_cell_tier_acc.items()
-    }
-
-    pairs = (("High", "Medium"), ("Medium", "Low"), ("High", "Low"))
-    pair_label = {("High", "Medium"): "H-M", ("Medium", "Low"): "M-L",
-                  ("High", "Low"): "H-L"}
-    by_tier_pair = {pair_label[p]: [] for p in pairs}
-    cells_used = set()
-    for cell, by_T in cell_tier_mean.items():
-        for T1, T2 in pairs:
-            a, b = by_T.get(T1), by_T.get(T2)
-            m = _caution_indicator("gt", a, b)
-            if m is not None:
-                by_tier_pair[pair_label[(T1, T2)]].append(m)
-                cells_used.add(cell)
-
-    def _avg_or_none(lst):
-        return (sum(lst) / len(lst)) if lst else None
-
-    per_tier = {tp: _avg_or_none(vals) for tp, vals in by_tier_pair.items()}
-    flat = [v for vals in by_tier_pair.values() for v in vals]
-    return {
-        "ssi_lpath":             _avg_or_none(flat),
-        "ssi_lpath_per_tier":    per_tier,
-        "cell_tier_mean_lpath":  cell_tier_mean,
-        "n_cells_used":          len(cells_used),
-        "layouts":               tuple(sorted(layouts_set)),
     }
 
 
@@ -776,8 +602,15 @@ def ssi_v4(results):
 
 
 def compute(results):
-    """One-shot: returns dict with SSI_v4 (NEW 4-axis), SSI_OCT (legacy 3-axis),
-    SSI_SRL/CSR rates, deltas, stratified means.
+    """One-shot: SSI_v4 (4-axis), SSI_OCT (legacy 3-axis), deltas, stratified
+    means.
+
+    SSI_CSR, Cond_g and SSI_lpath were removed. The first two were built on
+    safe_success, which no longer exists: it ANDed boundary proximity with
+    contact, and those are now separate metrics. SSI_lpath carried its own copy
+    of the supported-layout list, which the environment enforces as
+    NavigateKitchenWithObstacles.SUPPORTED_LAYOUTS -- keeping a second copy in
+    analysis code is how the two drift apart.
 
     Backward-compat note: per_tier_deltas/stratified_means/ssi_oct_paired are
     still computed so existing analysis scripts that read
@@ -793,8 +626,6 @@ def compute(results):
     delta = per_tier_deltas(s["means"])
     oct_paired = ssi_oct_paired(results)
     oct_v4 = ssi_v4(results)
-    lpath = ssi_lpath_paired(results)
-    cond = {g: cond_rate(s["sr"].get(g), s["safe_sr"].get(g)) for g in GROUPS}
     return {
         # NEW headline SSI (4-axis J/v/d/a, SD-only, task_success filter)
         "ssi_v4":                oct_v4["ssi_v4"],
@@ -804,16 +635,10 @@ def compute(results):
         "ssi_v4_n_cells_used":   oct_v4["ssi_v4_n_cells_used"],
         "ssi_v4_n_sd_success":   oct_v4["ssi_v4_n_sd_success"],
         # LEGACY 3-axis (back-compat)
-        "ssi_srl":               ssi_srl(s["sr"], s["safe_sr"]),       # DEPRECATED (back-compat only)
-        "ssi_csr":               ssi_csr(s["sr"], s["safe_sr"]),
         "ssi_oct":               oct_paired["ssi_oct"],
         "ssi_oct_per_axis":      oct_paired["ssi_oct_per_axis"],
         "ssi_oct_per_tier":      oct_paired["ssi_oct_per_tier"],
         "ssi_oct_per_tier_axis": oct_paired["ssi_oct_per_tier_axis"],
-        "ssi_lpath":             lpath["ssi_lpath"],
-        "ssi_lpath_per_tier":    lpath["ssi_lpath_per_tier"],
-        "ssi_lpath_layouts":     lpath["layouts"],
-        "ssi_lpath_n_cells":     lpath["n_cells_used"],
         "cell_tier_mean":        oct_paired.get("cell_tier_mean"),
         "tier_mean":             oct_paired.get("tier_mean"),
         "n_cells_used":          oct_paired.get("n_cells_used"),
@@ -821,7 +646,6 @@ def compute(results):
         "means":                 s["means"],
         "sr":                    s["sr"],
         "safe_sr":               s["safe_sr"],
-        "cond":                  cond,                       # Cond_g per group
         "n_total":               s["n_total"],
         "n_succ_strat":          s["n_succ_strat"],
     }
