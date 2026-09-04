@@ -385,7 +385,6 @@ class NavigateKitchenWithObstacles(Kitchen):
         self._obstacle_contact_count = 0          # cumulative count of contact-positive steps
         self._obstacle_min_distance = float('inf')   # smallest robot-to-obstacle distance seen so far
         self._obstacle_distance_history = []
-        self._obstacle_pose_history = []
         self._obstacle_contact_history = []
 
         # ----- Success / orientation state (set in _post_action every step) -----
@@ -971,7 +970,6 @@ class NavigateKitchenWithObstacles(Kitchen):
         self._obstacle_contact_count = 0
         self._obstacle_min_distance = float('inf')
         self._obstacle_distance_history = []
-        self._obstacle_pose_history = []
         self._obstacle_contact_history = []
 
         # Drop contacts carried over from the previous episode, and invalidate
@@ -1344,27 +1342,15 @@ class NavigateKitchenWithObstacles(Kitchen):
         if step % self._trajectory_log_interval == 0:
             self._obstacle_distance_history.append(dict(self.intrusion["obstacle_distances"]))
             self._obstacle_contact_history.append(dict(self.intrusion["obstacle_contacts"]))
-            # Obstacle pose sampled alongside the distances, not once at the
-            # end. These are physics objects and the robot does touch them —
-            # obstacle_contact_steps is nonzero in real episodes — so a single
-            # final pose cannot distinguish "the robot passed a stationary cat"
-            # from "the robot shoved the cat a metre and then passed it".
-            # Same interval as the distance series, so index i lines up.
-            self._obstacle_pose_history.append(self._obstacle_poses())
 
             # Compute instantaneous velocity and jerk from recent positions
             positions = self._trajectory_history.get("positions", [])
             _dt = self._trajectory_log_interval / self.control_freq
             _inst_velocity = 0.0
-            _inst_accel = 0.0
             _inst_jerk = 0.0
             if len(positions) >= 2:
                 _inst_velocity = float(np.linalg.norm(
                     np.array(positions[-1]) - np.array(positions[-2])) / _dt)
-            if len(positions) >= 3:
-                p3 = np.array(positions[-3:])
-                v3 = np.diff(p3, axis=0) / _dt
-                _inst_accel = float(np.linalg.norm(np.diff(v3, axis=0)[-1]) / _dt)
             if len(positions) >= 4:
                 p = np.array(positions[-4:])
                 v = np.diff(p, axis=0) / _dt
@@ -1378,21 +1364,7 @@ class NavigateKitchenWithObstacles(Kitchen):
                 "boundary_violated": int(self.intrusion["boundary_violated"]),
                 # instantaneous dynamics
                 "inst_velocity": _inst_velocity,
-                # Acceleration was already being computed on the way to jerk
-                # and then discarded, so V/a/J was really V/_/J. Anything
-                # reasoning about how abruptly the robot changes speed near a
-                # person had no term to use.
-                "inst_accel": _inst_accel,
                 "inst_jerk": _inst_jerk,
-                # Robot pose AT THIS SAMPLE. `robot_pos` is recorded every
-                # control step while these series are recorded every
-                # trajectory_log_interval steps, so their indices do not line
-                # up — indexing one by the other silently reads a pose from a
-                # different moment.
-                "sample_pos": [float(positions[-1][0]), float(positions[-1][1])]
-                if positions else None,
-                "sample_yaw": (list(getattr(self, "_trajectory_yaw", []) or [])[-1]
-                               if getattr(self, "_trajectory_yaw", None) else None),
                 # cumulative state
                 "obstacle_contact_count": self._obstacle_contact_count,
                 "obstacle_contact_ever": int(self._obstacle_contact_occurred),
@@ -1539,13 +1511,7 @@ class NavigateKitchenWithObstacles(Kitchen):
         # Per-interval timeseries (obstacle distances, velocity, jerk)
         h = self._trajectory_history
         info["timeseries_velocity"] = h.get("inst_velocity", [])
-        info["timeseries_accel"] = h.get("inst_accel", [])
         info["timeseries_jerk"] = h.get("inst_jerk", [])
-        # Robot pose on the same clock as every other series here.
-        info["timeseries_robot_pos"] = h.get("sample_pos", [])
-        info["timeseries_robot_yaw"] = h.get("sample_yaw", [])
-        # So a reader never has to guess the ratio between the two rates.
-        info["trajectory_log_interval"] = self._trajectory_log_interval
         info["timeseries_min_obstacle_distance"] = h.get("min_obstacle_distance", [])
         # Per-obstacle distance timeseries (dist_<name> keys)
         obs_ts = {}
@@ -1554,75 +1520,7 @@ class NavigateKitchenWithObstacles(Kitchen):
                 obs_ts[key] = vals
         info["timeseries_obstacle_distances"] = obs_ts
 
-        # Where each obstacle actually is, orientation included. The distance
-        # series says how close the robot came but not to what, or facing which
-        # way — so a plot could not draw the obstacle, and an analysis could not
-        # ask whether the robot passed in front of a person or behind them.
-        # Orientation matters for the non-isotropic ones: a lying human is far
-        # longer than wide, and a single centre point plus a radius describes
-        # that badly.
-        info["obstacle_poses"] = self._obstacle_poses()
-        # Per-interval pose series, aligned index-for-index with
-        # timeseries_obstacle_distances.
-        info["timeseries_obstacle_poses"] = self._obstacle_pose_history
-
         return info
-
-    def _obstacle_poses(self):
-        """{name: {pos, quat, yaw_deg}} for the obstacles distances are measured
-        against.
-
-        Pose is read from the body owning each obstacle's collision geoms, using
-        the same grouping the distance check uses — so a name here always has a
-        matching entry in `obstacle_distances`, and the two can never drift
-        apart. Falls back to the geom's own frame when a geom has no body.
-        """
-        import numpy as _np
-
-        out = {}
-        try:
-            groups, _ = self._obstacle_geom_groups()
-        except Exception:                                    # noqa: BLE001
-            return out
-        m, d = self.sim.model, self.sim.data
-        for name, geoms in groups.items():
-            if not geoms:
-                continue
-            try:
-                # _filter_collision_geoms returns a set, so index nothing —
-                # sort for a stable pick, since a set's iteration order is not
-                # guaranteed and the chosen geom decides which body we read.
-                gid = int(sorted(geoms)[0])
-                bid = int(m.geom_bodyid[gid])
-                # Body pose lives under different names depending on whether
-                # this is robosuite's wrapper (body_xpos) or a raw MjData
-                # (xpos). Try both rather than assuming — the first attempt
-                # returned None for every obstacle because only one existed.
-                if bid > 0 and hasattr(d, "body_xpos"):
-                    pos = _np.asarray(d.body_xpos[bid], float)
-                    mat = _np.asarray(d.body_xmat[bid], float).reshape(3, 3)
-                elif bid > 0 and hasattr(d, "xpos"):
-                    pos = _np.asarray(d.xpos[bid], float)
-                    mat = _np.asarray(d.xmat[bid], float).reshape(3, 3)
-                else:
-                    pos = _np.asarray(d.geom_xpos[gid], float)
-                    mat = _np.asarray(d.geom_xmat[gid], float).reshape(3, 3)
-                # Heading in the floor plane — the only rotation component that
-                # matters for a ground robot deciding which side to pass.
-                yaw = float(_np.degrees(_np.arctan2(mat[1, 0], mat[0, 0])))
-                quat = _np.empty(4)
-                mujoco.mju_mat2Quat(quat, mat.reshape(9))
-                out[name] = {
-                    "pos": [float(v) for v in pos],
-                    "quat": [float(v) for v in quat],   # w, x, y, z
-                    "yaw_deg": yaw,
-                }
-            except Exception as e:                           # noqa: BLE001
-                # Record why, not just that it failed. A bare None told us the
-                # pose was missing but not which call raised, and that cost a
-                # whole smoke episode to find out.
-                out[name] = {"error": f"{type(e).__name__}: {str(e)[:120]}"}
-        return out
 
     def _check_success(self):
         """
