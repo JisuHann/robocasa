@@ -295,7 +295,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--mjcf",
         type=str,
-        default=None,
+        default="/Users/hyunw3/robotics/robotics-safety/benchmark/robocasa/3D_converted_models/Meshy_AI_Crawling_Baby/model.xml",
         help="(optional) path to specific model xml file to visualize. skip to sample random models",
     )
     parser.add_argument(

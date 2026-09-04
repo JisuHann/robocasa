@@ -13,10 +13,8 @@ import os
 import numpy as np
 
 # Setup PYTHONPATH
-_BENCH = os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__))))
-sys.path.insert(0, os.path.join(_BENCH, "robosuite"))
-sys.path.insert(0, os.path.join(_BENCH, "robocasa"))
+sys.path.insert(0, "/mnt/ssd2/hyun2/robotics-safety/benchmark/robosuite")
+sys.path.insert(0, "/mnt/ssd2/hyun2/robotics-safety/benchmark/robocasa")
 
 import robocasa  # registers environments
 import robosuite
