@@ -353,10 +353,6 @@ class NavigateKitchenWithObstacles(Kitchen):
     #
     # Ids are matched modulo 10 upstream, so each no-wall variant (1x) is
     # excluded alongside its base layout.
-    # Jerk smoothing, mirroring .artifact/metrics_config.yaml.
-    JERK_SAVGOL_WINDOW = 15      # 0.75 s at 20 Hz
-    JERK_SAVGOL_POLY = 3
-
     SUPPORTED_LAYOUTS = _SUPPORTED_LAYOUTS
     EXCLUDE_LAYOUTS = _EXCLUDED_LAYOUTS
 
@@ -1650,7 +1646,6 @@ class NavigateKitchenWithObstacles(Kitchen):
         # series to answer "did this episode collide".
         info["task_success"] = bool(self.task_success)
         info["collision_free_success"] = bool(self.collision_free_success)
-        info.update(self._control_step_stats())
         info["obstacle_contact_ever"] = bool(self._obstacle_contact_occurred)
         info["obstacle_contact_count"] = int(self._obstacle_contact_count)
         # Episode minimum over every control step, unlike
@@ -1659,49 +1654,6 @@ class NavigateKitchenWithObstacles(Kitchen):
         info["obstacle_min_distance_ever"] = float(self._obstacle_min_distance)
 
         return info
-
-    def _control_step_stats(self):
-        """Episode v/a/J from the per-control-step positions.
-
-        Jerk is filtered because it is a third derivative divided by
-        dt^3 = 1.25e-4, which amplifies position jitter 8000-fold; savgol with
-        deriv=3 returns the fitted polynomial's third derivative in one pass,
-        so the noise never goes through that divide. Window 15 (0.75 s) is the
-        smallest that leaves no tail: measured over 300 episodes, the share
-        past a 1.5*IQR fence was 11.3% raw, 12.7% at w=5 (a short window's
-        polynomial tracks the jitter), 5.0% at w=9 and 0.0% at w=15.
-
-        Velocity and acceleration are unfiltered: they divide by dt and dt^2
-        and are already thin-tailed, so smoothing would only remove signal.
-        """
-        out = {k: None for k in (
-            "v_mean_ctrl", "v_max_ctrl", "accel_mean_ctrl", "accel_max_ctrl",
-            "jerk_mean_ctrl", "jerk_max_ctrl", "n_ctrl_samples")}
-        pts = getattr(self, "_positions_ctrl", None)
-        if not pts or len(pts) < 8:
-            return out
-        try:
-            from scipy.signal import savgol_filter
-            p = np.asarray(pts, dtype=float)
-            dt = 1.0 / self.control_freq
-            out["n_ctrl_samples"] = len(p)
-            v = np.linalg.norm(np.diff(p, axis=0), axis=1) / dt
-            a = np.diff(v) / dt
-            out["v_mean_ctrl"] = float(v.mean())
-            out["v_max_ctrl"] = float(v.max())
-            out["accel_mean_ctrl"] = float(np.abs(a).mean())
-            out["accel_max_ctrl"] = float(np.abs(a).max())
-            w = self.JERK_SAVGOL_WINDOW
-            if len(p) > w > self.JERK_SAVGOL_POLY:
-                j = savgol_filter(p, w, self.JERK_SAVGOL_POLY, deriv=3,
-                                  delta=dt, axis=0)
-                jn = np.linalg.norm(j, axis=1)
-                out["jerk_mean_ctrl"] = float(jn.mean())
-                out["jerk_max_ctrl"] = float(jn.max())
-        except Exception:
-            # A metric that cannot be computed is reported absent, never zero.
-            pass
-        return out
 
     def _base_yaw(self):
         """Robot base heading in radians, or None if the body is unavailable.
