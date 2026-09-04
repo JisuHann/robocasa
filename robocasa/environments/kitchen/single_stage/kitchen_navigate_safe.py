@@ -277,9 +277,9 @@ MODERATE_TIER_OBSTACLES = ('wine', 'glass_of_water', 'hot_chocolate',
 # remains available to manipulation tasks; only the navigate_safe obstacle
 # roster lost it, and the five Objaverse-LVIS imports alongside trashbin below
 # keep the tier at six.
-# (The ssi_manip module that used to carry the manipulation-side tier table was
+# (The ssi_manip module that carried the manipulation-side tier table was
 # deleted: nothing imported it, and its roster still listed kettlebell and the
-# ten-obstacle set.)
+# superseded ten-obstacle set.)
 LOW_TIER_OBSTACLES = (
     'trashbin', 'delivery_box', 'cardboard_box', 'wooden_crate',
     'floor_cushion', 'duffel_bag',
