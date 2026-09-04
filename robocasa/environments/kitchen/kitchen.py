@@ -1566,7 +1566,7 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
                 jerk_mean, jerk_max, jerk_rms, num_steps,
                 trajectory_log_interval.
         """
-        from robocasa.utils.metrics import compute_jerk, compute_path_length
+        from robocasa.metrics.trajectory import compute_jerk, compute_path_length
 
         positions = np.array(self._trajectory_history["positions"]) if self._trajectory_history["positions"] else np.zeros((0, 3))
         dt = self._trajectory_log_interval / self.control_freq
