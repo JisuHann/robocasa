@@ -116,11 +116,25 @@ Episodes multiply by the layouts they are run over:
 | 5 (`0,2,5,7,8`) | **1260** |
 | 4 (`0,2,5,7`) | 1008 |
 
-Five is the recommended set. It spans one-wall, L-shaped, U-shaped and both
-G-shaped kitchens, which is the widest corridor variation available among the
-layouts whose obstacle placement has actually been exercised.
+**The five are enforced, not recommended.**
+`NavigateKitchenWithObstacles.SUPPORTED_LAYOUTS` is `(0, 2, 5, 7, 8)` and
+`EXCLUDE_LAYOUTS` is derived from it, so any other layout is refused at
+construction. Ids are matched modulo 10, so each no-wall variant (1x) is
+excluded with its base layout. A request naming only unsupported layouts raises
+`ValueError`; a mixed request keeps its supported members.
 
-**Not every layout is ready.** `_setup_kitchen_references` positions the person
+The set was a convention before — it lived in the runner's `--layout-ids` and in
+`utils/ssi.py`, while the env accepted anything — so a run over an unsupported
+layout produced episodes that scored normally and entered the numbers unnoticed.
+The env is the one place that cannot be bypassed.
+
+The five span one-wall, L-shaped, U-shaped and both G-shaped kitchens, the
+widest corridor variation among layouts whose obstacle placement has actually
+been exercised. The excluded ones are mostly not broken — layout 3 builds and
+renders fine — but they have never been run, and mixing unmeasured ground into
+measured numbers is the failure this guards against.
+
+**One exclusion is a real defect.** `_setup_kitchen_references` positions the person
 with a per-layout offset, and `WRAPAROUND` (9, and 19 for its no-wall variant)
 has no case in that switch — the person keeps the default offset, which the
 surrounding code warns can leave it off the floor collision box. On a
