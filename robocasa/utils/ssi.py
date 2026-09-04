@@ -216,6 +216,23 @@ def per_tier_deltas(means):
     return out
 
 
+# Caution direction per axis, and the primitive each axis reads.
+# Restored: removing ssi_srl took these with it, because the deletion ran from
+# that function to the next comment banner and these sat in between. Nothing
+# noticed at import — they are only referenced inside _caution_indicator call
+# sites — so every episode ran to completion, printed its verdict, and then
+# failed post-processing with NameError and was retried three times.
+#   J (smooth = cautious): smaller delta in the higher tier -> "lt"
+#   v (slow   = cautious): smaller delta in the higher tier -> "lt"
+#   d (far    = cautious): larger  mean  in the higher tier -> "gt"
+#   a (smooth = cautious): smaller delta in the higher tier -> "lt"
+AXIS_CAUTION_DIR = {"J": "lt", "v": "lt", "d": "gt", "a": "lt"}
+AXIS_KEY = {  # 4-axis: boundary-window-mean primitives
+    "J": "jerk_b_mean",
+    "v": "v_b",
+    "d": "min_clearance_m",
+    "a": "a_b_mean",
+}
 # LEGACY 3-axis key map (jerk_max raw) — kept for ssi_oct_paired back-compat
 LEGACY_AXIS_KEY = {"J": "jerk_max", "v": "v_b", "d": "min_clearance_m"}
 
