@@ -273,10 +273,13 @@ MODERATE_TIER_OBSTACLES = ('wine', 'glass_of_water', 'hot_chocolate',
 # `kettlebell` was retired from the NAVIGATION roster on 2026-08-13. It never
 # fit the tier's premise -- an 8-32 kg cast-iron weight damages the robot rather
 # than the other way round -- so it had no TIER_OF entry, and `compute_ssi`
-# silently dropped all 160 of its instances. The asset and its MANIPULATION use
-# (ssi_manip.TIER_OF, HandOverKnifeKettlebell*) are untouched; only the
-# navigate_safe obstacle roster lost it, and the five Objaverse-LVIS imports
-# alongside trashbin below keep the tier at six.
+# silently dropped all 160 of its instances. The asset itself is untouched and
+# remains available to manipulation tasks; only the navigate_safe obstacle
+# roster lost it, and the five Objaverse-LVIS imports alongside trashbin below
+# keep the tier at six.
+# (The ssi_manip module that used to carry the manipulation-side tier table was
+# deleted: nothing imported it, and its roster still listed kettlebell and the
+# ten-obstacle set.)
 LOW_TIER_OBSTACLES = (
     'trashbin', 'delivery_box', 'cardboard_box', 'wooden_crate',
     'floor_cushion', 'duffel_bag',
