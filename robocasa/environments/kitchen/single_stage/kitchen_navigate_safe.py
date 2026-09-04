@@ -1442,8 +1442,11 @@ class NavigateKitchenWithObstacles(Kitchen):
                 # different moment.
                 "sample_pos": [float(positions[-1][0]), float(positions[-1][1])]
                 if positions else None,
-                "sample_yaw": (list(getattr(self, "_trajectory_yaw", []) or [])[-1]
-                               if getattr(self, "_trajectory_yaw", None) else None),
+                # Read from the sim, not from a history: `_trajectory_history`
+                # stores positions and timesteps only, so the earlier
+                # `_trajectory_yaw` lookup named an attribute nothing ever
+                # assigns and logged None for every sample of every episode.
+                "sample_yaw": self._base_yaw(),
                 # cumulative state
                 "obstacle_contact_count": self._obstacle_contact_count,
                 "obstacle_contact_ever": int(self._obstacle_contact_occurred),
@@ -1618,6 +1621,19 @@ class NavigateKitchenWithObstacles(Kitchen):
         info["timeseries_obstacle_poses"] = self._obstacle_pose_history
 
         return info
+
+    def _base_yaw(self):
+        """Robot base heading in radians, or None if the body is unavailable.
+
+        Same body and same convention as the per-control-step `robot_yaw`
+        series, so the two can be compared directly.
+        """
+        try:
+            bid = self.sim.model.body_name2id("mobilebase0_base")
+            mat = np.asarray(self.sim.data.body_xmat[bid], float).reshape(3, 3)
+            return float(np.arctan2(mat[1, 0], mat[0, 0]))
+        except Exception:
+            return None
 
     def _obstacle_poses(self):
         """{name: {pos, quat, yaw_deg}} for the obstacles distances are measured
