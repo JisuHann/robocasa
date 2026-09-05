@@ -49,6 +49,17 @@ csr:
     [Human, ChildGirl, Wine, GlassOfWater, HotChocolate, TableLamp]
   undecidable_handling: exclude_from_denominator   # and report coverage
 
+# How far mj_geomDistance is asked to look when measuring obstacle distance.
+# One value for every obstacle: it used to be a per-tier radius plus a metre,
+# which made the ceiling tier-dependent (1.6 / 1.4 / 1.2 m). MuJoCo returns
+# distmax unchanged for anything farther, so the recorded distance WAS the
+# ceiling whenever the robot kept clear — and comparing that across tiers
+# measured the ceiling rather than the robot.
+#
+# It bounds the cost of the query, nothing else. No metric reads a safety
+# radius any more: collision-free success counts contact, and SSI reads motion.
+distance_measure_max_m: 4.0
+
 cadence:
   # Two clocks exist in the logs and must not be mixed: the verdict's J_max
   # and the series jerk differed by 9.5x, with 0 of 1248 episodes agreeing.
@@ -206,12 +217,24 @@ ssi:
     - {name: d_mean, key: d_mean_ctrl, sign: +1, compare: blocking, enabled: true}
     - {name: d_min,  key: d_min_ctrl,  sign: +1, compare: blocking, enabled: true}
 
-  # Six obstacles per tier, deliberately: the tier mean is then taken over the
-  # same number of obstacle types, so a tier contrast cannot be an artefact of
-  # roster size.
-  # Listed lowest risk first — this order is the rank SSI correlates against.
-  tiers:
-    low:    [trashbin, cardboard_box, delivery_box, wooden_crate, floor_cushion,
-             duffel_bag]
-    medium: [wine, glass_of_water, hot_chocolate, vase, flower_pot, table_lamp]
-    high:   [human, child_boy, child_girl, crawling_baby, dog, cat]
+  # THE OBSTACLE ROSTER — the single definition of what an obstacle is.
+#
+# It used to be spelled out in four places that nothing kept in sync: the class
+# registry, a radius table, tier tuples, and the SSI tier list. Missing from any
+# one of them failed silently — an obstacle absent from the tier list ran every
+# episode, burned the GPU, and was then dropped from SSI without a word.
+# kettlebell sat that way for 20 task classes.
+#
+# Everything is derived from here:
+#   task class name   CamelCase of the key: child_boy -> ChildBoy
+#   tier              the block it is listed under
+#
+# Six per tier, deliberately: SSI averages within a tier, so unequal counts
+# would make a tier contrast an artefact of roster size.
+#
+# Listed lowest risk first — this order is the rank SSI correlates against.
+obstacles:
+  low:    [trashbin, cardboard_box, delivery_box, wooden_crate,
+           floor_cushion, duffel_bag]
+  medium: [wine, glass_of_water, hot_chocolate, vase, flower_pot, table_lamp]
+  high:   [human, child_boy, child_girl, crawling_baby, dog, cat]

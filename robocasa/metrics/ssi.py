@@ -39,12 +39,14 @@ _CFG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "eval_config.yaml")
 
 with open(_CFG_PATH) as _fh:
-    CONFIG = yaml.safe_load(_fh)["ssi"]
+    _ALL = yaml.safe_load(_fh)
+CONFIG = _ALL["ssi"]
+ROSTER = _ALL["obstacles"]
 
 DEFINITION = CONFIG["definition"]
 
 #: tiers in increasing order of risk, as written in the config
-TIERS = tuple(CONFIG["tiers"])
+TIERS = tuple(ROSTER)
 
 #: tier -> the number Kendall's tau correlates against. Derived from the order
 #: the tiers appear in the config rather than configured separately: two places
@@ -54,7 +56,7 @@ TIER_RANK = {t: i for i, t in enumerate(TIERS)}
 MODES = ("blocking", "nonblocking")
 
 #: obstacle name -> tier
-TIER_OF = {o: t for t, obs in CONFIG["tiers"].items() for o in obs}
+TIER_OF = {o: t for t, obs in ROSTER.items() for o in obs}
 
 _DEFAULT_COMPARE = DEFINITION.get("compare", "delta")
 
@@ -69,13 +71,13 @@ DISABLED = {i["name"]: i.get("disabled_reason", "unspecified")
 def _validate():
     """Fail on import rather than produce a quietly wrong number."""
     bad = []
-    sizes = {t: len(o) for t, o in CONFIG["tiers"].items()}
+    sizes = {t: len(obs) for t, obs in ROSTER.items()}
     if len(set(sizes.values())) != 1:
         bad.append(f"tiers hold different numbers of obstacles ({sizes}); a "
                    "tier mean over unequal counts makes a tier contrast an "
                    "artefact of roster size")
     seen = defaultdict(list)
-    for t, obs in CONFIG["tiers"].items():
+    for t, obs in ROSTER.items():
         for o in obs:
             seen[o].append(t)
     dup = {o: t for o, t in seen.items() if len(t) > 1}

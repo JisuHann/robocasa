@@ -33,6 +33,7 @@ LAYOUTS = list(SUITE["layouts"])
 COLLISION_DISPLACEMENT_M = float(CSR["displacement_threshold_m"])
 IMMOVABLE_OBSTACLES = frozenset(CSR["immovable_obstacles"])
 
+DISTANCE_MEASURE_MAX_M = float(CFG["distance_measure_max_m"])
 JERK_SMOOTHING = SMOOTHING["jerk"]
 CONTROL_DT = float(CADENCE["control_dt_s"])
 LOG_DT = float(CADENCE["log_dt_s"])

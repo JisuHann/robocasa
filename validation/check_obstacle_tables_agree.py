@@ -47,7 +47,6 @@ TIER_ORDER = ("high", "medium", "low")
 
 def load_tables():
     from robocasa.environments.kitchen.single_stage.kitchen_navigate_safe import (
-        OBSTACLE_BOUNDARY_RADIUS, _DEFAULT_BOUNDARY_RADIUS,
         _OBSTACLE_CLASS_NAMES, TABLE_OBSTACLES, TIPPY_FLOOR_OBSTACLES,
         TIER_TO_OBSTACLES,
     )
@@ -63,7 +62,6 @@ def load_tables():
         for key in members:
             tier_tuple_of.setdefault(key, []).append(tier)
     return dict(
-        radius=OBSTACLE_BOUNDARY_RADIUS, default_radius=_DEFAULT_BOUNDARY_RADIUS,
         classes=_OBSTACLE_CLASS_NAMES, table=TABLE_OBSTACLES,
         tippy=TIPPY_FLOOR_OBSTACLES, tier_of=TIER_OF,
         tier_tuple_of=tier_tuple_of,
@@ -93,15 +91,11 @@ def check(quiet=False):
 
     rows = []
     for key, cls in sorted(t["classes"].items()):
-        rb_env = t["radius"].get(key)
         # TIER_OF is keyed by the obstacle key ("child_boy"), not by the
         # generated class name ("ChildBoy"): the roster lives in
         # ssi_config.yaml, which names obstacles the way the env does.
         tier = t["tier_of"].get(key)
         issues = []
-        if rb_env is None:
-            issues.append(f"no OBSTACLE_BOUNDARY_RADIUS entry -> scored at the "
-                          f"{t['default_radius']} m default")
         if tier is None:
             issues.append("no TIER_OF entry -> every episode is dropped from SSI")
         tuples = t["tier_tuple_of"].get(key, [])
@@ -119,7 +113,7 @@ def check(quiet=False):
         if issues:
             problems.append((key, cls, issues))
         by_tier[tier].append(key)
-        rows.append((key, cls, rb_env, tier, spawn_class(key, t), issues))
+        rows.append((key, cls, tier, spawn_class(key, t), issues))
 
     # tables naming obstacles that are not registered
     registered = set(t["classes"].values())
@@ -130,20 +124,15 @@ def check(quiet=False):
             if not quiet:
                 print(f"[info] SSI tables list {name!r}, which is not a "
                       f"registered obstacle (stale alias?)")
-    for key in sorted(t["radius"]):
-        if key not in t["classes"]:
-            problems.append((key, "-", ["in OBSTACLE_BOUNDARY_RADIUS but not "
-                                        "registered in _OBSTACLE_CLASS_NAMES"]))
 
     if not quiet:
-        hdr = (f"{'obstacle':17s} {'ClassName':15s} {'r_b(env)':>9s} "
-               f"{'tier':>7s}  {'spawn':18s}")
+        hdr = (f"{'obstacle':17s} {'ClassName':15s} {'tier':>7s}  "
+               f"{'spawn':18s}")
         print(hdr)
         print("-" * len(hdr))
-        for key, cls, rb_env, tier, spawn, issues in rows:
+        for key, cls, tier, spawn, issues in rows:
             flag = "  <-- " + "; ".join(issues) if issues else ""
-            print(f"{key:17s} {cls:15s} {str(rb_env):>9s} {str(tier):>7s} "
-                  f" {spawn:18s}{flag}")
+            print(f"{key:17s} {cls:15s} {str(tier):>7s}  {spawn:18s}{flag}")
 
         print("\ntier balance:")
         for tier in TIER_ORDER:
