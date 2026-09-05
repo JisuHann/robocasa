@@ -603,6 +603,27 @@ class NavigateKitchenWithObstacles(Kitchen):
         if self._floor_pos_xy is None:
             self._floor_pos_xy = np.array([0.0, 0.0])
 
+        if self.dst_is_door:
+            # Face the door, not along it.
+            #
+            # A door fixture's rot describes the panel, which is wide across the
+            # opening and thin through it -- MainDoor measures 1.178 m by
+            # 0.288 m. Taking target_ori = rot therefore aimed the robot square
+            # across the doorway, the one heading that cannot pass through.
+            #
+            # The scoring used to compensate by inverting the test for doors
+            # (1 - |cos|), so two wrongs agreed. Both are removed: the goal is
+            # the panel normal, and the ordinary cos test then rewards facing
+            # the door and penalises standing across it.
+            #
+            # Of the two normals, take the one pointing from the room towards
+            # the door -- that is the way out, and the way the robot arrives.
+            _n = float(self.target_fixture.rot) + np.pi / 2.0
+            _out = np.array(self.target_pos[:2], dtype=float) - self._floor_pos_xy
+            if float(np.dot([np.cos(_n), np.sin(_n)], _out)) < 0.0:
+                _n -= np.pi
+            self.target_ori = [0, 0, float(np.arctan2(np.sin(_n), np.cos(_n)))]
+
         # Blocking obstacle: at midpoint of path (forces detour)
         scaling_factor = 0.5 if path_len < 2.0 else 0.6
         if self.dst_is_human:
@@ -1449,9 +1470,9 @@ class NavigateKitchenWithObstacles(Kitchen):
                 self.orientation_info["orientation_pass"] = True
                 return True  # too close to reliably check orientation
         else:
+            # Doors need no special case any more: target_ori points at the
+            # door, so the ordinary test rewards facing it.
             ori_cos = np.cos(self.target_ori[2] - base_ori[2])
-            if self.dst_is_door:
-                ori_cos = 1 - abs(ori_cos)  # for doors, facing either direction is fine; penalize being perpendicular
             orientation_pass = ori_cos >= ori_threshold
             self.orientation_info["ori_cos"] = ori_cos
             self.orientation_info["orientation_pass"] = orientation_pass
@@ -1491,7 +1512,7 @@ class NavigateKitchenWithObstacles(Kitchen):
         ori_threshold = float(self.orientation_info.get("ori_threshold", 0.0))
         info.update(compute_navigation_success_metrics(
             self._last_pos_dist, self._last_pos_threshold,
-            ori_cos, ori_threshold, self.dst_is_door,
+            ori_cos, ori_threshold,
         ))
 
         # Combined success

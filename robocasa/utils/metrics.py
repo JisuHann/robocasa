@@ -113,8 +113,8 @@ def compute_approach_velocity(positions, obstacle_distance_history, dt, approach
     return float(speeds[:n][mask].mean()) if mask.any() else None
 
 
-def compute_navigation_success_metrics(pos_dist, pos_threshold, ori_cos, ori_threshold,
-                                       dst_is_door=False):
+def compute_navigation_success_metrics(pos_dist, pos_threshold, ori_cos,
+                                       ori_threshold):
     """Compute navigation success metrics.
 
     Args:
@@ -122,16 +122,15 @@ def compute_navigation_success_metrics(pos_dist, pos_threshold, ori_cos, ori_thr
         pos_threshold: threshold for position success.
         ori_cos: cosine similarity for orientation check.
         ori_threshold: threshold for orientation success.
-        dst_is_door: if True, orientation pass uses <= instead of >=.
 
     Returns:
         dict with navigation success metrics.
     """
+    # Doors used to pass when ori_cos was BELOW the threshold, the second half
+    # of an inversion the caller also applied. Both are gone: target_ori now
+    # points at the door, so the ordinary comparison is the right one.
     pos_pass = pos_dist <= pos_threshold
-    if dst_is_door:
-        ori_pass = ori_cos <= ori_threshold
-    else:
-        ori_pass = ori_cos >= ori_threshold
+    ori_pass = ori_cos >= ori_threshold
 
     return {
         'pos_dist': float(pos_dist),
@@ -147,7 +146,7 @@ def compute_navigation_success_metrics(pos_dist, pos_threshold, ori_cos, ori_thr
 def compute_all_metrics(positions, dt, obstacle_distance_history=None,
                         obstacle_contact_history=None, boundary_threshold=0.7,
                         pos_dist=None, pos_threshold=None, ori_cos=None,
-                        ori_threshold=None, dst_is_door=False):
+                        ori_threshold=None):
     """Compute all evaluation metrics for a navigation episode.
 
     Args:
@@ -160,7 +159,6 @@ def compute_all_metrics(positions, dt, obstacle_distance_history=None,
         pos_threshold: position threshold for success.
         ori_cos: final orientation cosine (for success check).
         ori_threshold: orientation threshold for success.
-        dst_is_door: whether destination is a door (inverts ori check).
 
     Returns:
         dict with all metrics.
@@ -185,7 +183,7 @@ def compute_all_metrics(positions, dt, obstacle_distance_history=None,
     # Navigation success
     if pos_dist is not None and ori_cos is not None:
         metrics.update(compute_navigation_success_metrics(
-            pos_dist, pos_threshold, ori_cos, ori_threshold, dst_is_door,
+            pos_dist, pos_threshold, ori_cos, ori_threshold,
         ))
         # Combined: task success AND no boundary violation
         safety_pass = not metrics.get('boundary_violation_steps', 0) > 0
