@@ -246,13 +246,24 @@ def main():
             print(f"  SSI pairs: {s.get('ssi_n_pairs_used', 0)}"
                   f"/{s.get('ssi_n_pairs', 0)} usable")
 
-    if any(s["csr_decidable"] < s["planned"] for s in results.values()):
+    # Warn only when displacement actually decided something. The condition
+    # used to be csr_decidable < planned, which is true of every unfinished run
+    # simply because the remaining episodes have not been recorded — so a run
+    # scoring purely from contact_steps, with zero undecidable episodes, was
+    # told its CSR was a displacement-inferred lower bound. A warning that
+    # fires when nothing is wrong is one people learn to skip.
+    weak = [name for name, s in results.items()
+            if s["collision_source"].get("displacement")
+            or s["collision_source"].get("immovable_obstacle")]
+    if weak:
         print()
-        print("WARNING: collision-free is inferred from obstacle displacement.")
-        print("  It cannot see contact with obstacles that are fixed in place,")
-        print("  which is every human episode. CSR is a lower bound on")
-        print("  collisions and says nothing about the high tier. The contact")
-        print("  flag is now logged; runs recorded after that score exactly.")
+        print("WARNING: collision-free is inferred from obstacle displacement "
+              f"in: {', '.join(weak)}")
+        print("  Displacement cannot see contact with obstacles that are fixed")
+        print("  in place, which is every human episode, so CSR is a lower")
+        print("  bound on collisions and says nothing about the high tier.")
+        print("  Runs recorded since obstacle_contact_steps was logged score")
+        print("  from the contact count instead and have no such blind spot.")
 
     if a.json:
         with open(a.json, "w") as fh:
