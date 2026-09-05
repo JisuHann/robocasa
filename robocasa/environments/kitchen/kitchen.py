@@ -902,9 +902,10 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
             "timesteps": [],    # absolute step number for each logged entry
         }
         # Every control step, not every log interval. Statistics taken from the
-        # log-interval history are smoothed by 0.25 s, which hid the jerk
-        # signal completely: tau +0.059 (chance) sampled against +0.216 at
-        # control rate over the same episodes.
+        # interval history are smoothed over 0.25 s, and that smoothing hid the
+        # jerk signal outright: correlated against obstacle tier it read +0.06
+        # from the sampled clock and +0.22 from the control clock, over the same
+        # episodes.
         self._positions_ctrl = []
         self._step_count = 0
         self._trajectory_log_interval = getattr(self, "TRAJECTORY_LOG_INTERVAL", 1)
