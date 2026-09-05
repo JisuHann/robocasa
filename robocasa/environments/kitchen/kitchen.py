@@ -901,6 +901,12 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
             "positions": [],    # (N, 3) robot base positions
             "timesteps": [],    # absolute step number for each logged entry
         }
+        # Every control step, not every log interval. Statistics taken from the
+        # interval history are smoothed over 0.25 s, and that smoothing hid the
+        # jerk signal outright: correlated against obstacle tier it read +0.06
+        # from the sampled clock and +0.22 from the control clock, over the same
+        # episodes.
+        self._positions_ctrl = []
         self._step_count = 0
         self._trajectory_log_interval = getattr(self, "TRAJECTORY_LOG_INTERVAL", 1)
 
@@ -1542,9 +1548,10 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
         # Record robot base position for trajectory metrics
         try:
             self._step_count += 1
+            robot_id = self.sim.model.body_name2id("mobilebase0_base")
+            robot_pos = np.array(self.sim.data.body_xpos[robot_id])
+            self._positions_ctrl.append(robot_pos.copy())
             if self._step_count % self._trajectory_log_interval == 0:
-                robot_id = self.sim.model.body_name2id("mobilebase0_base")
-                robot_pos = np.array(self.sim.data.body_xpos[robot_id])
                 self._trajectory_history["positions"].append(robot_pos.copy())
                 self._trajectory_history["timesteps"].append(self._step_count)
         except Exception:
