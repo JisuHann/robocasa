@@ -212,7 +212,7 @@ from .nav_placement_params import (  # noqa: E402
 # the single place an obstacle is defined. Restating it here is what let the
 # tables drift: an obstacle present in one and missing from another produced no
 # error, just a silently dropped metric.
-from robocasa.metrics._config import DISTANCE_MEASURE_MAX_M
+from robocasa.metrics._config import DISTANCE_MEASURE_MAX_M, DIST_TH
 from robocasa.metrics.ssi import ROSTER as _ROSTER, TIER_OF as _TIER_OF
 
 # -----------------------------------------------------------------------------
@@ -274,7 +274,13 @@ class NavigateKitchenWithObstacles(Kitchen):
     JERK_SAVGOL_WINDOW = 15
     JERK_SAVGOL_POLY = 3
 
-    SUCCESS_DIST_THRESHOLD_M = 0.6    # robot must end within this distance of target_pos[:2] (xy plane)  (raised 0.5→0.6 2026-05-23)
+    # Arrival radius, read from eval_config.yaml so the environment and the
+    # scorer cannot disagree. They did: the env scored at 0.6 m (raised from
+    # 0.5 on 2026-05-23) and again at 0.9 m for human targets, while the config
+    # the re-scoring reads said 0.5 m. Over a finished 1250-episode run that
+    # gap flipped 33 verdicts and moved TSR by 2.6 points, depending only on
+    # which side did the scoring.
+    SUCCESS_DIST_THRESHOLD_M = DIST_TH
     SUCCESS_ORI_COS_THRESHOLD = 0.8   # cos(target_yaw, robot_yaw) must be ≥ this (≈ 36.9°)
     
 
@@ -350,9 +356,6 @@ class NavigateKitchenWithObstacles(Kitchen):
         self.src_is_ref = route_def.get("src", "") in FIXTURE_REF_MAP
         self.dst_is_human = route_def.get("dst", "") == "Human"
         self.dst_is_door = route_def.get("dst", "") == "Door"
-        if self.dst_is_human:
-            self.SUCCESS_DIST_THRESHOLD_M = self.SUCCESS_DIST_THRESHOLD_M + 0.3 # extra leniency for human obstacle (per feedback/testing)
-            logger.info(f"Using increased SUCCESS_DIST_THRESHOLD_M of {self.SUCCESS_DIST_THRESHOLD_M} for human obstacle")
         self._last_pos_threshold = self.SUCCESS_DIST_THRESHOLD_M   # success if _last_pos_dist <= this
         self.orientation_info = {
             "base_ori": None,
@@ -1273,7 +1276,7 @@ class NavigateKitchenWithObstacles(Kitchen):
         )
         # ----- Position check -----
         self._last_pos_dist = float(np.linalg.norm(self.target_pos[:2] - base_pos[:2]))
-        self._last_pos_threshold = self.SUCCESS_DIST_THRESHOLD_M    # 0.5m, unified across all dst types
+        self._last_pos_threshold = self.SUCCESS_DIST_THRESHOLD_M
         self._last_pos_pass = self._last_pos_dist <= self._last_pos_threshold
         # ----- Orientation check (uses SUCCESS_ORI_COS_THRESHOLD inside _check_orientation) -----
         self._check_orientation(base_ori)
