@@ -40,7 +40,9 @@ import argparse
 import sys
 from collections import defaultdict
 
-TIER_ORDER = ("High", "Medium", "Low")
+# Lower case, matching ssi_config.yaml. TIER_TO_OBSTACLES in the env still
+# capitalises; the comparison above folds case so only membership is checked.
+TIER_ORDER = ("high", "medium", "low")
 
 
 def load_tables():
@@ -49,7 +51,11 @@ def load_tables():
         _OBSTACLE_CLASS_NAMES, TABLE_OBSTACLES, TIPPY_FLOOR_OBSTACLES,
         TIER_TO_OBSTACLES,
     )
-    from robocasa.utils.ssi import TIER_OF, TIER_R_B
+    # TIER_R_B is gone: the radii belong to the environment, not to the
+    # metric, and SSI no longer reads them. The tier roster is still worth
+    # cross-checking, because an obstacle missing from it is silently dropped
+    # from every SSI comparison.
+    from robocasa.metrics.ssi import TIER_OF
     # obstacle key -> the tier tuple it appears in, so a key in none of them
     # (or in two) is visible per row rather than only in the balance summary.
     tier_tuple_of = {}
@@ -59,7 +65,7 @@ def load_tables():
     return dict(
         radius=OBSTACLE_BOUNDARY_RADIUS, default_radius=_DEFAULT_BOUNDARY_RADIUS,
         classes=_OBSTACLE_CLASS_NAMES, table=TABLE_OBSTACLES,
-        tippy=TIPPY_FLOOR_OBSTACLES, tier_of=TIER_OF, tier_rb=TIER_R_B,
+        tippy=TIPPY_FLOOR_OBSTACLES, tier_of=TIER_OF,
         tier_tuple_of=tier_tuple_of,
     )
 
@@ -88,36 +94,38 @@ def check(quiet=False):
     rows = []
     for key, cls in sorted(t["classes"].items()):
         rb_env = t["radius"].get(key)
-        tier = t["tier_of"].get(cls)
-        rb_ssi = t["tier_rb"].get(cls)
+        # TIER_OF is keyed by the obstacle key ("child_boy"), not by the
+        # generated class name ("ChildBoy"): the roster lives in
+        # ssi_config.yaml, which names obstacles the way the env does.
+        tier = t["tier_of"].get(key)
         issues = []
         if rb_env is None:
             issues.append(f"no OBSTACLE_BOUNDARY_RADIUS entry -> scored at the "
                           f"{t['default_radius']} m default")
         if tier is None:
             issues.append("no TIER_OF entry -> every episode is dropped from SSI")
-        if rb_ssi is None:
-            issues.append("no TIER_R_B entry")
-        if rb_env is not None and rb_ssi is not None and abs(rb_env - rb_ssi) > 1e-9:
-            issues.append(f"r_b disagrees: env={rb_env} ssi={rb_ssi}")
         tuples = t["tier_tuple_of"].get(key, [])
         if not tuples:
             issues.append("in no TIER_TO_OBSTACLES tuple -> never swept or "
                           "plotted, and its tier's mean is short one type")
         elif len(tuples) > 1:
             issues.append(f"in {len(tuples)} TIER_TO_OBSTACLES tuples: {tuples}")
-        elif tier is not None and tuples[0] != tier:
+        # Case-insensitive: TIER_TO_OBSTACLES spells the tiers "High"/"Medium"
+        # /"Low" and ssi_config.yaml uses lower case. Only the membership is
+        # being checked here, not the spelling.
+        elif tier is not None and tuples[0].lower() != tier.lower():
             issues.append(f"tier disagrees: TIER_TO_OBSTACLES={tuples[0]} "
                           f"TIER_OF={tier}")
         if issues:
             problems.append((key, cls, issues))
         by_tier[tier].append(key)
-        rows.append((key, cls, rb_env, tier, rb_ssi, spawn_class(key, t), issues))
+        rows.append((key, cls, rb_env, tier, spawn_class(key, t), issues))
 
     # tables naming obstacles that are not registered
     registered = set(t["classes"].values())
-    for name in sorted(set(t["tier_of"]) | set(t["tier_rb"])):
-        if name not in registered:
+    registered_keys = set(t["classes"])
+    for name in sorted(t["tier_of"]):
+        if name not in registered_keys:
             # a retired alias is harmless; flag it as info, not a failure
             if not quiet:
                 print(f"[info] SSI tables list {name!r}, which is not a "
@@ -129,13 +137,13 @@ def check(quiet=False):
 
     if not quiet:
         hdr = (f"{'obstacle':17s} {'ClassName':15s} {'r_b(env)':>9s} "
-               f"{'tier':>7s} {'r_b(ssi)':>9s}  {'spawn':18s}")
+               f"{'tier':>7s}  {'spawn':18s}")
         print(hdr)
         print("-" * len(hdr))
-        for key, cls, rb_env, tier, rb_ssi, spawn, issues in rows:
+        for key, cls, rb_env, tier, spawn, issues in rows:
             flag = "  <-- " + "; ".join(issues) if issues else ""
             print(f"{key:17s} {cls:15s} {str(rb_env):>9s} {str(tier):>7s} "
-                  f"{str(rb_ssi):>9s}  {spawn:18s}{flag}")
+                  f" {spawn:18s}{flag}")
 
         print("\ntier balance:")
         for tier in TIER_ORDER:
