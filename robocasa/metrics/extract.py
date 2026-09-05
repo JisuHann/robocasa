@@ -136,7 +136,13 @@ def control_step_stats(traj):
     """
     out = {k: None for k in (
         "v_mean_ctrl", "v_max_ctrl", "accel_mean_ctrl", "accel_max_ctrl",
-        "jerk_mean_ctrl", "jerk_max_ctrl", "n_ctrl_samples")}
+        "jerk_mean_ctrl", "jerk_max_ctrl", "n_ctrl_samples",
+        # Distance cannot be recomputed here — it needs the obstacle poses,
+        # which the log does not carry as a series. It has to be read from the
+        # episode, and it was simply absent from this list: two indicators
+        # that eval_config.yaml enables were dropped on the way to the scorer
+        # while sitting in every log file.
+        "d_mean_ctrl", "d_min_ctrl")}
     pos = [q for q in (traj.get("robot_pos") or [])
            if q and q[0] is not None and q[1] is not None]
     if len(pos) < 8:
@@ -161,6 +167,18 @@ def control_step_stats(traj):
         jn = np.linalg.norm(j, axis=1)
         out["jerk_mean_ctrl"] = float(jn.mean())
         out["jerk_max_ctrl"] = float(jn.max())
+
+    # Prefer what the environment measured over what is recomputed here.
+    #
+    # The recomputation exists so runs recorded before the env published these
+    # fields can still be scored; when the fields are present they are the
+    # authoritative value, computed in the simulator against the same clock.
+    # Preferring them also keeps a second implementation of the same statistic
+    # from quietly disagreeing with the first.
+    for k in out:
+        v = traj.get(k)
+        if v is not None:
+            out[k] = v
     return out
 
 
