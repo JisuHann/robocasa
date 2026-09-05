@@ -182,11 +182,19 @@ def _cell_of(task_info):
 
 
 def _succeeded(ev):
+    """Did this episode reach the goal?
+
+    SSI compares motion between a blocking and a nonblocking episode, and the
+    comparison is only meaningful when both arrived — the motion of a run that
+    gave up halfway says nothing about caution. Nothing writes a bare
+    `success` key any more, and it is deliberately not read: it named arrival
+    in one writer and arrival-AND-collision-free in another, so a fallback to
+    it silently changed what "succeeded" meant depending on which code wrote
+    the record.
+    """
     if not ev:
         return False
-    if "task_success" in ev:
-        return bool(ev["task_success"])
-    return bool(ev.get("success", False))
+    return bool(ev.get("task_success", False))
 
 
 def kendall_tau(xs, ys):
