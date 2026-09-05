@@ -11,7 +11,7 @@ import sys
 from robocasa.metrics import ssi
 
 TIERS = ("low", "medium", "high")
-OBS = {t: ssi.CONFIG["tiers"][t] for t in TIERS}
+OBS = {t: ssi.ROSTER[t] for t in TIERS}
 
 
 def episode(layout, route, obstacle, mode, value):
