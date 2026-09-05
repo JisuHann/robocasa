@@ -229,8 +229,15 @@ def main():
               f"verdicts {s['verdicts']}, reached {s['reached']}")
         print(f"  TSR blocking {s['tsr_blocking']:.1%}, "
               f"nonblocking {s['tsr_nonblocking']:.1%}")
+        # Separate "we could not decide" from "it has not run yet". Folding
+        # both into one number reads as a measurement problem when most of it
+        # is just an unfinished run: at 53 of 1250 episodes this line claimed
+        # 1197 undecidable, of which 1197 were simply not recorded.
+        not_run = s["planned"] - s["episodes_on_disk"]
+        undecidable = s["episodes_on_disk"] - s["csr_decidable"]
+        tail = f", not yet run {not_run}" if not_run else ""
         print(f"  collisions detected {s['collisions']}, "
-              f"undecidable {s['planned'] - s['csr_decidable']} "
+              f"undecidable {undecidable}{tail} "
               f"(evidence: {s['collision_source']})")
         per = s.get("ssi_per_indicator") or {}
         if per:
