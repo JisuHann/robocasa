@@ -58,7 +58,7 @@ VERDICT = re.compile(
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
 # Tiers, radii, the collision threshold and the immovable roster all come from
-# metrics_config.yaml, which records why each value was chosen. Duplicating
+# eval_config.yaml, which records why each value was chosen. Duplicating
 # them here is how two definitions of one quantity start.
 from robocasa.metrics._config import (  # noqa: E402
     COLLISION_DISPLACEMENT_M, CONTROL_DT, DIST_TH, IMMOVABLE_OBSTACLES,
@@ -71,7 +71,7 @@ NAME_RE = re.compile(r"^NavigateKitchen(.+?)(NonBlocking|Blocking)Route([A-G])$"
 # Collision detection is a PLACEHOLDER for runs recorded before the env logged
 # its per-substep contact flag. It is wrong in one direction: movement implies
 # contact, but stillness does not imply no contact, and the obstacles listed as
-# immovable in metrics_config.yaml never move even when struck (human displaced
+# immovable in eval_config.yaml never move even when struck (human displaced
 # 0.000 m in all 60 of its episodes). Those are reported UNDECIDABLE.
 
 

@@ -95,7 +95,7 @@ def annotate_frame(frame, ev, task_name, instruction, route=None):
     final_xy = ev.get("final_pos_xy")
     goal_xy = ev.get("goal_pos_xy")
     dist = ev.get("dist_to_goal_m", 0)
-    success = ev.get("success", False)
+    success = ev.get("task_success", False)
 
     # Recompute ori_cos with correct logic
     ori_cos = compute_ori_error(ev, route)
