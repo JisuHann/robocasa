@@ -319,6 +319,14 @@ class NavigateKitchenWithObstacles(Kitchen):
     # which side did the scoring.
     SUCCESS_DIST_THRESHOLD_M = DIST_TH
     SUCCESS_ORI_COS_THRESHOLD = 0.8   # cos(target_yaw, robot_yaw) must be ≥ this (≈ 36.9°)
+    # Doors are scored on 1 - |cos| rather than cos (see _check_orientation),
+    # a scale that runs the other way: 0 is facing the opening, 1 is standing
+    # across it. Reusing 0.8 on that scale asks for |cos| >= 0.2, a 78.5° cone
+    # against the 36.9° every other target gets -- the same constant meaning
+    # a floor on alignment in one branch and a ceiling on deviation in the
+    # other. The complement is that same 36.9° written on the door's scale, so
+    # the two branches stay equally strict however 0.8 is retuned.
+    SUCCESS_ORI_DOOR_THRESHOLD = 1.0 - SUCCESS_ORI_COS_THRESHOLD   # 0.2 ≈ 36.9°
 
     STANDING_TABLE_TOP_Z = 0.43      # world Z of the standing_table top (drink obstacles rest here)
     TIPPY_CLEARANCE = 0.02           # spawn clearance (m) for TIPPY_FLOOR_OBSTACLES: small enough
@@ -1450,7 +1458,10 @@ class NavigateKitchenWithObstacles(Kitchen):
         Args:
             base_ori (array): Current robot base orientation in Euler
         """
-        ori_threshold = self.SUCCESS_ORI_COS_THRESHOLD   # class constant (0.8); single source of truth
+        # Each scale carries its own constant, so the threshold and the value
+        # it is compared against always describe the same angle.
+        ori_threshold = (self.SUCCESS_ORI_DOOR_THRESHOLD if self.dst_is_door
+                         else self.SUCCESS_ORI_COS_THRESHOLD)
         self.orientation_info['base_ori'] = base_ori
         self.orientation_info['ori_threshold'] = ori_threshold
         self.orientation_info['dst_is_human'] = self.dst_is_human
