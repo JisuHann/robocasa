@@ -20,8 +20,8 @@ class MJCFObject(MujocoXMLObject):
         mjcf_path,
         scale=1.0,
         solimp=(0.998, 0.998, 0.001),
-        solref=(0.001, 1),
-        density=100,
+        solref=None,
+        density=None,
         friction=(0.95, 0.3, 0.1),
         margin=None,
         rgba=None,
@@ -52,6 +52,42 @@ class MJCFObject(MujocoXMLObject):
         folder = os.path.dirname(xml_path)
         tree = ET.parse(xml_path)
         root = tree.getroot()
+
+        # Stamp the category's density onto every geom, so the object weighs what its
+        # OBJ_CATEGORIES entry says rather than whatever the asset was exported with.
+        #
+        # This is deliberately opt-in: density=None (the default) leaves the asset's own
+        # value alone. A blanket override would re-mass every object in the zoo, and at
+        # least one asset depends on its exported value -- lrs_objs/main_door carries
+        # density="1" on a 0.9 x 1.5 m door panel and would get 100x heavier.
+        #
+        # Only group="0" geoms actually end up carrying mass: robosuite's base.xml compiles
+        # with inertiagrouprange="0 0", so the group="1" visual geom is excluded from the
+        # inertia computation no matter what density it is given (verified by scaling the
+        # visual density 100x and watching the mass not move). Stamping every geom anyway
+        # keeps the XML internally consistent and costs nothing, and the densities in
+        # OBJ_CATEGORIES were calibrated against the realized mass, so they hold either way.
+        #
+        # NOTE: `_get_geoms` below looks like it already does this, and also sets solimp,
+        # solref, friction, margin, rgba and priority. It does not: it overrides a robosuite
+        # method that no longer exists, so nothing ever calls it and none of those
+        # attributes has ever reached a geom. Only density is revived here -- switching the
+        # others on would change contact dynamics for every object in the zoo at once.
+        # solref rides the same opt-in switch, for the same reason and with the same
+        # default-is-None semantics. It matters because the assets were exported with
+        # solref="0.001 1" -- a 1 ms contact time constant against robosuite's 2 ms
+        # SIMULATION_TIMESTEP (robosuite/macros.py). A contact stiffer than the integrator
+        # can resolve does not converge: measured on delivery_box, the box sits 2 mm inside
+        # the floor carrying 49.5 N against its own 29.4 N weight, and never stops moving
+        # (0.023 m/s after 550 steps of zero action), creeping 6.1 cm across the floor.
+        # Raising the time constant above the timestep lets the contact settle.
+        if self.solref is not None:
+            for geom in root.iter("geom"):
+                geom.set("solref", array_to_string(np.array(self.solref)))
+
+        if self.density is not None:
+            for geom in root.iter("geom"):
+                geom.set("density", str(self.density))
 
         # write modified xml (and make sure to postprocess any paths just in case)
         xml_str = ET.tostring(root, encoding="utf8").decode("utf8")

@@ -39,9 +39,17 @@ class ObjCat:
 
         solimp (tuple): solimp values for the object meshes/geoms
 
-        solref (tuple): solref values for the object meshes/geoms
+        solref (tuple): solref (time_constant, damping_ratio) stamped onto the object's geoms,
+            overriding the asset's exported value. None (the default) leaves the asset alone.
+            The time constant must exceed the simulation timestep (2 ms) or the contact
+            cannot converge -- see the note in MJCFObject.__init__.
 
-        density (float): density of the object meshes/geoms
+        density (float or dict): density (kg/m^3) stamped onto the object's geoms, overriding
+            whatever the asset was exported with. None (the default) leaves the asset alone.
+            A float applies to every model in the category; a dict maps a model folder name
+            (e.g. "wine_6") to its own density, with the key "default" covering any model not
+            listed -- see `get_mjcf_kwargs`, and OBJ_CATEGORIES["wine"] for why a category
+            ever needs per-model densities.
 
         friction (tuple): friction values for the object meshes/geoms
 
@@ -63,8 +71,8 @@ class ObjCat:
         freezable=False,
         scale=1.0,
         solimp=(0.998, 0.998, 0.001),
-        solref=(0.001, 2),
-        density=100,
+        solref=None,
+        density=None,
         friction=(0.95, 0.3, 0.1),
         priority=None,
         aigen_cat=False,
@@ -104,16 +112,37 @@ class ObjCat:
                     cat_mjcf_paths.append(os.path.join(root, "model.xml"))
         self.mjcf_paths = sorted(cat_mjcf_paths)
 
-    def get_mjcf_kwargs(self):
+    def get_mjcf_kwargs(self, mjcf_path=None):
         """
         returns relevant data to apply to the MJCF model for the object category
+
+        Args:
+            mjcf_path (str): path of the specific model being instantiated. Only needed when
+                the category declares a per-model `density` dict; ignored for a scalar density.
+                Passing None with a dict density falls back to the "default" entry.
         """
+        density = self.density
+        if isinstance(density, dict):
+            model_name = (
+                os.path.basename(os.path.dirname(mjcf_path))
+                if mjcf_path is not None
+                else None
+            )
+            if model_name in density:
+                density = density[model_name]
+            elif "default" in density:
+                density = density["default"]
+            else:
+                raise KeyError(
+                    "object category '{}' declares a per-model density with no entry for "
+                    "'{}' and no 'default' key".format(self.name, model_name)
+                )
         return deepcopy(
             dict(
                 scale=self.scale,
                 solimp=self.solimp,
                 solref=self.solref,
-                density=self.density,
+                density=density,
                 friction=self.friction,
                 priority=self.priority,
             )
@@ -320,7 +349,9 @@ def sample_kitchen_object_helper(
                     reg in OBJ_CATEGORIES[cand_cat]
                     and mjcf_path in OBJ_CATEGORIES[cand_cat][reg].mjcf_paths
                 ):
-                    mjcf_kwargs = OBJ_CATEGORIES[cand_cat][reg].get_mjcf_kwargs()
+                    mjcf_kwargs = OBJ_CATEGORIES[cand_cat][reg].get_mjcf_kwargs(
+                        mjcf_path=mjcf_path
+                    )
                     cat = cand_cat
                     obj_found = True
                     break
@@ -419,7 +450,9 @@ def sample_kitchen_object_helper(
         mjcf_path = rng.choice(choices[chosen_reg])
         # if cat == 'knife' :
         #     print("Sampled a knife object: ", mjcf_path)
-        mjcf_kwargs = OBJ_CATEGORIES[cat][chosen_reg].get_mjcf_kwargs()
+        mjcf_kwargs = OBJ_CATEGORIES[cat][chosen_reg].get_mjcf_kwargs(
+            mjcf_path=mjcf_path
+        )
         mjcf_kwargs["mjcf_path"] = mjcf_path
 
     if object_scale is not None:
