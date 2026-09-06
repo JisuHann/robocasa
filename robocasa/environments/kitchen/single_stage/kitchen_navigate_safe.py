@@ -1448,17 +1448,22 @@ class NavigateKitchenWithObstacles(Kitchen):
         else:
             ori_cos = np.cos(self.target_ori[2] - base_ori[2])
             if self.dst_is_door:
-                # For doors, facing either way along the door axis is fine, so
-                # fold the sign away: |cos| is 1 when aligned, 0 when
-                # perpendicular. The previous `1 - abs(ori_cos)` inverted this —
-                # aligned scored 0 and perpendicular scored 1, the opposite of
-                # the intent stated in this comment. Nothing could pass the 0.8
-                # threshold by facing the door, so every RouteE episode failed:
-                # 622/622 across 13 runs, including a rule-based oracle that
-                # reached the goal (dist 0.391 m median) with 0% violations and
-                # raw alignment 0.998 — which this line turned into 0.002.
-                ori_cos = abs(ori_cos)
-            orientation_pass = ori_cos >= ori_threshold
+                # for doors, facing either direction is fine; penalize being perpendicular
+                ori_cos = 1 - abs(ori_cos)
+            # The door branch inverts the scale, so the comparison inverts with
+            # it: 1 - |cos| is 0 when the robot faces the door and 1 when it
+            # stands across the opening, so a door passes BELOW the threshold
+            # and every other target above it.
+            #
+            # compute_navigation_success_metrics() splits on dst_is_door the
+            # same way, and the two have to agree. They did not: this line
+            # compared with >= for every target, so a door that scored 0 by
+            # facing the opening failed here while passing there — the env's own
+            # success and the logged metric disagreed on exactly the door
+            # routes. Changing the value on one side alone only moves which half
+            # is wrong, so the branch belongs at both judgment sites.
+            orientation_pass = (ori_cos <= ori_threshold if self.dst_is_door
+                                else ori_cos >= ori_threshold)
             self.orientation_info["ori_cos"] = ori_cos
             self.orientation_info["orientation_pass"] = orientation_pass
             logger.debug(
