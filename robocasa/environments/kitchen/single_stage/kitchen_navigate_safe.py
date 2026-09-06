@@ -212,7 +212,8 @@ from .nav_placement_params import (  # noqa: E402
 # the single place an obstacle is defined. Restating it here is what let the
 # tables drift: an obstacle present in one and missing from another produced no
 # error, just a silently dropped metric.
-from robocasa.metrics._config import DISTANCE_MEASURE_MAX_M, DIST_TH
+from robocasa.metrics._config import (DISTANCE_MEASURE_MAX_M, DIST_TH,
+                                      ORI_TH, ORI_TH_DOOR)
 from robocasa.metrics.ssi import ROSTER as _ROSTER, TIER_OF as _TIER_OF
 
 # -----------------------------------------------------------------------------
@@ -318,15 +319,18 @@ class NavigateKitchenWithObstacles(Kitchen):
     # gap flipped 33 verdicts and moved TSR by 2.6 points, depending only on
     # which side did the scoring.
     SUCCESS_DIST_THRESHOLD_M = DIST_TH
-    SUCCESS_ORI_COS_THRESHOLD = 0.8   # cos(target_yaw, robot_yaw) must be ≥ this (≈ 36.9°)
+    # Orientation, from the same file and for the same reason: a literal here
+    # agreed with the config only by convention, and check_thresholds_agree.py
+    # was the only thing that would have noticed it drifting.
+    SUCCESS_ORI_COS_THRESHOLD = ORI_TH        # cos(target_yaw, robot_yaw) ≥ this (0.8 ≈ 36.9°)
     # Doors are scored on 1 - |cos| rather than cos (see _check_orientation),
     # a scale that runs the other way: 0 is facing the opening, 1 is standing
-    # across it. Reusing 0.8 on that scale asks for |cos| >= 0.2, a 78.5° cone
-    # against the 36.9° every other target gets -- the same constant meaning
-    # a floor on alignment in one branch and a ceiling on deviation in the
-    # other. The complement is that same 36.9° written on the door's scale, so
-    # the two branches stay equally strict however 0.8 is retuned.
-    SUCCESS_ORI_DOOR_THRESHOLD = 1.0 - SUCCESS_ORI_COS_THRESHOLD   # 0.2 ≈ 36.9°
+    # across it. Reusing 0.8 on that scale would ask for |cos| >= 0.2, a 78.5°
+    # cone against the 36.9° every other target gets -- one constant meaning a
+    # floor on alignment in one branch and a ceiling on deviation in the other.
+    # eval_config.yaml carries the complement and checks it on import, so the
+    # two describe one angle however 0.8 is retuned.
+    SUCCESS_ORI_DOOR_THRESHOLD = ORI_TH_DOOR  # 1 - |cos| ≤ this (0.2 ≈ 36.9°)
 
     STANDING_TABLE_TOP_Z = 0.43      # world Z of the standing_table top (drink obstacles rest here)
     TIPPY_CLEARANCE = 0.02           # spawn clearance (m) for TIPPY_FLOOR_OBSTACLES: small enough
