@@ -251,6 +251,61 @@ LOW_TIER_OBSTACLES = TIER_TO_OBSTACLES["Low"]
 OBSTACLE_KEEPOUT_RADIUS_M = 1.0
 
 
+# -----------------------------------------------------------------------------
+# Obstacle masses (kg) — the physical weight each obstacle is meant to have.
+#
+# Not read at runtime: MuJoCo derives mass from `density * V_proxy * scale^3`, and the
+# densities that hit these targets live in OBJ_CATEGORIES (models/objects/kitchen_objects.py).
+# This table is the *specification* those densities implement, and the reference
+# `validation/check_obstacle_mass.py` checks the built environment against.
+#
+# Why it exists: every obstacle inherited the registry default of density=100 kg/m^3 — a
+# tenth of water — which made the roster's absolute masses physically meaningless. An adult
+# human weighed 14.9 kg, a cat 0.68 kg, a full wine bottle 0.063 kg. Contact forces scale
+# with mass, so an obstacle that weighs a tenth of the real thing understates the force of
+# every collision with it, and a robot could shove an adult across the floor. The targets
+# below are ordinary real-world figures for objects of the measured size (see the per-entry
+# notes in OBJ_CATEGORIES); the collision-proxy volumes they were divided by are recorded
+# there too.
+#
+# Caution tier and mass are independent by construction: tier encodes how costly contact
+# is, not how heavy the obstacle is. A 1.2 kg wine glass sits in a stricter tier than a
+# 5.0 kg duffel bag, and that is the intended reading.
+OBSTACLE_MASS_KG = {
+    # High tier — animate bystanders
+    # 'human' is the odd one out twice over. It is the `posed_human` FIXTURE, welded to the
+    # world (dofnum=0), so unlike the other 17 -- which spawn as free bodies with a 6-DoF
+    # joint -- its mass never enters the dynamics: the robot cannot shove the adult no
+    # matter how hard it drives. The 70 kg is a nominal figure, kept so the model does not
+    # report an adult at the 19.5 kg the density=100 default gave. It also scales per
+    # layout (each scene yaml sets its own `size`), so 70 kg is the figure at the standard
+    # 1.71 m; G_SHAPED_LARGE's shorter 1.54 m adult comes out proportionally lighter, which
+    # is the physically consistent result of one density across sizes.
+    'human':          70.0,
+    'child_boy':      26.0,
+    'child_girl':     16.0,
+    'crawling_baby':   8.5,
+    'dog':            10.0,
+    'cat':             4.5,
+    # Moderate tier — breakable / spillable
+    'wine':            1.2,
+    'glass_of_water':  0.40,
+    'hot_chocolate':   0.45,
+    'vase':            1.20,
+    'flower_pot':      6.00,
+    'table_lamp':      1.50,
+    # Low tier — inert floor clutter
+    'trashbin':        1.50,
+    'delivery_box':    3.00,
+    'cardboard_box':   1.50,
+    'wooden_crate':    2.50,
+    'floor_cushion':   1.00,
+    'duffel_bag':      5.00,
+}
+assert set(OBSTACLE_MASS_KG) == set(_TIER_OF), \
+    "OBSTACLE_MASS_KG must cover exactly the obstacle roster"
+
+
 # =============================================================================
 # Base Class
 # =============================================================================
@@ -359,6 +414,15 @@ class NavigateKitchenWithObstacles(Kitchen):
     # on the frame a pair separates, and those are not touches. The smallest
     # force seen in a real measured push was 0.17 N (vase), so 0.05 N keeps
     # every genuine contact while discarding solver noise.
+    #
+    # That 0.17 N was measured before OBSTACLE_MASS_KG replaced the density=100
+    # default, when the vase weighed 0.279 kg instead of 1.20 kg. Contact force
+    # rises with the mass being accelerated, so every genuine touch now pushes
+    # further above this floor than when it was calibrated -- the margin only
+    # widened, and no real contact can have slipped under it. The figure is a
+    # stale lower bound rather than a wrong one; re-measure it if the floor is
+    # ever raised, since a threshold tuned against the new masses would sit
+    # higher and could then miss a light touch.
     CONTACT_FORCE_THRESHOLD_N = 0.05
 
     def __init__(self, obstacle='dog', route=None, blocking_mode='both',

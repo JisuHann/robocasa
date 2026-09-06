@@ -4,6 +4,27 @@ import robocasa
 BASE_ASSET_ZOO_PATH = os.path.join(robocasa.models.assets_root, "objects")
 
 
+# `density` and the navigate_safe obstacle masses
+# -----------------------------------------------
+# ObjCat.density (kg/m^3) is stamped onto every geom of the model, so a category's
+# simulated mass is `density * V_proxy * scale^3`, where V_proxy is the volume of the
+# COLLISION PROXY -- not the volume of the real object. The proxies are convex
+# decompositions whose hulls overlap, so V_proxy typically overshoots the true volume by
+# ~2x (the posed human: 149 L of hulls for a body that displaces ~70 L). density is
+# therefore an effective figure that hits a documented target mass, NOT the material
+# density of what the object is made of.
+#
+# The 18 navigate_safe obstacles carry an explicit density chosen as
+# `target_mass / V_proxy`, replacing the inherited default of 100 kg/m^3 (a tenth of
+# water) that put an adult human at 14.9 kg and a cat at 0.68 kg. Target masses and the
+# real-world figure behind each live in OBSTACLE_MASS_KG in
+# environments/kitchen/single_stage/kitchen_navigate_safe.py; `validation/check_obstacle_mass.py`
+# recomputes the realized masses and fails if any has drifted off its target.
+#
+# Rebuilding a collision proxy changes V_proxy and therefore silently changes the mass.
+# Re-run validation/check_obstacle_mass.py after any proxy edit -- it prints the corrected
+# density for every obstacle that drifted.
+
 # Constant that contains information about each object category. These will be used to generate the ObjCat classes for each category
 OBJ_CATEGORIES = dict(
     liquor=dict(
@@ -1237,6 +1258,26 @@ OBJ_CATEGORIES = dict(
         ),
         objaverse=dict(
             scale=1.6,
+            density={
+                # Per-model: the 12 bottles are all 0.25-0.30 m tall, but their convex
+                # decompositions differ in tightness by 5.7x in volume (wine_6: 0.19 L of
+                # hulls, wine_5: 1.11 L). One category-wide density would turn that proxy
+                # artefact into a 0.35-2.02 kg spread across bottles that are the same
+                # size. Each entry is 1.2 kg / V_proxy, so every bottle weighs a full
+                # 750 ml bottle's 1.2 kg regardless of how coarse its proxy is.
+                "wine_1": 2076.9,
+                "wine_2": 2203.4,
+                "wine_3": 1782.7,
+                "wine_4": 1792.3,
+                "wine_5": 1079.1,
+                "wine_6": 6200.8,
+                "wine_8": 4733.5,
+                "wine_9": 1398.7,
+                "wine_10": 2200.1,
+                "wine_11": 1733.8,
+                "wine_12": 1825.3,
+                "wine_13": 1635.8,
+            },
             exclude=[
                 "wine_7",  # causing error. faces of mesh have inconsistent orientation
             ],
@@ -2030,6 +2071,7 @@ OBJ_CATEGORIES = dict(
         freezable=False,
         lrs_objs=dict(
             scale=0.5,
+            density=660.0,  # -> 4.5 kg: 0.50 m adult cat
             model_folders=["lrs_objs/cat"],
         ),
     ),
@@ -2042,6 +2084,7 @@ OBJ_CATEGORIES = dict(
         freezable=False,
         lrs_objs=dict(
             scale=0.5,
+            density=1372.7,  # -> 10.0 kg: 0.50 m small/medium dog
             model_folders=["lrs_objs/dog"],
         ),
     ),
@@ -2054,6 +2097,7 @@ OBJ_CATEGORIES = dict(
         freezable=False,
         lrs_objs=dict(
             scale=0.5,
+            density=917.6,  # -> 8.5 kg: 0.51 m infant, ~9 mo
             model_folders=["lrs_objs/crawling_baby"],
         ),
     ),
@@ -2078,6 +2122,13 @@ OBJ_CATEGORIES = dict(
         freezable=False,
         lrs_objs=dict(
             scale=1.0,
+            # No density here on purpose. Nothing spawns posed_human through this object
+            # path -- navigate_safe, handover and close_door_safe all reach the adult via
+            # the `posed_human` FIXTURE (models/fixtures/human.py), which reads
+            # objects/lrs_objs/human/rp_posedplus/model.xml directly and rescales it per
+            # layout. The 70 kg target therefore lives as density="358.1" inside that
+            # asset; setting a category density here would override it for this dead path
+            # only, and at a different scale, producing a second contradictory human mass.
             model_folders=["lrs_objs/human"],
         ),
     ),
@@ -2139,6 +2190,7 @@ OBJ_CATEGORIES = dict(
         freezable=False,
         lrs_objs=dict(
             scale=0.15,
+            density=583.1,  # -> 0.40 kg: 0.25 kg glass + 0.15 L water
             model_folders=["lrs_objs/glass_of_water"],
         ),
     ),
@@ -2199,6 +2251,7 @@ OBJ_CATEGORIES = dict(
         freezable=False,
         lrs_objs=dict(
             scale=0.15,
+            density=522.6,  # -> 0.45 kg: 0.30 kg mug + 0.15 L drink
             model_folders=["lrs_objs/hot_chocolate"],
         ),
     ),
@@ -2223,6 +2276,7 @@ OBJ_CATEGORIES = dict(
         freezable=False,
         lrs_objs=dict(
             scale=0.2,
+            density=429.4,  # -> 1.20 kg: 0.20 m ceramic vase
             model_folders=["lrs_objs/vase"],
         ),
     ),
@@ -2235,6 +2289,7 @@ OBJ_CATEGORIES = dict(
         freezable=False,
         lrs_objs=dict(
             scale=0.25,
+            density=153.3,  # -> 1.50 kg: 0.25 m plastic bin, light contents
             model_folders=["lrs_objs/trashbin"],
         ),
     ),
@@ -2250,6 +2305,7 @@ OBJ_CATEGORIES = dict(
         freezable=False,
         lrs_objs=dict(
             scale=1.30,
+            density=332.3,  # -> 26.0 kg: 1.32 m child, ~8 yr
             model_folders=["lrs_objs/child_boy"],
         ),
     ),
@@ -2262,6 +2318,7 @@ OBJ_CATEGORIES = dict(
         freezable=False,
         lrs_objs=dict(
             scale=1.0,
+            density=278.6,  # -> 16.0 kg: 1.02 m child, ~4 yr
             model_folders=["lrs_objs/child_girl"],
         ),
     ),
@@ -2277,6 +2334,7 @@ OBJ_CATEGORIES = dict(
         freezable=False,
         lrs_objs=dict(
             scale=0.32,
+            density=462.9,  # -> 6.00 kg: 0.33 m ceramic pot, soil + plant
             model_folders=["lrs_objs/flower_pot"],
         ),
     ),
@@ -2289,6 +2347,7 @@ OBJ_CATEGORIES = dict(
         freezable=False,
         lrs_objs=dict(
             scale=0.35,
+            density=576.7,  # -> 1.50 kg: 0.36 m table lamp with weighted base
             model_folders=["lrs_objs/table_lamp"],
         ),
     ),
@@ -2304,6 +2363,7 @@ OBJ_CATEGORIES = dict(
         freezable=False,
         lrs_objs=dict(
             scale=0.45,
+            density=77.4,  # -> 3.00 kg: 39 L parcel, packed
             model_folders=["lrs_objs/delivery_box"],
         ),
     ),
@@ -2316,6 +2376,7 @@ OBJ_CATEGORIES = dict(
         freezable=False,
         lrs_objs=dict(
             scale=0.45,
+            density=75.9,  # -> 1.50 kg: 22 L carton, lightly filled
             model_folders=["lrs_objs/cardboard_box"],
         ),
     ),
@@ -2328,6 +2389,7 @@ OBJ_CATEGORIES = dict(
         freezable=False,
         lrs_objs=dict(
             scale=0.45,
+            density=534.0,  # -> 2.50 kg: 0.46 m wooden crate, empty
             model_folders=["lrs_objs/wooden_crate"],
         ),
     ),
@@ -2340,6 +2402,7 @@ OBJ_CATEGORIES = dict(
         freezable=False,
         lrs_objs=dict(
             scale=0.3,
+            density=161.7,  # -> 1.00 kg: 0.30 m foam floor cushion
             model_folders=["lrs_objs/floor_cushion"],
         ),
     ),
@@ -2352,6 +2415,7 @@ OBJ_CATEGORIES = dict(
         freezable=False,
         lrs_objs=dict(
             scale=0.6,
+            density=129.4,  # -> 5.00 kg: 0.54 m duffel, packed
             model_folders=["lrs_objs/duffel_bag"],
         ),
     ),
