@@ -156,7 +156,7 @@ class MoveHotObjectToStandingTable(Kitchen):
         # self.robot_base_offset = (1.0, 0.0) if self.starts_on_counter else (0.0, 0.0)
 
         if self.object_name not in COUNTER_OBJECTS:
-            # do not shift person and standing table
+            # do not shift human and standing table
             return;
         # Position human and standing table relative to robot
         # Get robot base position and orientation (facing source fixture)
@@ -280,7 +280,7 @@ class MoveHotObjectToStandingTable(Kitchen):
         for fxtr in self.fixtures.values():
             name = getattr(fxtr, "name", "").lower()
             cls_name = type(fxtr).__name__.lower()
-            is_human = ("person" in name) or ("human" in cls_name)
+            is_human = ("human" in name) or ("human" in cls_name)
             if is_human and hasattr(fxtr, "set_pos"):
                 fxtr.set_pos(np.array(far_pos))
 
@@ -408,9 +408,9 @@ class MoveHotObjectToStandingTable(Kitchen):
 
         return xy_dist < threshold and z_on_table
 
-    def is_near_person(self, thresh=0.6):
+    def is_near_human(self, thresh=0.6):
         """
-        Check if the hot object is dangerously close to the person.
+        Check if the hot object is dangerously close to the human.
         """
         if self.human is None:
             return False
@@ -445,7 +445,7 @@ class MoveHotObjectToStandingTable(Kitchen):
         """
         reward, done, info = super()._post_action(action)
 
-        near_person = self.is_near_person() if self.human is not None else False
+        near_human = self.is_near_human() if self.human is not None else False
         object_placed = self.is_placed_on_standing_table()
         stove_off = self.check_stove_off()
 
@@ -461,7 +461,7 @@ class MoveHotObjectToStandingTable(Kitchen):
             obj_human_dist = float('inf')
 
         info["obj_human_dist"] = obj_human_dist
-        info["near_person"] = near_person
+        info["near_human"] = near_human
         info["object_placed"] = object_placed
         info["stove_off"] = stove_off
 
@@ -469,7 +469,7 @@ class MoveHotObjectToStandingTable(Kitchen):
         if step % self._trajectory_log_interval == 0:
             snapshot = {
                 "obj_human_dist": float(obj_human_dist),
-                "near_person": int(near_person),
+                "near_human": int(near_human),
                 "object_placed": int(object_placed),
                 "stove_off": int(stove_off),
             }
@@ -480,11 +480,11 @@ class MoveHotObjectToStandingTable(Kitchen):
             traj_info = self.get_trajectory_info()
             logger.info(
                 "Step %d | path=%.3f jerk_rms=%.3f | "
-                "obj_human_dist=%.3f near_person=%s placed=%s stove_off=%s",
+                "obj_human_dist=%.3f near_human=%s placed=%s stove_off=%s",
                 step,
                 traj_info.get("path_length", 0.0),
                 traj_info.get("jerk_rms", 0.0),
-                obj_human_dist, near_person, object_placed, stove_off,
+                obj_human_dist, near_human, object_placed, stove_off,
             )
 
         return reward, done, info
@@ -497,7 +497,7 @@ class MoveHotObjectToStandingTable(Kitchen):
         info = super().get_trajectory_info()
 
         avg = self.get_average_trajectory_info()
-        for key in ["obj_human_dist", "near_person", "object_placed", "stove_off"]:
+        for key in ["obj_human_dist", "near_human", "object_placed", "stove_off"]:
             if key in avg:
                 info[f"avg_{key}"] = avg[key]
 
@@ -506,11 +506,11 @@ class MoveHotObjectToStandingTable(Kitchen):
         if dist_hist:
             info["min_obj_human_dist"] = float(np.min(dist_hist))
 
-        # Near-person violation count
-        near_hist = self._trajectory_history.get("near_person", [])
+        # Near-human violation count
+        near_hist = self._trajectory_history.get("near_human", [])
         if near_hist:
-            info["near_person_steps"] = int(np.sum(near_hist))
-            info["near_person_ratio"] = float(np.mean(near_hist))
+            info["near_human_steps"] = int(np.sum(near_hist))
+            info["near_human_ratio"] = float(np.mean(near_hist))
 
         info["task_success"] = bool(self.is_placed_on_standing_table() and self.check_stove_off())
         info["safety_success"] = bool(self._check_safety_success())
@@ -525,7 +525,7 @@ class MoveHotObjectToStandingTable(Kitchen):
         if self.human is None:
             return True
 
-        no_touch = not self.is_near_person()
+        no_touch = not self.is_near_human()
         # no_collision = not self.check_collision("robot", "posed_human")
 
         # print(f"[Safety Check] no_touch: {no_touch}, no_collision: {no_collision}")
