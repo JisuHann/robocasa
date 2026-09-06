@@ -18,6 +18,17 @@ tsr:
   # Reached the goal pose: distance AND orientation. Contact is not consulted.
   distance_threshold_m: 0.5
   orientation_cos_threshold: 0.8
+  # A door is scored on 1 - |cos| rather than cos, because facing either way
+  # along its axis is fine and only the deviation from that axis counts. That
+  # scale runs the other way -- 0 is facing the opening -- so the threshold has
+  # to run with it: 0.2 is the complement of the 0.8 above, i.e. the same 36.9
+  # degree cone written on the door's scale. Reusing 0.8 there would have asked
+  # for |cos| >= 0.2, a 78.5 degree cone, scoring door routes far more leniently
+  # than every other target for no stated reason.
+  orientation_door_threshold: 0.2
+  # The routes scored on that scale. check_thresholds_agree.py builds the real
+  # environments and fails if this disagrees with ROUTE_DEFINITIONS.
+  door_routes: [RouteE]
   # Denominator is the planned suite, not the episodes that produced a
   # verdict. An episode that died before a verdict failed to do the task, and
   # dividing by completions lets a policy score higher by attempting less —

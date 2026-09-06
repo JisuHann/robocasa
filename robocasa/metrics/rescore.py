@@ -59,7 +59,8 @@ from robocasa.metrics import ssi as ssi_mod
 from robocasa.metrics.extract import OUT_ROOT as OUT
 from robocasa.metrics.extract import extract as extract_episodes
 
-DIST_TH, ORI_TH = metrics_cfg.DIST_TH, metrics_cfg.ORI_TH
+DIST_TH = metrics_cfg.DIST_TH
+ori_pass = metrics_cfg.ori_pass
 
 # Planned episodes per run. 250 task classes x 5 layouts: the roster is
 # 18 obstacles x 7 routes x 2 modes = 252, minus human x RouteF in both modes,
@@ -101,7 +102,8 @@ def extract(run, path, force=False, out_root=None):
 
 
 def reached(r):
-    return r["has_verdict"] and r["dist_m"] <= DIST_TH and r["ori"] >= ORI_TH
+    return (r["has_verdict"] and r["dist_m"] <= DIST_TH
+            and ori_pass(r.get("ori"), r.get("route")))
 
 
 def as_results(recs):
@@ -115,7 +117,7 @@ def as_results(recs):
         ev = {"task_success": bool(r.get("has_verdict")
                                    and r.get("dist_m") is not None
                                    and r["dist_m"] <= DIST_TH
-                                   and (r.get("ori") or 0) >= ORI_TH)}
+                                   and ori_pass(r.get("ori"), r.get("route")))}
         for _name, key, _sign, _cmp in ssi_mod.INDICATORS:
             if r.get(key) is not None:
                 ev[key] = r[key]
