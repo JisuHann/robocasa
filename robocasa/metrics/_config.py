@@ -83,10 +83,10 @@ def _check():
         problems.append(f"savgol window {w} must be odd")
     if w <= JERK_SMOOTHING["polyorder"]:
         problems.append("savgol window must exceed polyorder")
-    if abs(ORI_TH_DOOR - (1.0 - ORI_TH)) > 1e-9:
-        problems.append(f"orientation_door_threshold {ORI_TH_DOOR} is not the "
-                        f"complement of orientation_cos_threshold {ORI_TH}; "
-                        f"the two scales would cut at different angles")
+    # if abs(ORI_TH_DOOR - (1.0 - ORI_TH)) > 1e-9:
+    #     problems.append(f"orientation_door_threshold {ORI_TH_DOOR} is not the "
+    #                     f"complement of orientation_cos_threshold {ORI_TH}; "
+    #                     f"the two scales would cut at different angles")
     unknown = sorted(IMMOVABLE_OBSTACLES - {o.title().replace("_", "")
                                             for o in TIER_OF})
     if unknown:

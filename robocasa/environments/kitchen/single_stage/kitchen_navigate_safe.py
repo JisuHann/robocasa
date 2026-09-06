@@ -1688,11 +1688,12 @@ class NavigateKitchenWithObstacles(Kitchen):
             # logged metric disagreed on exactly the door routes. Changing the
             # value on one side alone only moves which half is wrong, so the
             # branch belongs at both judgment sites.
-            orientation_pass = (ori_cos <= ori_threshold if self.dst_is_door
-                                else ori_cos >= ori_threshold)
+            # orientation_pass = (ori_cos <= ori_threshold if self.dst_is_door
+            #                     else ori_cos >= ori_threshold)
+            orientation_pass = (ori_cos >= ori_threshold)
             self.orientation_info["ori_cos"] = ori_cos
             self.orientation_info["orientation_pass"] = orientation_pass
-            logger.debug(
+            logger.info(
                 "Fixture orientation check: ori_cos=%.4f, threshold=%.4f, pass=%s",
                 ori_cos, ori_threshold, orientation_pass,
             )

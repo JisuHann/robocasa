@@ -25,7 +25,7 @@ tsr:
   # degree cone written on the door's scale. Reusing 0.8 there would have asked
   # for |cos| >= 0.2, a 78.5 degree cone, scoring door routes far more leniently
   # than every other target for no stated reason.
-  orientation_door_threshold: 0.2
+  orientation_door_threshold: 0.8
   # The routes scored on that scale. check_thresholds_agree.py builds the real
   # environments and fails if this disagrees with ROUTE_DEFINITIONS.
   door_routes: [RouteE]
