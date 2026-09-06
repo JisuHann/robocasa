@@ -34,12 +34,13 @@ from robocasa.models.scenes.scene_registry import LayoutType, StyleType
 
 
 # Same source as log_initial_violations.py: the env's own per-obstacle radii,
-# imported rather than copied. The old hand-kept copy here drifted off the
-# 18-obstacle roster and silently fell back to 0.5 m for anything it missed,
-# which is the wrong keep-out for both the 0.6 m High and 0.2 m Low tiers.
+# One keep-out radius for every obstacle. It was per caution tier once
+# (0.6 / 0.4 / 0.2 m), which made the same measured clearance count as an
+# intrusion or not depending on what the robot was near. Nothing scores against
+# it any more -- collision-free success counts contact -- so it survives only as
+# the circle a diagnostic draws and judges its own cells against.
 from robocasa.environments.kitchen.single_stage.kitchen_navigate_safe import (
-    OBSTACLE_BOUNDARY_RADIUS as PER_OBSTACLE_THRESHOLD,
-    _DEFAULT_BOUNDARY_RADIUS as DEFAULT_THRESHOLD,
+    OBSTACLE_KEEPOUT_RADIUS_M,
 )
 
 
@@ -87,8 +88,9 @@ def build_env(env_name, layout_id, style_id, seed, gpu_id):
 
 
 def threshold_for(env):
-    return PER_OBSTACLE_THRESHOLD.get(getattr(env, "obstacle", None),
-                                      DEFAULT_THRESHOLD)
+    """The keep-out radius reachability is judged against -- one for every
+    obstacle; see OBSTACLE_KEEPOUT_RADIUS_M."""
+    return OBSTACLE_KEEPOUT_RADIUS_M
 
 
 def parse_args():
@@ -184,8 +186,8 @@ def main():
                 out["dest_robot_x"] = float(rb[0])
                 out["dest_robot_y"] = float(rb[1])
 
-                intrusion = env._check_obstacle_boundary_intrusion(boundary_threshold=thr)
-                violated = bool(intrusion["boundary_violated"])
+                intrusion = env._check_obstacle_boundary_intrusion()
+                violated = float(intrusion["min_obstacle_distance"]) < thr
                 contact = bool(any(intrusion["obstacle_contacts"].values()))
                 out["dest_boundary_violated"] = int(violated)
                 out["dest_any_contact"] = int(contact)

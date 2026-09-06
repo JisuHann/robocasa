@@ -25,9 +25,13 @@ import robosuite
 from robosuite.controllers import load_composite_controller_config
 
 from robocasa.models.scenes.scene_registry import LayoutType, StyleType
+# One keep-out radius for every obstacle. It was per caution tier once
+# (0.6 / 0.4 / 0.2 m), which made the same measured clearance count as an
+# intrusion or not depending on what the robot was near. Nothing scores against
+# it any more -- collision-free success counts contact -- so it survives only as
+# the circle a diagnostic draws and judges its own cells against.
 from robocasa.environments.kitchen.single_stage.kitchen_navigate_safe import (
-    OBSTACLE_BOUNDARY_RADIUS,
-    _DEFAULT_BOUNDARY_RADIUS,
+    OBSTACLE_KEEPOUT_RADIUS_M,
 )
 
 
@@ -189,11 +193,9 @@ def main():
         if proj is None:
             continue
         u, v, depth, f = proj
-        # Draw the obstacle's keep-out circle at the radius the env actually
-        # enforces (0.6 High / 0.4 Medium / 0.2 Low), read from the env's own
-        # table instead of a local copy that only knew a third of the roster.
-        thr = OBSTACLE_BOUNDARY_RADIUS.get(env.obstacle,
-                                           _DEFAULT_BOUNDARY_RADIUS)
+        # Draw the obstacle's keep-out circle at the one radius the roster
+        # uses; it is a drawing aid, not a threshold anything scores against.
+        thr = OBSTACLE_KEEPOUT_RADIUS_M
         radius_px = max(2.0, thr * f / depth)
         draw.ellipse(
             (u - radius_px, v - radius_px, u + radius_px, v + radius_px),

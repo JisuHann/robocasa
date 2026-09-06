@@ -30,8 +30,7 @@ import robosuite
 from robosuite.controllers import load_composite_controller_config
 from robocasa.models.scenes.scene_registry import LayoutType, StyleType
 from robocasa.environments.kitchen.single_stage.kitchen_navigate_safe import (
-    OBSTACLE_BOUNDARY_RADIUS,
-    _DEFAULT_BOUNDARY_RADIUS,
+    OBSTACLE_KEEPOUT_RADIUS_M,
 )
 
 
@@ -45,7 +44,7 @@ YAW_DIRS = [
 ]
 
 # Obstacle (dx, dy) relative to the robot base XY in world frame.
-# Designed to cross the boundary threshold (r_b ~ 0.6 m for cat) at one cell.
+# Designed to cross the keep-out radius (1.0 m, every obstacle) at one cell.
 OBSTACLE_OFFSETS = [
     (0.40, 0.0),    # very close, east
     (0.70, 0.0),    # near boundary, east
@@ -134,7 +133,8 @@ def make_schematic(robot_xy, robot_yaw, obstacle_xy, threshold_m,
 
     Each remaining robot collision geom is drawn as a green disk; each
     obstacle collision geom is drawn as a red disk. Threshold ring around
-    the obstacle XY at exactly r_b. World +X = image right, +Y = up.
+    the obstacle XY at exactly the keep-out radius. World +X = image right,
+    +Y = up.
     """
     canvas = Image.new("RGB", (size_px, size_px), (245, 245, 245))
     draw = ImageDraw.Draw(canvas)
@@ -199,7 +199,7 @@ def make_schematic(robot_xy, robot_yaw, obstacle_xy, threshold_m,
               f"d={distance_m:+.3f} m  thr={threshold_m:.2f}\n"
               f"green=robot collision geoms used\n"
               f"red=obstacle geoms\n"
-              f"ring=keep-out at r_b around obstacle",
+              f"ring=keep-out radius around obstacle",
               fill=(0, 0, 0))
     return canvas
 
@@ -305,13 +305,11 @@ def main():
     logging.info("robot anchor xy: %s  obstacle: %s",
                  tuple(round(v, 3) for v in rxy0), env.obstacle)
 
-    # Keep-out radius for this obstacle kind, read from the env's own table so
-    # the distances this script reports are judged against the same boundary
-    # the env enforces. The literal table that used to live here covered 10
-    # obstacle names, two of them (kettlebell/dustbin) since retired, and put
-    # human/crawling_baby at 0.8 m rather than the 0.6 m the High tier uses.
-    threshold = OBSTACLE_BOUNDARY_RADIUS.get(env.obstacle,
-                                             _DEFAULT_BOUNDARY_RADIUS)
+    # One keep-out radius for every obstacle. It was per caution tier once, so
+    # the same measured clearance counted as an intrusion or not depending on
+    # what the robot was near; nothing scores against it any more, and this
+    # script only needs one circle to draw and to judge its own cells against.
+    threshold = OBSTACLE_KEEPOUT_RADIUS_M
 
     # Pin nominal obstacle z to whatever it currently is (so we don't fight
     # gravity placement).
@@ -350,11 +348,12 @@ def main():
             set_obstacle_xy_world(env, "obstacle_1", ox, oy, z=z0)
             env.sim.forward()
 
-            intrusion = env._check_obstacle_boundary_intrusion(
-                boundary_threshold=threshold
-            )
+            intrusion = env._check_obstacle_boundary_intrusion()
             min_d = float(intrusion["min_obstacle_distance"])
-            violated = bool(intrusion["boundary_violated"])
+            # The env stopped reporting an intrusion flag when the boundary
+            # metrics were dropped, so this decides it against the radius above
+            # rather than asking for a verdict the env no longer gives.
+            violated = min_d < threshold
             contact = bool(any(intrusion["obstacle_contacts"].values()))
 
             frame = env.sim.render(

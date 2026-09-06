@@ -9,9 +9,9 @@ collisions and unsafe interactions with entities/obstacles.
 Obstacles — 18, deliberately balanced at SIX PER CAUTION TIER so a per-tier
 mean is taken over the same number of obstacle types and a tier contrast
 cannot be an artefact of roster size. The roster lives in
-the same mapping is mirrored in robocasa.metrics.ssi.TIER_OF / TIER_R_B.
+robocasa/metrics/eval_config.yaml, and robocasa.metrics.ssi.TIER_OF mirrors it.
 
-    High / Living — r_b = 0.6 m. Can be injured; contact is irreversible.
+    High / Living — can be injured; contact is irreversible.
         human          adult, the posed_human fixture (the target on Route F,
                        so it is not an obstacle there)
         child_boy      standing child
@@ -20,7 +20,7 @@ the same mapping is mirrored in robocasa.metrics.ssi.TIER_OF / TIER_R_B.
         dog
         cat
 
-    Medium / Fragile — r_b = 0.4 m. Contact breaks the object or spills it.
+    Medium / Fragile — contact breaks the object or spills it.
         wine            \
         glass_of_water   > stand on the standing_table (TABLE_OBSTACLES)
         hot_chocolate   /
@@ -28,7 +28,7 @@ the same mapping is mirrored in robocasa.metrics.ssi.TIER_OF / TIER_R_B.
         vase           stands on the floor
         flower_pot     stands on the floor
 
-    Low / Robust — r_b = 0.2 m. Inert floor clutter; only collision matters.
+    Low / Robust — inert floor clutter; only collision matters.
         trashbin
         cardboard_box
         delivery_box
@@ -224,13 +224,11 @@ from robocasa.metrics.ssi import ROSTER as _ROSTER, TIER_OF as _TIER_OF
 # size. Together the three tuples partition the keys of
 # the roster in robocasa/metrics/eval_config.yaml exactly.
 #
-# The same grouping is mirrored in three other places, in three different
-# spellings. Change one, change all four:
-#   robocasa/utils/ssi.py            TIER_OF / TIER_R_B  (class-name spelling)
-#   scripts/nav_sweep.sh             HIGH / MODERATE / LOW arrays
+# The same grouping is mirrored in scripts/nav_sweep.sh as its HIGH /
+# MODERATE / LOW arrays, in that spelling. Change one, change both.
 # -----------------------------------------------------------------------------
 
-# High tier, r_b = 0.6 m — animate bystanders that can be injured; contact is
+# High tier — animate bystanders that can be injured; contact is
 # irreversible. child_boy / child_girl fill the gap between the floor-level
 # crawling_baby and the adult posed_human.
 #: tier name (capitalised, as the sweep and figures spell it) -> members
@@ -240,6 +238,17 @@ TIER_TO_OBSTACLES = {
 HIGH_TIER_OBSTACLES = TIER_TO_OBSTACLES["High"]
 MODERATE_TIER_OBSTACLES = TIER_TO_OBSTACLES["Medium"]
 LOW_TIER_OBSTACLES = TIER_TO_OBSTACLES["Low"]
+
+# Keep-out radius in metres, for the diagnostics that still draw or report one
+# (validation/validate_distance.py, validation/log_initial_violations.py).
+#
+# One value for every obstacle. It used to be per caution tier -- 0.6 / 0.4 /
+# 0.2 m -- which made a reported clearance depend on which tier it was measured
+# against rather than on where the robot went, and the same distance read as a
+# violation or not depending on the obstacle. Nothing scores against it any
+# more: collision-free success counts contact and SSI reads whole-trajectory
+# motion, so this exists only so a diagnostic has one circle to draw.
+OBSTACLE_KEEPOUT_RADIUS_M = 1.0
 
 
 # =============================================================================
@@ -1163,8 +1172,11 @@ class NavigateKitchenWithObstacles(Kitchen):
         - ``obstacle_contact_forces``: peak |F| per obstacle over those same
           substeps. Non-zero exactly when ``contacts`` is True.
         - ``distances``: min surface-to-surface distance per obstacle,
-          measured out to (that obstacle's boundary radius + 1.0 m) and
-          reported as that value beyond it.
+          measured out to DISTANCE_MEASURE_MAX_M and reported as that value
+          beyond it. One ceiling for every obstacle: it used to be the
+          obstacle's own boundary radius plus a metre, so the value a clear
+          run recorded WAS the ceiling, and comparing that across tiers
+          compared the ceilings rather than the robot.
 
         Returns:
             dict: keys
@@ -1438,7 +1450,7 @@ class NavigateKitchenWithObstacles(Kitchen):
             logger.info(
                 "Step %d | path=%.3f jerk_rms=%.3f | "
                 "pos_dist=%.3f ori_cos=%.3f task=%s (pos_check=%s (dist=%.3f , ref=%.3f) + ori_check=%s) | "
-                "min_obs=%.3f (avg=%.3f) contacts=%d violations=%d safety=%s",
+                "min_obs=%.3f (avg=%.3f) contacts=%d safety=%s",
                 step,
                 self.traj_info.get("path_length", 0.0),
                 self.traj_info.get("jerk_rms", 0.0),
@@ -1447,7 +1459,6 @@ class NavigateKitchenWithObstacles(Kitchen):
                 self.intrusion["min_obstacle_distance"],
                 self.avg_trajectory_info.get("min_obstacle_distance", float("inf")),
                 self._obstacle_contact_count,
-                self.traj_info.get("boundary_violation_steps", 0),
                 self.collision_free_success,
             )
 

@@ -1,18 +1,19 @@
-"""Cross-check the five tables that define an obstacle, and fail loudly.
+"""Cross-check the tables that define an obstacle, and fail loudly.
 
-An obstacle is defined in five places that nothing keeps in sync:
+An obstacle is defined in three places that nothing keeps in sync:
 
     _OBSTACLE_CLASS_NAMES      registers it and generates its task classes
-    OBSTACLE_BOUNDARY_RADIUS   the r_b the env scores boundary intrusion at
     TIER_TO_OBSTACLES          the tier tuples the sweep and figures group by
     TIER_OF                    the caution tier SSI aggregates by
-    TIER_R_B                   the r_b SSI reports per tier
+
+There were two more, both radii: a per-obstacle r_b the env scored boundary
+intrusion against, and the per-tier copy SSI reported. Both are gone. Proximity
+short of contact feeds no metric now, and the one radius left is a fixed
+OBSTACLE_KEEPOUT_RADIUS_M that only diagnostics draw, so there is no longer a
+radius for two tables to disagree about.
 
 Every mismatch found so far has failed SILENTLY rather than raising:
 
-  * missing from OBSTACLE_BOUNDARY_RADIUS -> scored at the 0.5 m class
-    default, which matches no tier, so the obstacle is neither High nor
-    Medium nor Low but something in between.
   * missing from TIER_OF -> `compute_ssi` does `if ell is None: continue`,
     so every episode of that obstacle runs, burns GPU, and is then dropped
     from the metric with no warning. `Kettlebell` sat here until it was
@@ -22,8 +23,6 @@ Every mismatch found so far has failed SILENTLY rather than raising:
     the tier figures never render it, so a tier's per-obstacle mean is taken
     over fewer types than the roster has. The Moderate tuple listed only its
     three floor obstacles this way, omitting the three table drinks.
-  * r_b disagreeing between the env and SSI -> the env scores against one
-    radius while the paper reports another.
 
 Also checks the spawn class, which is a separate silent hazard: an obstacle
 in neither TABLE_OBSTACLES nor TIPPY_FLOOR_OBSTACLES defaults to a 5 cm
@@ -50,8 +49,7 @@ def load_tables():
         _OBSTACLE_CLASS_NAMES, TABLE_OBSTACLES, TIPPY_FLOOR_OBSTACLES,
         TIER_TO_OBSTACLES,
     )
-    # TIER_R_B is gone: the radii belong to the environment, not to the
-    # metric, and SSI no longer reads them. The tier roster is still worth
+    # No radius table on either side any more. The tier roster is still worth
     # cross-checking, because an obstacle missing from it is silently dropped
     # from every SSI comparison.
     from robocasa.metrics.ssi import TIER_OF
