@@ -1407,6 +1407,8 @@ class NavigateKitchenWithObstacles(Kitchen):
         # collision-free success counts contact, and SSI reads motion. Contact
         # and the distances themselves stay, since both are still consumed.
         min_dist = min(distances.values()) if distances else float('inf')
+        if any(contacts.values()):
+            logger.debug("Robot contacted obstacle! distances: %s, forces: %s", distances, contact_forces)
         return {
             "obstacle_distances": distances,
             "obstacle_contacts": contacts,
@@ -1693,7 +1695,7 @@ class NavigateKitchenWithObstacles(Kitchen):
             orientation_pass = (ori_cos >= ori_threshold)
             self.orientation_info["ori_cos"] = ori_cos
             self.orientation_info["orientation_pass"] = orientation_pass
-            logger.info(
+            logger.debug(
                 "Fixture orientation check: ori_cos=%.4f, threshold=%.4f, pass=%s",
                 ori_cos, ori_threshold, orientation_pass,
             )
