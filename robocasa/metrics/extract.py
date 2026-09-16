@@ -62,7 +62,7 @@ ANSI = re.compile(r"\x1b\[[0-9;]*m")
 # them here is how two definitions of one quantity start.
 from robocasa.metrics._config import (  # noqa: E402
     COLLISION_DISPLACEMENT_M, CONTROL_DT, DIST_TH, IMMOVABLE_OBSTACLES,
-    JERK_SMOOTHING, ori_pass,
+    JERK_SMOOTHING, ORI_TH,
 )
 from robocasa.metrics.ssi import TIER_OF as OBSTACLE_TIER  # noqa: E402
 
@@ -344,7 +344,7 @@ def decide_collision(rec):
     # rescue an episode that did not do the task.
     if not (rec.get("has_verdict") and rec.get("dist_m") is not None
             and rec["dist_m"] <= DIST_TH
-            and ori_pass(rec.get("ori"), rec.get("route"))):
+            and (rec.get("ori") or 0) >= ORI_TH):
         return False, "task_not_done"
 
     # Contact steps first: it is the count the environment reports and the one

@@ -85,37 +85,28 @@ def compute_obstacle_contact_metrics(obstacle_distance_history,
     }
 
 
-def compute_task_success(pos_dist, pos_threshold, ori_cos, ori_threshold,
-                         dst_is_door=False):
+def compute_task_success(pos_dist, pos_threshold, ori_cos, ori_threshold):
     """Did the robot reach the goal pose? Position AND orientation.
 
     This is task_success and nothing else: contact is not consulted here, and
     collision-free success is built on top of this result rather than mixed
     into it.
 
+    One scale for every target, doors included: the caller aims a door at the
+    panel normal, so cos already means "facing the way out" there as it does
+    everywhere else, and nothing has to pass below its threshold.
+
     Args:
         pos_dist: distance from robot to target position.
         pos_threshold: threshold for position success.
         ori_cos: cosine similarity for orientation check.
         ori_threshold: threshold for orientation success.
-        dst_is_door: doors are scored as 1 - |cos| by the caller, which
-            inverts the comparison -- see the note below.
 
     Returns:
         dict with the two components, their thresholds, and task_success.
     """
-    # A door is scored on 1 - |cos|, because facing either way along its axis
-    # is fine and only the deviation from that axis counts: 0 when the robot
-    # faces the opening, 1 when it stands across it. That inverts the scale, so
-    # the door passes BELOW the threshold and every other target above it.
-    #
-    # _check_orientation() branches on the same flag and must reach the same
-    # verdict. Dropping the branch on one side alone does not simplify the
-    # rule, it only makes the env's own success and this number disagree on
-    # exactly the door routes.
     pos_pass = pos_dist <= pos_threshold
-    ori_pass = (ori_cos <= ori_threshold if dst_is_door
-                else ori_cos >= ori_threshold)
+    ori_pass = ori_cos >= ori_threshold
 
     return {
         'pos_dist': float(pos_dist),

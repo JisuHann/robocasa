@@ -212,8 +212,7 @@ from .nav_placement_params import (  # noqa: E402
 # the single place an obstacle is defined. Restating it here is what let the
 # tables drift: an obstacle present in one and missing from another produced no
 # error, just a silently dropped metric.
-from robocasa.metrics._config import (DISTANCE_MEASURE_MAX_M, DIST_TH,
-                                      ORI_TH, ORI_TH_DOOR)
+from robocasa.metrics._config import DISTANCE_MEASURE_MAX_M, DIST_TH, ORI_TH
 from robocasa.metrics.ssi import ROSTER as _ROSTER, TIER_OF as _TIER_OF
 
 # -----------------------------------------------------------------------------
@@ -387,14 +386,6 @@ class NavigateKitchenWithObstacles(Kitchen):
     # agreed with the config only by convention, and check_thresholds_agree.py
     # was the only thing that would have noticed it drifting.
     SUCCESS_ORI_COS_THRESHOLD = ORI_TH        # cos(target_yaw, robot_yaw) ≥ this (0.8 ≈ 36.9°)
-    # Doors are scored on 1 - |cos| rather than cos (see _check_orientation),
-    # a scale that runs the other way: 0 is facing the opening, 1 is standing
-    # across it. Reusing 0.8 on that scale would ask for |cos| >= 0.2, a 78.5°
-    # cone against the 36.9° every other target gets -- one constant meaning a
-    # floor on alignment in one branch and a ceiling on deviation in the other.
-    # eval_config.yaml carries the complement and checks it on import, so the
-    # two describe one angle however 0.8 is retuned.
-    SUCCESS_ORI_DOOR_THRESHOLD = ORI_TH_DOOR  # 1 - |cos| ≤ this (0.2 ≈ 36.9°)
 
     STANDING_TABLE_TOP_Z = 0.43      # world Z of the standing_table top (drink obstacles rest here)
     TIPPY_CLEARANCE = 0.02           # spawn clearance (m) for TIPPY_FLOOR_OBSTACLES: small enough
@@ -694,6 +685,27 @@ class NavigateKitchenWithObstacles(Kitchen):
                 break
         if self._floor_pos_xy is None:
             self._floor_pos_xy = np.array([0.0, 0.0])
+
+        if self.dst_is_door:
+            # Face the door, not along it.
+            #
+            # A door fixture's rot describes the panel, which is wide across
+            # the opening and thin through it -- MainDoor measures 1.178 m by
+            # 0.288 m. Taking target_ori = rot therefore aimed the robot square
+            # across the doorway, the one heading that cannot pass through.
+            #
+            # The scoring used to compensate by inverting the test for doors
+            # (1 - |cos|), so two wrongs agreed. Both are removed: the goal is
+            # the panel normal, and the ordinary cos test then rewards facing
+            # the door and penalises standing across it.
+            #
+            # Of the two normals, take the one pointing from the room towards
+            # the door -- that is the way out, and the way the robot arrives.
+            _n = float(self.target_fixture.rot) + np.pi / 2.0
+            _out = np.array(self.target_pos[:2], dtype=float) - self._floor_pos_xy
+            if float(np.dot([np.cos(_n), np.sin(_n)], _out)) < 0.0:
+                _n -= np.pi
+            self.target_ori = [0, 0, float(np.arctan2(np.sin(_n), np.cos(_n)))]
 
         # Blocking obstacle: at midpoint of path (forces detour)
         scaling_factor = 0.5 if path_len < 2.0 else 0.6
@@ -1644,10 +1656,10 @@ class NavigateKitchenWithObstacles(Kitchen):
         Args:
             base_ori (array): Current robot base orientation in Euler
         """
-        # Each scale carries its own constant, so the threshold and the value
-        # it is compared against always describe the same angle.
-        ori_threshold = (self.SUCCESS_ORI_DOOR_THRESHOLD if self.dst_is_door
-                         else self.SUCCESS_ORI_COS_THRESHOLD)
+        # One scale, one constant. A door is aimed at the panel normal when the
+        # goal pose is built, so cos means the same thing there as everywhere
+        # else and there is no second threshold to choose between.
+        ori_threshold = self.SUCCESS_ORI_COS_THRESHOLD
         self.orientation_info['base_ori'] = base_ori
         self.orientation_info['ori_threshold'] = ori_threshold
         self.orientation_info['dst_is_human'] = self.dst_is_human
@@ -1675,23 +1687,12 @@ class NavigateKitchenWithObstacles(Kitchen):
                 return True  # too close to reliably check orientation
         else:
             ori_cos = np.cos(self.target_ori[2] - base_ori[2])
-            if self.dst_is_door:
-                # for doors, facing either direction is fine; penalize being perpendicular
-                ori_cos = 1 - abs(ori_cos)
-            # The door branch inverts the scale, so the comparison inverts with
-            # it: 1 - |cos| is 0 when the robot faces the door and 1 when it
-            # stands across the opening, so a door passes BELOW the threshold
-            # and every other target above it.
-            #
-            # compute_task_success() splits on dst_is_door the same way, and
-            # the two have to agree. They did not: this line compared with >=
-            # for every target, so a door that scored 0 by facing the opening
-            # failed here while passing there — the env's own success and the
-            # logged metric disagreed on exactly the door routes. Changing the
-            # value on one side alone only moves which half is wrong, so the
-            # branch belongs at both judgment sites.
-            # orientation_pass = (ori_cos <= ori_threshold if self.dst_is_door
-            #                     else ori_cos >= ori_threshold)
+            # No door branch. target_ori is the panel normal for a door, so cos
+            # is already 1 when the robot faces through the opening and falls
+            # off as it turns across it -- the same meaning, and the same test,
+            # as every other target. compute_task_success() therefore has one
+            # scale to score too, and the env's verdict and the logged metric
+            # cannot disagree on the door routes the way they used to.
             orientation_pass = (ori_cos >= ori_threshold)
             self.orientation_info["ori_cos"] = ori_cos
             self.orientation_info["orientation_pass"] = orientation_pass
@@ -1812,7 +1813,7 @@ class NavigateKitchenWithObstacles(Kitchen):
         ori_threshold = float(self.orientation_info.get("ori_threshold", 0.0))
         info.update(compute_task_success(
             self._last_pos_dist, self._last_pos_threshold,
-            ori_cos, ori_threshold, self.dst_is_door,
+            ori_cos, ori_threshold,
         ))
 
         # Combined success

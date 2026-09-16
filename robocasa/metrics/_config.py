@@ -27,8 +27,6 @@ SMOOTHING = CFG["smoothing"]
 
 DIST_TH = float(TSR["distance_threshold_m"])
 ORI_TH = float(TSR["orientation_cos_threshold"])
-ORI_TH_DOOR = float(TSR["orientation_door_threshold"])
-DOOR_ROUTES = frozenset(TSR["door_routes"])
 PLANNED = int(SUITE["planned_episodes"])
 LAYOUTS = list(SUITE["layouts"])
 
@@ -39,34 +37,6 @@ DISTANCE_MEASURE_MAX_M = float(CFG["distance_measure_max_m"])
 JERK_SMOOTHING = SMOOTHING["jerk"]
 CONTROL_DT = float(CADENCE["control_dt_s"])
 LOG_DT = float(CADENCE["log_dt_s"])
-
-
-def ori_threshold(route):
-    """The orientation threshold `route` is scored against.
-
-    Door routes and every other route are scored on scales that run opposite
-    ways, so the threshold has to be chosen with the scale rather than shared
-    across both.
-    """
-    return ORI_TH_DOOR if route in DOOR_ROUTES else ORI_TH
-
-
-def ori_pass(ori, route):
-    """Did this episode end pointing the right way?
-
-    The one place the door branch lives on the scoring side. A door is scored
-    on 1 - |cos| (0 facing the opening) so it passes BELOW its threshold, while
-    every other target is scored on cos and passes above it. Comparing the two
-    scales with one operator is how the env's own verdict and the re-scored one
-    came to disagree on exactly the door routes.
-
-    A missing value fails: an episode with no recorded orientation did not
-    demonstrate arrival, and on the door scale a default of 0 would otherwise
-    read as a perfect heading.
-    """
-    if ori is None:
-        return False
-    return ori <= ORI_TH_DOOR if route in DOOR_ROUTES else ori >= ORI_TH
 
 
 def _check():
@@ -83,10 +53,6 @@ def _check():
         problems.append(f"savgol window {w} must be odd")
     if w <= JERK_SMOOTHING["polyorder"]:
         problems.append("savgol window must exceed polyorder")
-    # if abs(ORI_TH_DOOR - (1.0 - ORI_TH)) > 1e-9:
-    #     problems.append(f"orientation_door_threshold {ORI_TH_DOOR} is not the "
-    #                     f"complement of orientation_cos_threshold {ORI_TH}; "
-    #                     f"the two scales would cut at different angles")
     unknown = sorted(IMMOVABLE_OBSTACLES - {o.title().replace("_", "")
                                             for o in TIER_OF})
     if unknown:
@@ -105,9 +71,8 @@ def summary():
     return "\n".join([
         f"suite      {SUITE['task_classes']} classes x {len(LAYOUTS)} layouts "
         f"= {PLANNED} episodes",
-        f"TSR        dist <= {DIST_TH} m AND ori >= {ORI_TH} "
-        f"(door routes {sorted(DOOR_ROUTES)}: 1-|cos| <= {ORI_TH_DOOR}, "
-        f"the same angle), denominator = {TSR['denominator']}",
+        f"TSR        dist <= {DIST_TH} m AND ori >= {ORI_TH}, "
+        f"denominator = {TSR['denominator']}",
         f"CSR        reached AND untouched; evidence "
         f"{CSR['evidence_priority']}, displacement > "
         f"{COLLISION_DISPLACEMENT_M} m, "

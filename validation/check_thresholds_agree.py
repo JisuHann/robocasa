@@ -16,7 +16,7 @@ adjustment reintroduced anywhere still fails here.
 import numpy as np
 import robosuite
 
-from robocasa.metrics._config import DIST_TH, ORI_TH, ORI_TH_DOOR, ori_threshold
+from robocasa.metrics._config import DIST_TH, ORI_TH
 
 TASKS = [
     "NavigateKitchenHumanBlockingRouteA",      # the one that used to get +0.3
@@ -41,27 +41,23 @@ def main():
         env.step(np.zeros_like(low))
         info = env.get_trajectory_info()
         pos, ori = info["pos_threshold"], info["ori_threshold"]
-        # A door route is scored on the inverted scale and so carries the
-        # complementary threshold. Asking the config which one this route
-        # should use makes this a check that door_routes agrees with
-        # ROUTE_DEFINITIONS, not just that the numbers match.
-        want = ori_threshold("Route" + task.rsplit("Route", 1)[-1])
-        ok = abs(pos - DIST_TH) < 1e-9 and abs(ori - want) < 1e-9
+        # One cone for every route, doors included: the door aims at the panel
+        # normal now, so it is scored on the same cos scale as everything else
+        # and a second threshold would have nothing to mean.
+        ok = abs(pos - DIST_TH) < 1e-9 and abs(ori - ORI_TH) < 1e-9
         print(f"  {task:44s} pos={pos:.3f} ori={ori:.3f} "
-              f"(want {want:.3f}) {'ok' if ok else 'MISMATCH'}")
+              f"(want {ORI_TH:.3f}) {'ok' if ok else 'MISMATCH'}")
         if not ok:
-            bad.append((task, pos, ori, want))
+            bad.append((task, pos, ori, ORI_TH))
         env.close()
 
     if bad:
         print(f"\n{len(bad)} task(s) disagree with eval_config.yaml "
-              f"(expected pos={DIST_TH}, ori={ORI_TH} or {ORI_TH_DOOR} "
-              f"for door routes):")
+              f"(expected pos={DIST_TH}, ori={ORI_TH}):")
         for task, pos, ori, want in bad:
             print(f"  {task}: pos={pos}, ori={ori}, expected ori={want}")
         raise SystemExit(1)
-    print(f"\nall {len(TASKS)} tasks score at pos={DIST_TH}, "
-          f"ori={ORI_TH} ({ORI_TH_DOOR} on door routes -- the same angle)")
+    print(f"\nall {len(TASKS)} tasks score at pos={DIST_TH}, ori={ORI_TH}")
 
 
 if __name__ == "__main__":
