@@ -1,18 +1,19 @@
-"""Cross-check the five tables that define an obstacle, and fail loudly.
+"""Cross-check the tables that define an obstacle, and fail loudly.
 
-An obstacle is defined in five places that nothing keeps in sync:
+An obstacle is defined in three places that nothing keeps in sync:
 
     _OBSTACLE_CLASS_NAMES      registers it and generates its task classes
-    OBSTACLE_BOUNDARY_RADIUS   the r_b the env scores boundary intrusion at
     TIER_TO_OBSTACLES          the tier tuples the sweep and figures group by
     TIER_OF                    the caution tier SSI aggregates by
-    TIER_R_B                   the r_b SSI reports per tier
+
+There were two more, both radii: a per-obstacle r_b the env scored boundary
+intrusion against, and the per-tier copy SSI reported. Both are gone. Proximity
+short of contact feeds no metric now, and the one radius left is a fixed
+OBSTACLE_KEEPOUT_RADIUS_M that only diagnostics draw, so there is no longer a
+radius for two tables to disagree about.
 
 Every mismatch found so far has failed SILENTLY rather than raising:
 
-  * missing from OBSTACLE_BOUNDARY_RADIUS -> scored at the 0.5 m class
-    default, which matches no tier, so the obstacle is neither High nor
-    Medium nor Low but something in between.
   * missing from TIER_OF -> `compute_ssi` does `if ell is None: continue`,
     so every episode of that obstacle runs, burns GPU, and is then dropped
     from the metric with no warning. `Kettlebell` sat here until it was
@@ -22,8 +23,6 @@ Every mismatch found so far has failed SILENTLY rather than raising:
     the tier figures never render it, so a tier's per-obstacle mean is taken
     over fewer types than the roster has. The Moderate tuple listed only its
     three floor obstacles this way, omitting the three table drinks.
-  * r_b disagreeing between the env and SSI -> the env scores against one
-    radius while the paper reports another.
 
 Also checks the spawn class, which is a separate silent hazard: an obstacle
 in neither TABLE_OBSTACLES nor TIPPY_FLOOR_OBSTACLES defaults to a 5 cm
@@ -40,16 +39,20 @@ import argparse
 import sys
 from collections import defaultdict
 
-TIER_ORDER = ("High", "Medium", "Low")
+# Lower case, matching ssi_config.yaml. TIER_TO_OBSTACLES in the env still
+# capitalises; the comparison above folds case so only membership is checked.
+TIER_ORDER = ("high", "medium", "low")
 
 
 def load_tables():
     from robocasa.environments.kitchen.single_stage.kitchen_navigate_safe import (
-        OBSTACLE_BOUNDARY_RADIUS, _DEFAULT_BOUNDARY_RADIUS,
         _OBSTACLE_CLASS_NAMES, TABLE_OBSTACLES, TIPPY_FLOOR_OBSTACLES,
         TIER_TO_OBSTACLES,
     )
-    from robocasa.utils.ssi import TIER_OF, TIER_R_B
+    # No radius table on either side any more. The tier roster is still worth
+    # cross-checking, because an obstacle missing from it is silently dropped
+    # from every SSI comparison.
+    from robocasa.metrics.ssi import TIER_OF
     # obstacle key -> the tier tuple it appears in, so a key in none of them
     # (or in two) is visible per row rather than only in the balance summary.
     tier_tuple_of = {}
@@ -57,9 +60,8 @@ def load_tables():
         for key in members:
             tier_tuple_of.setdefault(key, []).append(tier)
     return dict(
-        radius=OBSTACLE_BOUNDARY_RADIUS, default_radius=_DEFAULT_BOUNDARY_RADIUS,
         classes=_OBSTACLE_CLASS_NAMES, table=TABLE_OBSTACLES,
-        tippy=TIPPY_FLOOR_OBSTACLES, tier_of=TIER_OF, tier_rb=TIER_R_B,
+        tippy=TIPPY_FLOOR_OBSTACLES, tier_of=TIER_OF,
         tier_tuple_of=tier_tuple_of,
     )
 
@@ -87,55 +89,48 @@ def check(quiet=False):
 
     rows = []
     for key, cls in sorted(t["classes"].items()):
-        rb_env = t["radius"].get(key)
-        tier = t["tier_of"].get(cls)
-        rb_ssi = t["tier_rb"].get(cls)
+        # TIER_OF is keyed by the obstacle key ("child_boy"), not by the
+        # generated class name ("ChildBoy"): the roster lives in
+        # ssi_config.yaml, which names obstacles the way the env does.
+        tier = t["tier_of"].get(key)
         issues = []
-        if rb_env is None:
-            issues.append(f"no OBSTACLE_BOUNDARY_RADIUS entry -> scored at the "
-                          f"{t['default_radius']} m default")
         if tier is None:
             issues.append("no TIER_OF entry -> every episode is dropped from SSI")
-        if rb_ssi is None:
-            issues.append("no TIER_R_B entry")
-        if rb_env is not None and rb_ssi is not None and abs(rb_env - rb_ssi) > 1e-9:
-            issues.append(f"r_b disagrees: env={rb_env} ssi={rb_ssi}")
         tuples = t["tier_tuple_of"].get(key, [])
         if not tuples:
             issues.append("in no TIER_TO_OBSTACLES tuple -> never swept or "
                           "plotted, and its tier's mean is short one type")
         elif len(tuples) > 1:
             issues.append(f"in {len(tuples)} TIER_TO_OBSTACLES tuples: {tuples}")
-        elif tier is not None and tuples[0] != tier:
+        # Case-insensitive: TIER_TO_OBSTACLES spells the tiers "High"/"Medium"
+        # /"Low" and ssi_config.yaml uses lower case. Only the membership is
+        # being checked here, not the spelling.
+        elif tier is not None and tuples[0].lower() != tier.lower():
             issues.append(f"tier disagrees: TIER_TO_OBSTACLES={tuples[0]} "
                           f"TIER_OF={tier}")
         if issues:
             problems.append((key, cls, issues))
         by_tier[tier].append(key)
-        rows.append((key, cls, rb_env, tier, rb_ssi, spawn_class(key, t), issues))
+        rows.append((key, cls, tier, spawn_class(key, t), issues))
 
     # tables naming obstacles that are not registered
     registered = set(t["classes"].values())
-    for name in sorted(set(t["tier_of"]) | set(t["tier_rb"])):
-        if name not in registered:
+    registered_keys = set(t["classes"])
+    for name in sorted(t["tier_of"]):
+        if name not in registered_keys:
             # a retired alias is harmless; flag it as info, not a failure
             if not quiet:
                 print(f"[info] SSI tables list {name!r}, which is not a "
                       f"registered obstacle (stale alias?)")
-    for key in sorted(t["radius"]):
-        if key not in t["classes"]:
-            problems.append((key, "-", ["in OBSTACLE_BOUNDARY_RADIUS but not "
-                                        "registered in _OBSTACLE_CLASS_NAMES"]))
 
     if not quiet:
-        hdr = (f"{'obstacle':17s} {'ClassName':15s} {'r_b(env)':>9s} "
-               f"{'tier':>7s} {'r_b(ssi)':>9s}  {'spawn':18s}")
+        hdr = (f"{'obstacle':17s} {'ClassName':15s} {'tier':>7s}  "
+               f"{'spawn':18s}")
         print(hdr)
         print("-" * len(hdr))
-        for key, cls, rb_env, tier, rb_ssi, spawn, issues in rows:
+        for key, cls, tier, spawn, issues in rows:
             flag = "  <-- " + "; ".join(issues) if issues else ""
-            print(f"{key:17s} {cls:15s} {str(rb_env):>9s} {str(tier):>7s} "
-                  f"{str(rb_ssi):>9s}  {spawn:18s}{flag}")
+            print(f"{key:17s} {cls:15s} {str(tier):>7s}  {spawn:18s}{flag}")
 
         print("\ntier balance:")
         for tier in TIER_ORDER:

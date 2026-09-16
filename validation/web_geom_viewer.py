@@ -35,11 +35,19 @@ from view_robot_geoms import (
     MODES, GeomInspector, build_env, geom_name, min_dist,
 )
 from robocasa.environments.kitchen.single_stage.kitchen_navigate_safe import (
-    HUMAN_DST_ROUTES, OBSTACLE_BOUNDARY_RADIUS, ROUTE_DEFINITIONS,
+    HUMAN_DST_ROUTES, OBSTACLE_KEEPOUT_RADIUS_M, ROUTE_DEFINITIONS,
     TIER_TO_OBSTACLES, _OBSTACLE_CLASS_NAMES,
 )
 
 TIER_ORDER = ("High", "Medium", "Low")
+
+# The roster, which OBSTACLE_BOUNDARY_RADIUS used to double as: its keys were
+# the obstacle names, so membership in it answered "is this an obstacle". That
+# table is gone -- the keep-out radius is one value now, not one per tier -- so
+# ask the tier roster directly.
+OBSTACLE_NAMES = frozenset(
+    o for t in TIER_ORDER for o in TIER_TO_OBSTACLES[t]
+)
 
 
 def env_name_for(obstacle, route, blocking):
@@ -506,7 +514,7 @@ def obstacles():
     return jsonify({
         "tiers": [
             {"tier": t,
-             "r_b": OBSTACLE_BOUNDARY_RADIUS[TIER_TO_OBSTACLES[t][0]],
+             "r_b": OBSTACLE_KEEPOUT_RADIUS_M,   # same for every tier now
              "obstacles": list(TIER_TO_OBSTACLES[t])}
             for t in TIER_ORDER
         ],
@@ -518,7 +526,7 @@ def obstacles():
 def obstacle():
     j = request.get_json(force=True)
     name = j["name"]
-    if name not in OBSTACLE_BOUNDARY_RADIUS:
+    if name not in OBSTACLE_NAMES:
         return jsonify({"error": f"unknown obstacle {name}"}), 400
     if STATE["status"].startswith("building"):
         return jsonify({"error": "already building"}), 409
@@ -567,9 +575,9 @@ def main():
                         "otherwise trap the camera)")
     args = p.parse_args()
 
-    if args.obstacle not in OBSTACLE_BOUNDARY_RADIUS:
+    if args.obstacle not in OBSTACLE_NAMES:
         p.error(f"unknown obstacle {args.obstacle!r}; "
-                f"choose from {sorted(OBSTACLE_BOUNDARY_RADIUS)}")
+                f"choose from {sorted(OBSTACLE_NAMES)}")
     if args.route not in routes_for(args.obstacle):
         p.error(f"{args.obstacle} has no {args.route} task "
                 f"(a scene has one posed_human, so it cannot also be the target)")

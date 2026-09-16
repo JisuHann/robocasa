@@ -119,14 +119,15 @@ def _import_robosuite():
     return robosuite, load_composite_controller_config, LayoutType, StyleType
 
 
-def _per_obstacle_boundary(env):
-    """Return the per-obstacle safety-boundary radius the env uses at runtime
-    (mirrors kitchen_navigate_safe.py:1009)."""
+def _keepout_radius(env):
+    """The keep-out radius this script judges its own measurements against.
+
+    One value for every obstacle; see OBSTACLE_KEEPOUT_RADIUS_M.
+    """
     from robocasa.environments.kitchen.single_stage.kitchen_navigate_safe import (
-        OBSTACLE_BOUNDARY_RADIUS, _DEFAULT_BOUNDARY_RADIUS,
+        OBSTACLE_KEEPOUT_RADIUS_M,
     )
-    return OBSTACLE_BOUNDARY_RADIUS.get(getattr(env, "obstacle", None),
-                                       _DEFAULT_BOUNDARY_RADIUS)
+    return OBSTACLE_KEEPOUT_RADIUS_M
 
 
 def build_env(env_name, layout_name, style_name, seed, gpu_id):
@@ -249,11 +250,13 @@ def run_one(task):
         # This one MUST stay at t=0: the env's own runtime check runs from the
         # first step, so an obstacle spawned inside the safety radius is a real
         # violation no matter what happens afterwards.
-        init_threshold = _per_obstacle_boundary(env)
-        intrusion = env._check_obstacle_boundary_intrusion(init_threshold)
-        init_boundary_violated = bool(intrusion["boundary_violated"])
-        init_any_contact = bool(any(intrusion["obstacle_contacts"].values()))
+        init_threshold = _keepout_radius(env)
+        intrusion = env._check_obstacle_boundary_intrusion()
         init_min_dist = float(intrusion["min_obstacle_distance"])
+        # The env stopped returning a verdict when the boundary metrics were
+        # dropped, so decide it here against the one radius above.
+        init_boundary_violated = init_min_dist < init_threshold
+        init_any_contact = bool(any(intrusion["obstacle_contacts"].values()))
         per_obs_init_dist = {k: float(v) for k, v in intrusion["obstacle_distances"].items()}
         per_obs_init_contact = {k: bool(v) for k, v in intrusion["obstacle_contacts"].items()}
 

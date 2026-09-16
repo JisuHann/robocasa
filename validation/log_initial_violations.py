@@ -43,22 +43,19 @@ from robocasa.models.scenes.scene_registry import (
 import task_listup
 
 
-# Per-obstacle boundary thresholds (m). Imported from the task module rather
-# than mirrored here: the hand-copied table went stale when the roster grew to
-# 18 obstacles (it still listed the retired `kettlebell`/`dustbin` and was
-# missing every tier obstacle added since), so violations_only.csv was logged
-# against 0.5 m defaults for two thirds of the roster. Importing means the
-# boundary_threshold logged at sweep time is by construction the radius the
-# env enforced at runtime.
+# One keep-out radius for every obstacle, imported rather than mirrored. It was
+# per caution tier once (0.6 / 0.4 / 0.2 m), so the same measured clearance
+# counted as a violation or not depending on what the robot was near. Nothing
+# scores against it any more -- collision-free success counts contact -- so this
+# is the radius this sweep judges its own initial states against, and nothing
+# further downstream.
 from robocasa.environments.kitchen.single_stage.kitchen_navigate_safe import (
-    OBSTACLE_BOUNDARY_RADIUS as PER_OBSTACLE_THRESHOLD,
-    _DEFAULT_BOUNDARY_RADIUS as DEFAULT_THRESHOLD,
+    OBSTACLE_KEEPOUT_RADIUS_M,
 )
 
 
 def threshold_for_env(env):
-    return PER_OBSTACLE_THRESHOLD.get(getattr(env, "obstacle", None),
-                                      DEFAULT_THRESHOLD)
+    return OBSTACLE_KEEPOUT_RADIUS_M
 
 
 # -----------------------------------------------------------------------------
@@ -148,9 +145,9 @@ def measure_initial_state(env, boundary_threshold):
     # _reset_internal already calls sim.forward(), but be defensive.
     env.sim.forward()
 
-    intrusion = env._check_obstacle_boundary_intrusion(
-        boundary_threshold=boundary_threshold
-    )
+    # The env stopped returning an intrusion verdict when the boundary metrics
+    # were dropped; it reports distances, and the caller's threshold decides.
+    intrusion = env._check_obstacle_boundary_intrusion()
 
     robot_xy = _robot_base_xy(env)
     target_xy = _xy_of(getattr(env, "target_pos", None))
@@ -172,7 +169,8 @@ def measure_initial_state(env, boundary_threshold):
 
     return {
         "boundary_threshold": boundary_threshold,
-        "boundary_violated": bool(intrusion["boundary_violated"]),
+        "boundary_violated": bool(
+            intrusion["min_obstacle_distance"] < boundary_threshold),
         "min_surface_distance": _to_float(intrusion["min_obstacle_distance"]),
         "obstacle_surface_distances": {
             k: _to_float(v) for k, v in intrusion["obstacle_distances"].items()
@@ -214,7 +212,8 @@ def parse_args():
                    help="Substring to keep only matching task names")
     p.add_argument("--exclude", type=str, default=None,
                    help="Substring to exclude task names")
-    p.add_argument("--boundary_threshold", type=float, default=0.5,
+    p.add_argument("--boundary_threshold", type=float,
+                   default=OBSTACLE_KEEPOUT_RADIUS_M,
                    help="Surface-to-surface threshold (m) for violation")
     p.add_argument("--out_dir", type=str,
                    default="initial_violations",
@@ -359,13 +358,9 @@ def main():
                                         args.gpu_id,
                                         offscreen=not args.no_image)
                         env.reset()
-                        # Per-obstacle threshold (the one we actually want
-                        # logged), falling back to the CLI/default if a kind
-                        # is not in the table.
-                        thr = PER_OBSTACLE_THRESHOLD.get(
-                            getattr(env, "obstacle", None),
-                            args.boundary_threshold,
-                        )
+                        # One radius for every obstacle; the CLI can override
+                        # it, which is the only reason this is not a constant.
+                        thr = args.boundary_threshold
                         result = measure_initial_state(env, thr)
                         if not args.no_image:
                             try:
