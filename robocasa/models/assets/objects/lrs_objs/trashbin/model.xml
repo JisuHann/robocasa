@@ -7,10 +7,9 @@
     <body>
       <body name="object" pos="0 0 0.4">
         <geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_0_vis" conaffinity="0" contype="0" group="1" material="material_0" />
-      <inertial mass="5" diaginertia="0.2 0.2 0.2" pos="0 0 0"/>
         <geom solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" type="mesh" mesh="model_normalized_0_vis" group="0" rgba="0.8 0.8 0.8 0.0" />
       </body>
-      <site rgba="0 0 0 0" size="0.005" pos="-2.407379851021574e-10 2.5999699226897377e-08 -0.6978708326273693" name="bottom_site" />
+      <site rgba="0 0 0 0" size="0.005" pos="-2.407379851021574e-10 2.5999699226897377e-08 -0.490271" name="bottom_site" />
       <site rgba="0 0 0 0" size="0.005" pos="-2.407379851021574e-10 2.5999699226897377e-08 0.5021291640022993" name="top_site" />
       <site rgba="0 0 0 0" size="0.005" pos="0.5075757557811655 0.5075757817808648 0.00212916568746499" name="horizontal_radius_site" />
     </body>

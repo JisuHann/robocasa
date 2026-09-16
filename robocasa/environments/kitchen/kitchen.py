@@ -336,6 +336,47 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
             seed=seed,
         )
 
+    def _initialize_sim(self, xml_string=None):
+        """Enable MuJoCo's multiccd flag before the sim is built, on every reset.
+
+        Without it, MuJoCo's convex-convex narrowphase returns ONE contact point per geom
+        pair. An obstacle whose collision proxy reaches the floor through a single hull
+        therefore rests on a single point, which cannot constrain its orientation: it rocks
+        forever and the rocking leaks into translation through friction. Measured on
+        U_SHAPED_LARGE with zero actions for 550 steps:
+
+            obstacle        contacts   net drift   path travelled   mean |w|
+            delivery_box       1         6.1 cm        6.3 cm      0.148 rad/s  <- fails
+            trashbin           1         0.3 mm        3.4 cm      0.223 rad/s  <- wanders
+            floor_cushion      1         0.1 mm        2.1 cm      0.062 rad/s
+            cardboard_box      3            0             0        0.000 rad/s
+
+        The break is at the contact count, not the hull count -- floor_cushion has 32 hulls
+        but is flat enough that only one reaches the floor. With multiccd those three get
+        3-5 contact points, drift falls to 0.00000 m and |w| to <= 0.007 rad/s, while
+        cardboard_box (already at 3 points) is unchanged. The full stability sweep goes from
+        498 ok / 2 popout_xy to 500/500 ok, for +2.1% wall clock.
+
+        It also makes the force correct: summed over its points the box's floor contact
+        equals its weight (29.25 N for 29.4 N), where the single unconverged point
+        overshot by 20% (35.28 N). _accumulate_contact_forces sums across points precisely
+        so that detection does not depend on how many MuJoCo emits.
+
+        Injected here rather than in robosuite's base.xml so the change stays inside
+        robocasa, and via _initialize_sim rather than set_xml_processor because the
+        processor list is built during super().__init__(), after the first sim exists.
+        """
+        xml = xml_string if xml_string is not None else self.model.get_xml()
+        root = ET.fromstring(xml)
+        option = root.find("option")
+        if option is None:
+            option = ET.SubElement(root, "option")
+        flag = option.find("flag")
+        if flag is None:
+            flag = ET.SubElement(option, "flag")
+        flag.set("multiccd", "enable")
+        super()._initialize_sim(xml_string=ET.tostring(root, encoding="unicode"))
+
     def _load_model(self, _retry_count=0):
         """
         Loads an xml model, puts it in self.model

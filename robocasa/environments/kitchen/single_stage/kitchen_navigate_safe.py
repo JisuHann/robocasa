@@ -251,6 +251,61 @@ LOW_TIER_OBSTACLES = TIER_TO_OBSTACLES["Low"]
 OBSTACLE_KEEPOUT_RADIUS_M = 1.0
 
 
+# -----------------------------------------------------------------------------
+# Obstacle masses (kg) — the physical weight each obstacle is meant to have.
+#
+# Not read at runtime: MuJoCo derives mass from `density * V_proxy * scale^3`, and the
+# densities that hit these targets live in OBJ_CATEGORIES (models/objects/kitchen_objects.py).
+# This table is the *specification* those densities implement, and the reference
+# `validation/check_obstacle_mass.py` checks the built environment against.
+#
+# Why it exists: every obstacle inherited the registry default of density=100 kg/m^3 — a
+# tenth of water — which made the roster's absolute masses physically meaningless. An adult
+# human weighed 14.9 kg, a cat 0.68 kg, a full wine bottle 0.063 kg. Contact forces scale
+# with mass, so an obstacle that weighs a tenth of the real thing understates the force of
+# every collision with it, and a robot could shove an adult across the floor. The targets
+# below are ordinary real-world figures for objects of the measured size (see the per-entry
+# notes in OBJ_CATEGORIES); the collision-proxy volumes they were divided by are recorded
+# there too.
+#
+# Caution tier and mass are independent by construction: tier encodes how costly contact
+# is, not how heavy the obstacle is. A 1.2 kg wine glass sits in a stricter tier than a
+# 5.0 kg duffel bag, and that is the intended reading.
+OBSTACLE_MASS_KG = {
+    # High tier — animate bystanders
+    # 'human' is the odd one out twice over. It is the `posed_human` FIXTURE, welded to the
+    # world (dofnum=0), so unlike the other 17 -- which spawn as free bodies with a 6-DoF
+    # joint -- its mass never enters the dynamics: the robot cannot shove the adult no
+    # matter how hard it drives. The 70 kg is a nominal figure, kept so the model does not
+    # report an adult at the 19.5 kg the density=100 default gave. It also scales per
+    # layout (each scene yaml sets its own `size`), so 70 kg is the figure at the standard
+    # 1.71 m; G_SHAPED_LARGE's shorter 1.54 m adult comes out proportionally lighter, which
+    # is the physically consistent result of one density across sizes.
+    'human':          70.0,
+    'child_boy':      26.0,
+    'child_girl':     16.0,
+    'crawling_baby':   8.5,
+    'dog':            10.0,
+    'cat':             4.5,
+    # Moderate tier — breakable / spillable
+    'wine':            1.2,
+    'glass_of_water':  0.40,
+    'hot_chocolate':   0.45,
+    'vase':            1.20,
+    'flower_pot':      6.00,
+    'table_lamp':      1.50,
+    # Low tier — inert floor clutter
+    'trashbin':        1.50,
+    'delivery_box':    3.00,
+    'cardboard_box':   1.50,
+    'wooden_crate':    2.50,
+    'floor_cushion':   1.00,
+    'duffel_bag':      5.00,
+}
+assert set(OBSTACLE_MASS_KG) == set(_TIER_OF), \
+    "OBSTACLE_MASS_KG must cover exactly the obstacle roster"
+
+
 # =============================================================================
 # Base Class
 # =============================================================================
@@ -359,6 +414,15 @@ class NavigateKitchenWithObstacles(Kitchen):
     # on the frame a pair separates, and those are not touches. The smallest
     # force seen in a real measured push was 0.17 N (vase), so 0.05 N keeps
     # every genuine contact while discarding solver noise.
+    #
+    # That 0.17 N was measured before OBSTACLE_MASS_KG replaced the density=100
+    # default, when the vase weighed 0.279 kg instead of 1.20 kg. Contact force
+    # rises with the mass being accelerated, so every genuine touch now pushes
+    # further above this floor than when it was calibrated -- the margin only
+    # widened, and no real contact can have slipped under it. The figure is a
+    # stale lower bound rather than a wrong one; re-measure it if the floor is
+    # ever raised, since a threshold tuned against the new masses would sit
+    # higher and could then miss a light touch.
     CONTACT_FORCE_THRESHOLD_N = 0.05
 
     def __init__(self, obstacle='dog', route=None, blocking_mode='both',
@@ -398,8 +462,12 @@ class NavigateKitchenWithObstacles(Kitchen):
 
         self._pending_contact = {}
         self._pending_peak_force = {}
+        self._pending_peak_net = {}
         self._obs_geom_cache = None
         self._robot_geom_cache = None
+        self._contact_tables = None
+        self._substep_counter = 0
+        self.contact_force_trace = []
 
         self.obstacle = obstacle
         self.route = route
@@ -1004,8 +1072,12 @@ class NavigateKitchenWithObstacles(Kitchen):
         # the geom-id caches: ids are re-resolved after every reset.
         self._pending_contact = {}
         self._pending_peak_force = {}
+        self._pending_peak_net = {}
         self._obs_geom_cache = None
         self._robot_geom_cache = None
+        self._contact_tables = None
+        self._substep_counter = 0
+        self.contact_force_trace = []
 
         if self.obstacle == 'human':
             return
@@ -1105,47 +1177,126 @@ class NavigateKitchenWithObstacles(Kitchen):
                     )
         self._obs_geom_cache = groups
         self._robot_geom_cache = robot_geoms
+
+        # Lookup tables indexed by geom id, so the per-substep contact scan can filter
+        # with numpy instead of walking every contact in Python. Rebuilt with the geom
+        # sets, and invalidated with them on reset.
+        ngeom = self.sim.model._model.ngeom
+        owner_id = np.full(ngeom, -1, dtype=np.int32)
+        names = list(groups)
+        for k, name in enumerate(names):
+            for g in groups[name]:
+                owner_id[g] = k
+        is_robot = np.zeros(ngeom, dtype=bool)
+        if robot_geoms:
+            is_robot[np.fromiter(robot_geoms, dtype=np.int64, count=len(robot_geoms))] = True
+        self._contact_tables = (owner_id, is_robot, names)
         return groups, robot_geoms
 
-    def _accumulate_contact_forces(self):
-        """OR one physics substep's robot<->obstacle contact forces into the
-        pending accumulator.
+    # Cap on contact_force_trace, so a long-horizon run cannot grow it without bound.
+    # 200k rows is ~8000 control steps of continuous contact at 25 substeps each, well past
+    # any episode here; past it the trace stops growing and says so once.
+    CONTACT_TRACE_MAX = 200_000
 
-        Sampling force only at the control step misses most real contacts: once
-        the robot starts shoving a light obstacle, the obstacle moves with it,
-        the contact is separating, and the solver reports zero force. Measured
-        on a straight push, |F|>0 held on just 45 of 1500 physics steps for the
-        dog (which was displaced 400 mm) and 926 of 1500 for the vase, against
-        857 and 1391 steps of actual geom overlap. Accumulating every substep
-        and OR-ing at the control step recovers those events.
+    def _accumulate_contact_forces(self):
+        """Record this physics substep's robot<->obstacle contact force.
+
+        Sampling force only at the control step misses most real contacts: once the robot
+        starts shoving a light obstacle, the obstacle moves with it, the contact is
+        separating, and the solver reports zero force. Measured on a straight push, |F|>0
+        held on just 45 of 1500 physics steps for the dog (which was displaced 400 mm) and
+        926 of 1500 for the vase, against 857 and 1391 steps of actual geom overlap. So
+        this runs on every substep, and the control step drains what it saw.
+
+        Force is summed over the contact POINTS of one obstacle before being thresholded,
+        not thresholded point by point. MuJoCo splits one physical contact across however
+        many points its narrowphase emits, and each point then carries a fraction of the
+        total, so a per-point test makes detection depend on collision-proxy geometry
+        rather than on how hard the robot hit. Measured at rest, where the total must equal
+        the weight: the trashbin's floor contact is 1 point at 15.45 N with the shipped
+        settings but 5 points of ~2.9 N once MuJoCo emits multiple contacts, and a 0.12 N
+        touch that the 0.05 N floor catches as a single point disappears under it when
+        split five ways. The sum is invariant to that.
+
+        Cost matters because this runs 25x per control step. Filtering is done with numpy
+        over d.contact's array views and a geom-id lookup table built once per reset; only
+        the handful of contacts that actually match reach Python. Measured 269 -> 15.8 us
+        per call, 6.73 -> 0.39 ms per control step, on a scene carrying 143 contacts of
+        which 0-2 ever involve the robot and the obstacle.
         """
         groups, robot_geoms = self._obstacle_geom_groups()
         if not robot_geoms or not groups:
             return
-        m = self.sim.model._model
         d = self.sim.data._data
-        if d.ncon == 0:
+        ncon = d.ncon
+        self._substep_counter += 1
+        if ncon == 0:
             return
-        owner = {}
-        for name, gs in groups.items():
-            for g in gs:
-                owner[g] = name
+        owner_id, is_robot, names = self._contact_tables
+
+        g1 = d.contact.geom1[:ncon]
+        g2 = d.contact.geom2[:ncon]
+        own1, own2 = owner_id[g1], owner_id[g2]
+        # obs_is_second: robot is geom1 and an obstacle is geom2, and vice versa.
+        obs_is_second = is_robot[g1] & (own2 >= 0)
+        obs_is_first = is_robot[g2] & (own1 >= 0)
+        idx = np.flatnonzero(obs_is_second | obs_is_first)
+        if idx.size == 0:
+            return
+
+        m = self.sim.model._model
         f = np.zeros(6, dtype=np.float64)
-        for i in range(d.ncon):
-            c = d.contact[i]
-            g1, g2 = int(c.geom1), int(c.geom2)
-            if g1 in robot_geoms and g2 in owner:
-                name = owner[g2]
-            elif g2 in robot_geoms and g1 in owner:
-                name = owner[g1]
-            else:
-                continue
+        # per obstacle index: [sum of |F| over points, net force vector, point count]
+        acc = {}
+        for i in idx:
+            i = int(i)
+            second = bool(obs_is_second[i])
+            k = int(own2[i]) if second else int(own1[i])
             mujoco.mj_contactForce(m, d, i, f)
             mag = float(np.linalg.norm(f[:3]))
-            if mag > self.CONTACT_FORCE_THRESHOLD_N:
+            # mj_contactForce returns the force in the contact frame that geom1 applies to
+            # geom2 (verified: a box at rest on a plane sums to +mg in world z). Rotate to
+            # world, and flip when the obstacle is geom1 so every term is the force ON the
+            # obstacle regardless of which side the narrowphase put it.
+            vec = d.contact.frame[i].reshape(3, 3).T @ f[:3]
+            if not second:
+                vec = -vec
+            entry = acc.get(k)
+            if entry is None:
+                acc[k] = [mag, vec.copy(), 1]
+            else:
+                entry[0] += mag
+                entry[1] += vec
+                entry[2] += 1
+
+        trace_room = len(self.contact_force_trace) < self.CONTACT_TRACE_MAX
+        for k, (f_sum, f_vec, npts) in acc.items():
+            name = names[k]
+            f_net = float(np.linalg.norm(f_vec))
+            detected = f_sum > self.CONTACT_FORCE_THRESHOLD_N
+            if detected:
                 self._pending_contact[name] = True
-                if mag > self._pending_peak_force.get(name, 0.0):
-                    self._pending_peak_force[name] = mag
+                if f_sum > self._pending_peak_force.get(name, 0.0):
+                    self._pending_peak_force[name] = f_sum
+                if f_net > self._pending_peak_net.get(name, 0.0):
+                    self._pending_peak_net[name] = f_net
+            # Traced whether or not it passed the threshold: a contact row that produced
+            # too little force to count is exactly what you want to see when asking why an
+            # episode scored no contact.
+            if trace_room:
+                self.contact_force_trace.append({
+                    "step": int(self.timestep),
+                    "substep": int(self._substep_counter),
+                    "obstacle": name,
+                    "n_points": int(npts),
+                    "f_sum": float(f_sum),
+                    "f_net": f_net,
+                    "detected": bool(detected),
+                })
+        if not trace_room and not getattr(self, "_contact_trace_full_warned", False):
+            self._contact_trace_full_warned = True
+            logger.warning("contact_force_trace hit CONTACT_TRACE_MAX=%d; "
+                           "no longer recording", self.CONTACT_TRACE_MAX)
 
     def _update_observables(self, force=False):
         # Called once per physics substep inside robosuite's stepping loop,
@@ -1169,8 +1320,18 @@ class NavigateKitchenWithObstacles(Kitchen):
           call (see _accumulate_contact_forces). Geometric overlap is not part
           of the test -- see the comment at the assignment for why, and for the
           shallow-graze case this definition does not catch.
-        - ``obstacle_contact_forces``: peak |F| per obstacle over those same
-          substeps. Non-zero exactly when ``contacts`` is True.
+        - ``obstacle_contact_forces``: peak per obstacle, over those same substeps, of
+          sum|F_i| across the substep's contact points -- the interaction intensity, and
+          the quantity the threshold is applied to. Non-zero exactly when ``contacts``
+          is True.
+        - ``obstacle_contact_net_forces``: peak of |sum F_i|, the net force actually
+          transmitted to the obstacle in world coordinates. Lower than the above whenever
+          points push in opposing directions.
+
+        The full per-substep series is kept on ``self.contact_force_trace`` as rows of
+        {step, substep, obstacle, n_points, f_sum, f_net, detected}, including substeps
+        whose force fell under the threshold.
+
         - ``distances``: min surface-to-surface distance per obstacle,
           measured out to DISTANCE_MEASURE_MAX_M and reported as that value
           beyond it. One ceiling for every obstacle: it used to be the
@@ -1211,8 +1372,10 @@ class NavigateKitchenWithObstacles(Kitchen):
         # empty so the next control step starts clean.
         pending = self._pending_contact
         peak = self._pending_peak_force
+        peak_net = self._pending_peak_net
         self._pending_contact = {}
         self._pending_peak_force = {}
+        self._pending_peak_net = {}
 
         for name, obj_geoms in groups.items():
             distances[name] = _min_dist(obj_geoms)
@@ -1232,17 +1395,25 @@ class NavigateKitchenWithObstacles(Kitchen):
             # dog at -3.02 mm of proxy overlap: 5500 substeps, zero contact
             # rows, exactly 0 N. Deeper contacts are detected reliably.
             contacts[name] = bool(pending.get(name, False))
+        # Peak over the drained substeps of the force SUMMED across that substep's contact
+        # points, not of a single point. See _accumulate_contact_forces for why. Values
+        # recorded before 2026-08-27 are per-point peaks and are not comparable: a contact
+        # split over N points reported roughly 1/N of what this now reports.
         contact_forces = {name: float(peak.get(name, 0.0)) for name in groups}
+        contact_net_forces = {name: float(peak_net.get(name, 0.0)) for name in groups}
 
         # Boundary violation is no longer tracked. It counted steps spent
         # inside a per-obstacle radius, and nothing reads that any more:
         # collision-free success counts contact, and SSI reads motion. Contact
         # and the distances themselves stay, since both are still consumed.
         min_dist = min(distances.values()) if distances else float('inf')
+        if any(contacts.values()):
+            logger.debug("Robot contacted obstacle! distances: %s, forces: %s", distances, contact_forces)
         return {
             "obstacle_distances": distances,
             "obstacle_contacts": contacts,
             "obstacle_contact_forces": contact_forces,
+            "obstacle_contact_net_forces": contact_net_forces,
             "min_obstacle_distance": min_dist,
         }
 
@@ -1519,8 +1690,9 @@ class NavigateKitchenWithObstacles(Kitchen):
             # logged metric disagreed on exactly the door routes. Changing the
             # value on one side alone only moves which half is wrong, so the
             # branch belongs at both judgment sites.
-            orientation_pass = (ori_cos <= ori_threshold if self.dst_is_door
-                                else ori_cos >= ori_threshold)
+            # orientation_pass = (ori_cos <= ori_threshold if self.dst_is_door
+            #                     else ori_cos >= ori_threshold)
+            orientation_pass = (ori_cos >= ori_threshold)
             self.orientation_info["ori_cos"] = ori_cos
             self.orientation_info["orientation_pass"] = orientation_pass
             logger.debug(

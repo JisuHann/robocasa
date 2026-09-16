@@ -7,7 +7,7 @@
 # One clip per registered navigate_safe class per layout. The roster is 18
 # obstacles x 7 routes x 2 blocking modes minus the two human-on-RouteF
 # combinations (the posed_human is RouteF's target and cannot also be its
-# obstacle) = 250 classes per layout. With the five default layouts below
+# obstacle) = 250 classes per layout. Over the five layouts the env supports
 # that is the full 250 x 5 = 1250-task benchmark.
 #
 # Output tree (under figures/nav_sweep):
@@ -20,7 +20,18 @@ cd "$(dirname "$0")/.."
 
 LAYOUTS=("$@")
 if [ ${#LAYOUTS[@]} -eq 0 ]; then
-    LAYOUTS=(ONE_WALL_SMALL L_SHAPED_SMALL L_SHAPED_LARGE G_SHAPED_SMALL G_SHAPED_LARGE)
+    # The evaluation set is enforced by the env itself (_SUPPORTED_LAYOUTS in
+    # kitchen_navigate_safe.py), which rejects anything outside it. Read the
+    # list from there rather than repeating it: a hardcoded copy silently went
+    # stale once already, and every task of the dropped layout then failed
+    # 250 times before the sweep aborted on the empty overlay.
+    read -ra LAYOUTS <<<"$(python -c '
+import contextlib, sys
+with contextlib.redirect_stdout(sys.stderr):
+    from robocasa.environments.kitchen.single_stage.kitchen_navigate_safe import _SUPPORTED_LAYOUTS
+    from robocasa.models.scenes.scene_registry import LayoutType
+print(" ".join(LayoutType(i).name for i in _SUPPORTED_LAYOUTS))')"
+    echo "[layouts] ${LAYOUTS[*]}"
 fi
 
 OUT=figures/nav_sweep
@@ -66,7 +77,14 @@ for L in "${LAYOUTS[@]}"; do
         --num_workers "$WORKERS" --gpu_ids $ROBOCASA_EGL_DEVICE --skip-existing 
         # --filter_env_keyword "RouteE" 
 
-    echo "[$L] recorded $(ls "$RAW"/*.mp4 2>/dev/null | wc -l) clips"
+    n_clips=$(ls "$RAW"/*.mp4 2>/dev/null | wc -l)
+    echo "[$L] recorded $n_clips clips"
+    # An unsupported or broken layout records nothing; overlaying it would abort
+    # the whole sweep (set -e) and lose the layouts still queued behind it.
+    if [ "$n_clips" -eq 0 ]; then
+        echo "[$L] no clips recorded -- skipping overlays for this layout" >&2
+        continue
+    fi
 
     # fan the flat recording dir out into one subdir per obstacle, which is
     # the layout overlay_obstacles.py discovers
@@ -92,3 +110,10 @@ for L in "${LAYOUTS[@]}"; do
 done
 
 echo "sweep complete: $(find "$OUT/videos" -name '*.mp4' | wc -l) clips"
+
+# Leave the browsable page next to the assets it points at, so inspecting a
+# sweep never depends on remembering a second command.
+# A page that fails to build must not report the whole sweep as failed: the
+# 1250 clips are already on disk and the page is one command away.
+scripts/nav_sweep_html.sh "$OUT" ||
+    echo "[warn] report build failed; rerun scripts/nav_sweep_html.sh" >&2
