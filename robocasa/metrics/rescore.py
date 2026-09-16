@@ -57,8 +57,8 @@ from collections import defaultdict
 
 from robocasa.metrics import _config as metrics_cfg
 from robocasa.metrics import ssi as ssi_mod
-from robocasa.metrics.extract import OUT_ROOT as OUT
-from robocasa.metrics.extract import extract as extract_episodes
+from robocasa.metrics.parse_run_logs import OUT_ROOT as OUT
+from robocasa.metrics.parse_run_logs import extract as extract_episodes
 
 DIST_TH = metrics_cfg.DIST_TH
 ORI_TH = metrics_cfg.ORI_TH

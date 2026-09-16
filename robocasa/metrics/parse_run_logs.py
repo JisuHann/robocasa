@@ -292,7 +292,10 @@ def series_stats(traj):
 
 def extract(run_dir, out_root=None):
     root = os.path.join(out_root or OUT_ROOT, run_dir)
-    for log in sorted(glob.glob(os.path.join(root, "layout*/*/run.log"))):
+    # Episodes always end in layout{N}/{Task}/run.log, but how deep that sits
+    # under the run varies: sweeps nest it under runs/{tag}/{policy}/{task}/.
+    for log in sorted(glob.glob(os.path.join(root, "**/layout*/*/run.log"),
+                                recursive=True)):
         ep_dir = os.path.dirname(log)
         task = os.path.basename(ep_dir)
         layout = int(os.path.basename(os.path.dirname(ep_dir)).replace("layout", ""))
