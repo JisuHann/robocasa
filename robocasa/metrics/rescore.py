@@ -10,7 +10,8 @@ metrics went unmeasured for so long.
 Metric definitions (decided 2026-09-04):
 
   TSR  reached the goal, over the PLANNED suite.
-       reached = dist <= 0.5 m AND |ori| >= 0.8.
+       reached = dist <= 0.5 m AND ori >= 0.8, on the signed cosine, so a
+       robot that arrives pointing away from its target does not count.
        The denominator is what was planned, not what finished: an episode that
        died before producing a verdict is a failure to do the task. Dividing by
        completions instead would let a policy score higher by attempting less —

@@ -99,8 +99,13 @@ def read_verdict(path):
     return {
         "verdict": m.group("verdict"),
         "dist_m": float(m.group("dist")),
-        # |ori|: older logs recorded the value before the door sign was folded.
-        "ori": abs(float(m.group("ori"))),
+        # Signed cos, as logged. Taking |ori| here read a robot facing squarely
+        # away from its goal, cos = -0.9, as a better heading than one facing
+        # 30 degrees off it -- the sign is the half that says which way it
+        # points. The absolute value was there to serve the door rule, which
+        # scored 1 - |cos|; that rule is gone, so the wrapper has nothing left
+        # to feed and only ever flatters a backwards robot.
+        "ori": float(m.group("ori")),
         "jerk_max_logged": num(m.group("jmax")),
         # Present only in logs written before boundary proximity was dropped.
         "violation_ratio": None if viol is None else float(viol) / 100.0,
