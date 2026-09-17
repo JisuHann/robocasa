@@ -309,10 +309,10 @@ post_evaluation_metrics:
       cautious_direction: lower
 
   tier_aggregation:
-    # Retain both descriptors for every (layout, route, tier) group. The
-    # scorer reports separate Kendall taus for each; it does not pool them.
-    statistics: [mean, max]
-    require_all_tiers: true
+    # Aggregate obstacles within each (layout, route, tier) by mean only.
+    # Episode-level ratio mean/max remain available before this aggregation.
+    statistics: [mean]
+    require_all_tiers: false
 
   correlation:
     method: kendall_tau_b

@@ -52,8 +52,8 @@ OUT_ROOT = os.environ.get("ROBOCASA_OUTPUTS", os.path.join(
     os.getcwd(), "policy", "Voxposer", "outputs"))
 
 # The A* reference, written by the non-blocking optimal-path sweep.
-OPTIMAL = os.environ.get("ROBOCASA_OPTIMAL_PATHS", os.path.join(
-    os.getcwd(), "outputs", "nonblocking_optimal_paths", "path_length_time.json"))
+_DEFAULT_OPTIMAL = Path(__file__).with_name("nonblocking_optimal_paths") / "path_length_time.json"
+OPTIMAL = os.environ.get("ROBOCASA_OPTIMAL_PATHS", str(_DEFAULT_OPTIMAL))
 
 
 def find_ledgers(root):
@@ -149,7 +149,8 @@ def aggregate(rows):
     }
 
 
-def summarize_post_evaluation(ledger_dirs, optimal_path=None, *, matched_intersection=False):
+def summarize_post_evaluation(ledger_dirs, optimal_path=None, *, matched_intersection=False,
+                              comparison=None, scopes=None, allow_partial=True):
     """Return the canonical post-evaluation report.
 
     SSI and matched-intersection logic remain in :mod:`metrics.ssi`; this
@@ -163,11 +164,26 @@ def summarize_post_evaluation(ledger_dirs, optimal_path=None, *, matched_interse
         print(f"warning: optimal-path json not found: {optimal_path}; "
               "normalized path metrics will be n/a", file=sys.stderr)
         optimal_path = None
-    if matched_intersection:
-        return ssi.summarize_blocking_intersection(paths, optimal_path)
-    if len(paths) != 1:
-        raise ValueError("unmatched post-evaluation requires exactly one ledger")
-    return ssi.summarize_unpaired_ledger(paths[0], optimal_path)
+    comparison = comparison or ("matched_intersection" if matched_intersection else "individual")
+    if comparison not in {"individual", "matched_intersection"}:
+        raise ValueError("comparison must be individual or matched_intersection")
+    if comparison == "matched_intersection":
+        report = ssi.summarize_blocking_intersection(
+            paths, optimal_path, allow_partial=allow_partial)
+    elif len(paths) == 1:
+        report = ssi.summarize_unpaired_ledger(paths[0], optimal_path, allow_partial=allow_partial)
+    else:
+        report = {"summary_mode": "individual_models", "comparison": comparison,
+                  "models": [ssi.summarize_unpaired_ledger(p, optimal_path, allow_partial=allow_partial) for p in paths]}
+    if scopes:
+        allowed = set(scopes)
+        key = "scopes" if report.get("summary_mode") == "matched_intersection" else "ssi_scopes"
+        if key in report:
+            report[key] = {k: v for k, v in report[key].items() if k in allowed}
+        elif report.get("summary_mode") == "individual_models":
+            for model in report["models"]:
+                model["ssi_scopes"] = {k: v for k, v in model["ssi_scopes"].items() if k in allowed}
+    return report
 
 
 def check_post_evaluation(report):
@@ -178,6 +194,8 @@ def check_post_evaluation(report):
         if not scopes:
             raise ValueError("matched post-evaluation report has no scopes")
         return True
+    if report.get("summary_mode") == "individual_models":
+        return all(report_ok.get("ssi_scopes") for report_ok in report.get("models", []))
     required = {"task_success_rate", "collision_free_success_rate",
                 "normalized_path_length", "normalized_path_traversal_time"}
     missing = sorted(required - headline.keys())

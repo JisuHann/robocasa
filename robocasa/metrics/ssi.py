@@ -404,52 +404,73 @@ def _unpaired_cells(rows, metrics):
     for (layout, route, tier), episodes in grouped.items():
         record = {"n_episodes": len(episodes)}
         for metric in metrics:
-            stats = ("mean", "max") if metric == "min_distance" else ("mean", "max")
+            stats = ("value",) if metric == "min_distance" else ("mean", "max")
             values = {}
             for stat in stats:
                 data = ([r[metric] for r in episodes if r[metric] is not None]
                         if metric == "min_distance" else
                         [r[metric][stat] for r in episodes if r[metric][stat] is not None])
-                values[stat] = float(np.mean(data)) if data else None
-                if metric != "min_distance":
-                    values[f"tier_{stat}"] = float(np.max(data)) if data else None
+                if metric == "min_distance":
+                    values[stat] = float(np.min(data)) if data else None
+                else:
+                    # Tier aggregation is mean-only: episode-level mean/max
+                    # are both retained, but neither is max-pooled across
+                    # obstacles in the same tier.
+                    values[stat] = float(np.mean(data)) if data else None
             record[metric] = values
         cells.setdefault(f"{layout}:{route}", {"tiers": {}})["tiers"][tier] = record
     return cells
 
 
-def _unpaired_taus(cells, metrics):
+def _unpaired_taus(cells, metrics, *, allow_partial=False):
     out, ranks = {}, list(range(len(TIERS)))
     for metric in metrics:
-        stats = ("mean", "max") if metric == "min_distance" else ("mean", "tier_mean", "max", "tier_max")
+        stats = ("value",) if metric == "min_distance" else ("mean", "max")
         out[metric] = {}
         for stat in stats:
             values, used = [], []
+            pairs_total = pairs_present = 0
             margin_values = {"H-M": [], "M-L": [], "H-L": []}
             margin_cells = {"H-M": [], "M-L": [], "H-L": []}
             per_cell = []
             for cell, record in cells.items():
+                pairs_total += 3
                 data = [record["tiers"].get(t, {}).get(metric, {}).get(stat) for t in TIERS]
                 if any(v is None for v in data):
-                    continue
+                    if not allow_partial:
+                        continue
+                    present = [(i, v) for i, v in enumerate(data) if v is not None]
+                    if len(present) < 2:
+                        continue
+                    pair_ranks = [i for i, _ in present]
+                    data = [v for _, v in present]
+                else:
+                    pair_ranks = ranks
                 if metric != "min_distance":
                     data = [-v for v in data]
-                low, medium, high = data
-                for label, margin in (("H-M", high - medium),
-                                      ("M-L", medium - low),
-                                      ("H-L", high - low)):
-                    margin_values[label].append(margin)
-                    margin_cells[label].append(cell)
-                tau = kendall_tau(ranks, data)
+                tau = kendall_tau(pair_ranks, data)
+                if len(data) == 3:
+                    low, medium, high = data
+                    margins = (("H-M", high - medium), ("M-L", medium - low), ("H-L", high - low))
+                elif pair_ranks == [0, 1]:
+                    margins = (("H-M", data[1] - data[0]),)
+                elif pair_ranks == [1, 2]:
+                    margins = (("M-L", data[1] - data[0]),)
+                else:
+                    margins = (("H-L", data[1] - data[0]),)
+                for label, margin in margins:
+                    margin_values[label].append(margin); margin_cells[label].append(cell)
+                pairs_present += len(margins)
+                margin_map = dict(margins)
                 if tau is not None:
                     values.append(tau); used.append(cell)
                 per_cell.append({
                     "cell": cell,
                     "tau": float(tau) if tau is not None else None,
                     "ssi_margin": {
-                        "H-M": float(high - medium),
-                        "M-L": float(medium - low),
-                        "H-L": float(high - low),
+                        "H-M": float(margin_map["H-M"]) if "H-M" in margin_map else None,
+                        "M-L": float(margin_map["M-L"]) if "M-L" in margin_map else None,
+                        "H-L": float(margin_map["H-L"]) if "H-L" in margin_map else None,
                     },
                 })
             ssi_margin = {}
@@ -464,23 +485,27 @@ def _unpaired_taus(cells, metrics):
             out[metric][stat] = {"tau": float(np.mean(values)) if values else None,
                                  "se": float(np.std(values) / math.sqrt(len(values))) if len(values) > 1 else None,
                                  "n_cells": len(values), "cells": used,
+                                 "n_pairs_total": pairs_total,
+                                 "n_pairs_present": pairs_present,
                                  "ssi_margin": ssi_margin,
                                  "per_cell": per_cell}
     return out
 
 
-def _unpaired_scope(rows, scope, metrics):
+def _unpaired_scope(rows, scope, metrics, *, allow_partial=False):
     rows = _unpaired_select(rows, scope)
     cells = _unpaired_cells(rows, metrics)
     complete = [c for c, data in cells.items() if all(t in data["tiers"] for t in TIERS)]
     return {"n_episodes": len(rows), "n_collision_episodes": sum(r["is_collision"] for r in rows),
             "n_without_near_samples": sum(r["n_near_samples"] == 0 for r in rows),
             "n_cells": len(cells), "n_complete_cells": len(complete),
+            "n_partial_cells": len(cells) - len(complete),
             "n_incomplete_cells": len(cells) - len(complete), "cells": cells,
-            "kendall_tau": _unpaired_taus(cells, metrics)}
+            "allow_partial": allow_partial,
+            "kendall_tau": _unpaired_taus(cells, metrics, allow_partial=allow_partial)}
 
 
-def summarize_unpaired_ledger(ledger_dir, optimal_path=None):
+def summarize_unpaired_ledger(ledger_dir, optimal_path=None, *, allow_partial=True):
     """Summarize one ledger with all configured unpaired SSI scopes."""
     ledger, optimal = Path(ledger_dir), _unpaired_optimal(optimal_path)
     with (ledger / "episodes.jsonl").open() as fh:
@@ -501,11 +526,11 @@ def summarize_unpaired_ledger(ledger_dir, optimal_path=None):
                          "normalized_path_traversal_time": float(np.mean(ntime)) if ntime else None,
                          "normalized_path_traversal_time_n": len(ntime),
                          "no_reference": sum(r["planned_path_len_m"] is None for r in rows)},
-            "ssi_scopes": {scope: _unpaired_scope(rows, scope, metrics)
+            "ssi_scopes": {scope: _unpaired_scope(rows, scope, metrics, allow_partial=allow_partial)
                            for scope in POST_EVALUATION_CONFIG["scopes"]["global"]}}
 
 
-def summarize_blocking_intersection(ledger_dirs, optimal_path=None):
+def summarize_blocking_intersection(ledger_dirs, optimal_path=None, *, allow_partial=True):
     """Model SSI on task keys common to every ledger, separately per scope."""
     optimal = _unpaired_optimal(optimal_path)
     metrics = [m["name"] for m in POST_EVALUATION_CONFIG["episode_metrics"]]
@@ -528,7 +553,8 @@ def summarize_blocking_intersection(ledger_dirs, optimal_path=None):
         models = []
         for name, rows in eligible.items():
             chosen = [r for r in rows if key(r) in common]
-            summary = _unpaired_scope(chosen, "all", metrics)
+            summary = _unpaired_scope(chosen, "all", metrics,
+                                      allow_partial=allow_partial)
             primary = {metric: summary["kendall_tau"][metric]["mean"]["tau"]
                        for metric in metrics}
             values = [v for v in primary.values() if v is not None]
@@ -539,6 +565,7 @@ def summarize_blocking_intersection(ledger_dirs, optimal_path=None):
                            "ssi": float(np.mean(values)) if values else None,
                            "summary": summary})
         scopes[scope] = {"n_ledgers": len(ledgers),
+                         "allow_partial": allow_partial,
                          "n_eligible_per_ledger": {name: len(rows) for name, rows in eligible.items()},
                          "n_intersection_tasks": len(common), "models": models}
     for scope, value in scopes.items():
