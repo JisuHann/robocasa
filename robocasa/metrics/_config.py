@@ -11,6 +11,7 @@ import os
 
 import yaml
 
+from robocasa.control import CONTROL_LOG_INTERVAL_STEPS
 from robocasa.metrics.ssi import INDICATORS, TIER_OF, TIERS  # noqa: F401
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -48,6 +49,9 @@ def _check():
                         f"{SUITE['task_classes']} x {len(LAYOUTS)} = {n}")
     if abs(LOG_DT - CADENCE["log_interval_steps"] / CADENCE["control_hz"]) > 1e-9:
         problems.append("log_dt_s does not match log_interval_steps / control_hz")
+    if int(CADENCE["log_interval_steps"]) != CONTROL_LOG_INTERVAL_STEPS:
+        problems.append("cadence.log_interval_steps does not match "
+                        "CONTROL_LOG_INTERVAL_STEPS")
     w = JERK_SMOOTHING["window"]
     if w % 2 == 0:
         problems.append(f"savgol window {w} must be odd")

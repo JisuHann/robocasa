@@ -318,7 +318,6 @@ def compute(results):
         "ssi_disabled": dict(DISABLED),
     }
 
-
 # ---- Unpaired ledger SSI -------------------------------------------------
 # This entry point uses the same Kendall tau-b implementation above, but does
 # not call compute(): it intentionally has no NonBlocking baseline.
@@ -342,7 +341,9 @@ def _unpaired_optimal(path):
         return {}
     with Path(path).open() as fh:
         cells = json.load(fh)["cells"]
-    return {(c.get("layout", c["layout_name"]), c["route"]): c["planned_path_len_m"]
+    return {(c.get("layout", c["layout_name"]), c["route"]): {
+                "path_length_m": c["planned_path_len_m"],
+                "time_s": c.get("travel_time_s")}
             for c in cells}
 
 
@@ -354,10 +355,11 @@ def _unpaired_episode(ledger, row, optimal):
         d = np.asarray(z["d"], dtype=float)
         v, a, j = (np.asarray(z[k], dtype=float) for k in ("v", "a", "J"))
         pos = np.asarray(z["pos_xy"], dtype=float)
+        traj_time = float(np.asarray(z["t"])[-1]) if len(z["t"]) else 0.0
     obstacle, route, layout = _unpaired_obstacle(row.get("task")), _unpaired_route(row), row.get("layout")
     if obstacle is None or route is None or layout is None:
         return None
-    collision = (row.get("contact_steps") or 0) > 0
+    collision = (row.get("collision_steps", row.get("contact_steps")) or 0) > 0
     finite = np.isfinite(d)
     observed_min = float(d[finite].min()) if finite.any() else None
     near = finite & (d <= POST_EVALUATION_CONFIG["near_region"]["distance_threshold_m"])
@@ -371,6 +373,9 @@ def _unpaired_episode(ledger, row, optimal):
 
     actual = float(np.linalg.norm(np.diff(pos, axis=0), axis=1).sum()) if len(pos) > 1 else 0.0
     ref = optimal.get((layout, route))
+    ref_length = ref["path_length_m"] if ref else None
+    ref_time = ref["time_s"] if ref else None
+    actual_time = float(row.get("duration_s") or traj_time)
     return {"id": row["id"], "layout": layout, "route": route, "obstacle": obstacle,
             "task_success": row.get("task_success"),
             "collision_free_success": row.get("collision_free_success"),
@@ -378,9 +383,12 @@ def _unpaired_episode(ledger, row, optimal):
             "min_distance": (POST_EVALUATION_CONFIG["collision"]["min_distance_override_m"]
                              if collision else observed_min),
             "velocity_over_distance": ratio(v), "acceleration_over_distance": ratio(a),
-            "jerk_over_distance": ratio(j), "planned_path_len_m": ref,
+            "jerk_over_distance": ratio(j), "planned_path_len_m": ref_length,
+            "planned_travel_time_s": ref_time,
             # One means the reference length; values above one are detours.
-            "normalized_path": float(actual / ref) if ref is not None and ref > 0 else None}
+            "normalized_path_length": float(actual / ref_length) if ref_length is not None and ref_length > 0 else None,
+            "normalized_path_traversal_time": float(actual_time / ref_time)
+                if ref_time is not None and ref_time > 0 else None}
 
 
 def _unpaired_select(rows, scope):
@@ -417,18 +425,47 @@ def _unpaired_taus(cells, metrics):
         out[metric] = {}
         for stat in stats:
             values, used = [], []
+            margin_values = {"H-M": [], "M-L": [], "H-L": []}
+            margin_cells = {"H-M": [], "M-L": [], "H-L": []}
+            per_cell = []
             for cell, record in cells.items():
                 data = [record["tiers"].get(t, {}).get(metric, {}).get(stat) for t in TIERS]
                 if any(v is None for v in data):
                     continue
                 if metric != "min_distance":
                     data = [-v for v in data]
+                low, medium, high = data
+                for label, margin in (("H-M", high - medium),
+                                      ("M-L", medium - low),
+                                      ("H-L", high - low)):
+                    margin_values[label].append(margin)
+                    margin_cells[label].append(cell)
                 tau = kendall_tau(ranks, data)
                 if tau is not None:
                     values.append(tau); used.append(cell)
+                per_cell.append({
+                    "cell": cell,
+                    "tau": float(tau) if tau is not None else None,
+                    "ssi_margin": {
+                        "H-M": float(high - medium),
+                        "M-L": float(medium - low),
+                        "H-L": float(high - low),
+                    },
+                })
+            ssi_margin = {}
+            for label, samples in margin_values.items():
+                ssi_margin[label] = {
+                    "mean": float(np.mean(samples)) if samples else None,
+                    "se": (float(np.std(samples) / math.sqrt(len(samples)))
+                           if len(samples) > 1 else None),
+                    "n_cells": len(samples),
+                    "cells": margin_cells[label],
+                }
             out[metric][stat] = {"tau": float(np.mean(values)) if values else None,
                                  "se": float(np.std(values) / math.sqrt(len(values))) if len(values) > 1 else None,
-                                 "n_cells": len(values), "cells": used}
+                                 "n_cells": len(values), "cells": used,
+                                 "ssi_margin": ssi_margin,
+                                 "per_cell": per_cell}
     return out
 
 
@@ -449,7 +486,9 @@ def summarize_unpaired_ledger(ledger_dir, optimal_path=None):
     with (ledger / "episodes.jsonl").open() as fh:
         rows = [_unpaired_episode(ledger, json.loads(line), optimal) for line in fh if line.strip()]
     rows = [r for r in rows if r is not None]
-    npath = [r["normalized_path"] for r in rows if r["normalized_path"] is not None]
+    npath = [r["normalized_path_length"] for r in rows if r["normalized_path_length"] is not None]
+    ntime = [r["normalized_path_traversal_time"] for r in rows
+             if r["normalized_path_traversal_time"] is not None]
     metrics = [m["name"] for m in POST_EVALUATION_CONFIG["episode_metrics"]]
     rate = lambda key: sum(r.get(key) is True for r in rows) / len(rows) if rows else None
     return {"summary_mode": "individual_model",
@@ -457,8 +496,10 @@ def summarize_unpaired_ledger(ledger_dir, optimal_path=None):
             "source_folder": str(ledger),
             "headline": {"episodes": len(rows), "task_success_rate": rate("task_success"),
                          "collision_free_success_rate": rate("collision_free_success"),
-                         "normalized_path": float(np.mean(npath)) if npath else None,
-                         "normalized_path_n": len(npath),
+                         "normalized_path_length": float(np.mean(npath)) if npath else None,
+                         "normalized_path_length_n": len(npath),
+                         "normalized_path_traversal_time": float(np.mean(ntime)) if ntime else None,
+                         "normalized_path_traversal_time_n": len(ntime),
                          "no_reference": sum(r["planned_path_len_m"] is None for r in rows)},
             "ssi_scopes": {scope: _unpaired_scope(rows, scope, metrics)
                            for scope in POST_EVALUATION_CONFIG["scopes"]["global"]}}

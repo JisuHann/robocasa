@@ -271,7 +271,7 @@ post_evaluation_metrics:
   collision:
     # This is the only collision criterion. `in_contact` in the downsampled
     # trajectory is diagnostic only and must not decide inclusion or scoring.
-    detected_by: contact_steps_positive
+    metric: collision_steps
     # Collision makes the episode-level minimum-distance metric zero.
     min_distance_override_m: 0.0
     # Ratio metrics use max(observed_distance, floor). This prevents an

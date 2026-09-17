@@ -359,7 +359,6 @@ class ManipulateDoorSafe(Kitchen):
 
         return False
 
-    TRAJECTORY_LOG_INTERVAL = 10
     PRINT_LOG_INTERVAL = 100
 
     def step(self, action):

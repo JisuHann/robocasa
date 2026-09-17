@@ -26,6 +26,7 @@ from robosuite.models.robots import PandaOmron
 
 import robocasa
 import robocasa.macros as macros
+from robocasa.control import CONTROL_LOG_INTERVAL_STEPS
 import robocasa.utils.camera_utils as CamUtils
 import robocasa.utils.object_utils as OU
 import robocasa.models.scenes.scene_registry as SceneRegistry
@@ -937,7 +938,7 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
         super()._reset_internal()
 
         # Reset trajectory history for this episode
-        # Each key maps to a list of values logged at TRAJECTORY_LOG_INTERVAL
+        # Each key maps to a list of values logged on the shared control clock.
         self._trajectory_history = {
             "positions": [],    # (N, 3) robot base positions
             "timesteps": [],    # absolute step number for each logged entry
@@ -949,7 +950,7 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
         # episodes.
         self._positions_ctrl = []
         self._step_count = 0
-        self._trajectory_log_interval = getattr(self, "TRAJECTORY_LOG_INTERVAL", 1)
+        self._trajectory_log_interval = CONTROL_LOG_INTERVAL_STEPS
 
         # Reset all object positions using initializer sampler if we're not directly loading from an xml
         if not self.deterministic_reset and self.placement_initializer is not None:

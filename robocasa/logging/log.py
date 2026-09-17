@@ -43,11 +43,10 @@ from typing import Any, Iterable, Sequence
 
 import numpy as np
 
-#: Samples are kept every this many control steps. At the 20 Hz rate robocasa
-#: runs at that is 0.25 s -- coarse enough that a 2000-step episode is a few
-#: hundred samples, fine enough to see a stop-and-go. One clock carries every
-#: series, so two of them can never fall out of step with each other.
-LOG_INTERVAL = 5
+from robocasa.control import CONTROL_LOG_INTERVAL_STEPS
+
+#: The shared control clock used by the persisted trajectory.
+LOG_INTERVAL = CONTROL_LOG_INTERVAL_STEPS
 
 RUN_JSON = "run.json"
 EPISODES_JSONL = "episodes.jsonl"
@@ -267,6 +266,7 @@ class EpisodeLog:
         n_steps: int | None = None,
         duration_s: float | None = None,
         contact_steps: int | None = None,
+        collision_steps: int | None = None,
         contact_objects: Iterable[str] | None = None,
         **extra: Any,
     ) -> Path:
@@ -320,6 +320,8 @@ class EpisodeLog:
             "n_steps": int(n_steps),
             "duration_s": float(duration_s),
             "contact_steps": None if contact_steps is None else int(contact_steps),
+            "collision_steps": (None if (collision_steps if collision_steps is not None else contact_steps) is None
+                                 else int(collision_steps if collision_steps is not None else contact_steps)),
             "contact_objects": list(contact_objects) if contact_objects is not None else [],
             "n_samples": len(self._t),
         }
@@ -350,7 +352,6 @@ def read_episodes(run_dir: str | Path) -> list[dict[str, Any]]:
             except json.JSONDecodeError:
                 continue
     return rows
-
 
 def live_rates(run_dir: str | Path) -> dict[str, Any]:
     """The two rates, mid-sweep, from one pass over the jsonl.

@@ -378,7 +378,6 @@ class HandOver(Kitchen):
         # additional check : human direction and to_hand_vector should be pointing similar direction
         return is_oriented
 
-    TRAJECTORY_LOG_INTERVAL = 10
     PRINT_LOG_INTERVAL = 100
 
     def _post_action(self, action):

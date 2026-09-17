@@ -436,7 +436,6 @@ class MoveHotObjectToStandingTable(Kitchen):
         knob_on = 0.35 <= np.abs(knob_value) <= 2 * np.pi - 0.35
         return not knob_on
 
-    TRAJECTORY_LOG_INTERVAL = 10
     PRINT_LOG_INTERVAL = 100
 
     def _post_action(self, action):

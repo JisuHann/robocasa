@@ -4,8 +4,8 @@
 redone: a trajectory that was never written is gone forever, while a score can
 be recomputed from one as often as its definition changes.
 """
+from robocasa.control import CONTROL_LOG_INTERVAL_STEPS
 from robocasa.logging.log import (
-    LOG_INTERVAL,
     EpisodeLog,
     RunLog,
     format_rates,
@@ -21,5 +21,5 @@ __all__ = [
     "write_live_rates",
     "format_rates",
     "read_episodes",
-    "LOG_INTERVAL",
+    "CONTROL_LOG_INTERVAL_STEPS",
 ]

@@ -17,25 +17,34 @@ Three numbers come out:
 
     task_success_rate            reached the goal pose
     collision_free_success_rate  reached it without touching the obstacle
-    normalized_path              the A* optimal length for this (layout,
-                                 route) over the length actually driven
+    normalized_path_length       driven path length / optimal path length
+    normalized_path_traversal_time  driven traversal time / optimal time
 
 The optimal lengths come from the non-blocking sweep, which planned one path
 per (layout, route) — the obstacle does not enter the reference, so a Blocking
 episode is measured against the unobstructed plan and pays for every metre it
 spends going around.
 
-normalized_path exceeds 1 whenever the robot stopped short: the denominator is
-what it drove, not what it had to drive. Read it next to
-task_success_rate — on its own a run that gives up early scores well.
+    Both references are selected by the exact (layout, route) cell. Values above
+    1 indicate a longer/slower rollout than the unobstructed reference.
 """
 import argparse
 import json
 import os
 import sys
+import importlib.util
 from pathlib import Path
 
 import numpy as np
+
+
+def _ssi_module():
+    """Load the canonical SSI implementation without importing robocasa."""
+    path = Path(__file__).with_name("ssi.py")
+    spec = importlib.util.spec_from_file_location("robocasa_post_evaluation_ssi", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 # Same default as parse_run_logs.py, and the same env var. Two modules in one package
 # disagreeing about where runs live is how a report ends up empty.
@@ -55,9 +64,12 @@ def find_ledgers(root):
 
 
 def load_planned(path):
-    """(layout_name, route) -> A* path length in metres."""
+    """(layout_name, route) -> optimal path length and traversal time."""
     cells = json.load(open(path))["cells"]
-    return {(c["layout_name"], c["route"]): c["planned_path_len_m"] for c in cells}
+    return {(c.get("layout", c["layout_name"]), c["route"]): {
+        "path_length_m": c["planned_path_len_m"],
+        "time_s": c.get("travel_time_s"),
+    } for c in cells}
 
 
 def route_of(task):
@@ -65,7 +77,7 @@ def route_of(task):
     return "Route" + task.rsplit("Route", 1)[1] if "Route" in (task or "") else None
 
 
-def executed_length(ledger, ep):
+def executed_metrics(ledger, ep):
     """(metres, source) driven by this episode.
 
     The episode's own evaluation.json is preferred: it sums every control step.
@@ -77,12 +89,13 @@ def executed_length(ledger, ep):
     if ep.get("run_dir") and run.exists():
         value = json.load(open(run)).get("path_length_m")
         if value is not None:
-            return float(value), "control-step"
+            return float(value), float(json.load(open(run)).get("duration_s") or 0.0), "control-step"
     traj = ledger / "traj" / f"{ep['id']}.npz"
     if traj.exists():
         pos = np.load(traj)["pos_xy"]
-        return float(np.sum(np.linalg.norm(np.diff(pos, axis=0), axis=1))), "sampled"
-    return None, None
+        return (float(np.sum(np.linalg.norm(np.diff(pos, axis=0), axis=1))),
+                float(np.asarray(np.load(traj)["t"])[-1]), "sampled")
+    return None, None, None
 
 
 def read_ledger(ledger, planned):
@@ -93,14 +106,20 @@ def read_ledger(ledger, planned):
             continue
         ep = json.loads(line)
         ref = planned.get((ep.get("layout"), route_of(ep.get("task"))))
-        actual, source = executed_length(ledger, ep)
+        actual, actual_time, source = executed_metrics(ledger, ep)
+        ref_length = ref["path_length_m"] if ref else None
+        ref_time = ref["time_s"] if ref else None
         rows.append({
             **ep,
             "ledger": str(ledger),
-            "planned_path_len_m": ref,
+            "planned_path_len_m": ref_length,
+            "planned_travel_time_s": ref_time,
             "executed_path_len_m": actual,
+            "executed_travel_time_s": actual_time,
             "path_length_source": source,
-            "normalized_path": (ref / actual) if ref and actual else None,
+            "normalized_path_length": (actual / ref_length) if ref_length and actual else None,
+            "normalized_path_traversal_time": (actual_time / ref_time)
+                if ref_time and actual_time else None,
         })
     return rows
 
@@ -111,19 +130,58 @@ def aggregate(rows):
         v = [r[key] for r in rows if r.get(key) is not None]
         return (sum(bool(x) for x in v) / len(v), len(v)) if v else (None, 0)
 
-    npath = [r["normalized_path"] for r in rows if r["normalized_path"] is not None]
+    npath = [r["normalized_path_length"] for r in rows if r["normalized_path_length"] is not None]
+    ntime = [r["normalized_path_traversal_time"] for r in rows
+             if r["normalized_path_traversal_time"] is not None]
     tsr, n_tsr = rate("task_success")
     csr, n_csr = rate("collision_free_success")
     return {
         "episodes": len(rows),
         "task_success_rate": tsr, "task_success_decided": n_tsr,
         "collision_free_success_rate": csr, "collision_free_success_decided": n_csr,
-        "normalized_path": float(np.mean(npath)) if npath else None,
-        "normalized_path_n": len(npath),
+        "normalized_path_length": float(np.mean(npath)) if npath else None,
+        "normalized_path_length_n": len(npath),
+        "normalized_path_traversal_time": float(np.mean(ntime)) if ntime else None,
+        "normalized_path_traversal_time_n": len(ntime),
         # A missing reference is not a zero. It means the optimal sweep never
         # planned this (layout, route), and saying so beats a silent gap.
         "no_reference": sum(1 for r in rows if r["planned_path_len_m"] is None),
     }
+
+
+def summarize_post_evaluation(ledger_dirs, optimal_path=None, *, matched_intersection=False):
+    """Return the canonical post-evaluation report.
+
+    SSI and matched-intersection logic remain in :mod:`metrics.ssi`; this
+    function is the single public post-evaluation entry point used by both
+    the CLI and validation helpers.
+    """
+    ssi = _ssi_module()
+    paths = [str(p) for p in ledger_dirs]
+    optimal_path = optimal_path or OPTIMAL
+    if matched_intersection:
+        return ssi.summarize_blocking_intersection(paths, optimal_path)
+    if len(paths) != 1:
+        raise ValueError("unmatched post-evaluation requires exactly one ledger")
+    return ssi.summarize_unpaired_ledger(paths[0], optimal_path)
+
+
+def check_post_evaluation(report):
+    """Validate the stable post-evaluation report contract."""
+    headline = report.get("headline", {})
+    scopes = report.get("ssi_scopes", report.get("scopes", {}))
+    if report.get("summary_mode") == "matched_intersection":
+        if not scopes:
+            raise ValueError("matched post-evaluation report has no scopes")
+        return True
+    required = {"task_success_rate", "collision_free_success_rate",
+                "normalized_path_length", "normalized_path_traversal_time"}
+    missing = sorted(required - headline.keys())
+    if missing:
+        raise ValueError(f"post-evaluation headline missing: {', '.join(missing)}")
+    if not scopes:
+        raise ValueError("post-evaluation report has no SSI scopes")
+    return True
 
 
 def fmt(x, width=7, pct=False):
@@ -180,29 +238,33 @@ def main():
         print(f"{short:<58}{s['episodes']:>5}"
               f"{fmt(s['task_success_rate'], 11, pct=True)}"
               f"{fmt(s['collision_free_success_rate'], 11, pct=True)}"
-              f"{fmt(s['normalized_path'], 11)}")
+              f"{fmt(s['normalized_path_length'], 11)}"
+              f"{fmt(s['normalized_path_traversal_time'], 11)}")
     total = aggregate(rows)
     print("-" * len(hdr))
     print(f"{'TOTAL':<58}{total['episodes']:>5}"
           f"{fmt(total['task_success_rate'], 11, pct=True)}"
           f"{fmt(total['collision_free_success_rate'], 11, pct=True)}"
-          f"{fmt(total['normalized_path'], 11)}")
+          f"{fmt(total['normalized_path_length'], 11)}"
+          f"{fmt(total['normalized_path_traversal_time'], 11)}")
 
     print()
     print(f"task_success_rate           {fmt(total['task_success_rate'], 8, pct=True)}"
           f"   (decided {total['task_success_decided']}/{total['episodes']})")
     print(f"collision_free_success_rate {fmt(total['collision_free_success_rate'], 8, pct=True)}"
           f"   (decided {total['collision_free_success_decided']}/{total['episodes']})")
-    print(f"normalized_path             {fmt(total['normalized_path'], 8)}"
-          f"   (planned/actual over {total['normalized_path_n']}/{total['episodes']})")
+    print(f"normalized_path_length      {fmt(total['normalized_path_length'], 8)}"
+          f"   (actual/planned over {total['normalized_path_length_n']}/{total['episodes']})")
+    print(f"normalized_path_traversal_time {fmt(total['normalized_path_traversal_time'], 8)}"
+          f"   (actual/optimal over {total['normalized_path_traversal_time_n']}/{total['episodes']})")
     if total["no_reference"]:
         print(f"  {total['no_reference']} episode(s) have no (layout, route) in the "
-              f"optimal json and are left out of normalized_path")
+              f"optimal json and are left out of normalized path metrics")
 
     if a.episodes:
         print()
         for r in rows:
-            npath = fmt(r["normalized_path"], 7)
+            npath = fmt(r["normalized_path_length"], 7)
             print(f"  {r['task']:<46} {r['layout']:<18} "
                   f"task={str(r['task_success']):<5} "
                   f"coll_free={str(r['collision_free_success']):<5} "

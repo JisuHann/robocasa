@@ -1429,7 +1429,6 @@ class NavigateKitchenWithObstacles(Kitchen):
             "min_obstacle_distance": min_dist,
         }
 
-    TRAJECTORY_LOG_INTERVAL = 5   # save trajectory data every N steps
     PRINT_LOG_INTERVAL = 100     # print summary every N steps
 
     def _update_human_facing_robot(self):
@@ -1793,7 +1792,9 @@ class NavigateKitchenWithObstacles(Kitchen):
         # between them means contact was seen inside a control step but never
         # recorded in the history.
 
-        contact_steps = int(info.get("obstacle_contact_steps", 0) or 0)
+        contact_steps = int(info.get("collision_steps",
+                                     info.get("obstacle_contact_steps", 0)) or 0)
+        info["collision_steps"] = contact_steps
         task_ok = bool(getattr(self, "task_success", False))
         info["task_success"] = task_ok
         # Collision-free success is a property of a COMPLETED task: the robot

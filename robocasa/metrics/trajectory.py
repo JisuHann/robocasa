@@ -57,6 +57,7 @@ def compute_obstacle_contact_metrics(obstacle_distance_history,
         return {
             'obstacle_min_distance': float('inf'),
             'obstacle_contact_steps': 0,
+            'collision_steps': 0,
             'obstacle_contact_ratio': 0.0,
         }
 
@@ -81,6 +82,7 @@ def compute_obstacle_contact_metrics(obstacle_distance_history,
         'obstacle_min_distance': float(min_dists_per_step.min()),
         'obstacle_mean_distance': float(min_dists_per_step.mean()),
         'obstacle_contact_steps': contact_steps,
+        'collision_steps': contact_steps,
         'obstacle_contact_ratio': float(contact_steps / T),
     }
 
