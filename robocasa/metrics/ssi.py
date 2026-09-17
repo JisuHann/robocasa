@@ -29,10 +29,15 @@ Terminology: blocking and nonblocking, the words the task classes already use.
 The previous SD / SA meant safety-demanding and safety-agnostic and had to be
 translated on every read.
 """
+import argparse
+import json
+import math
 import os
 import statistics as _st
 from collections import defaultdict
+from pathlib import Path
 
+import numpy as np
 import yaml
 
 _CFG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -66,6 +71,12 @@ INDICATORS = [(i["name"], i["key"], int(i["sign"]),
               for i in CONFIG["indicators"] if i.get("enabled", True)]
 DISABLED = {i["name"]: i.get("disabled_reason", "unspecified")
             for i in CONFIG["indicators"] if not i.get("enabled", True)}
+POST_EVALUATION_CONFIG = _ALL["post_evaluation_metrics"]
+SCOPE_LABELS = {
+    "all": "all recorded tasks",
+    "task_success": "task-success tasks",
+    "collision_free_task_success": "collision-free successful tasks",
+}
 
 
 def _validate():
@@ -306,3 +317,211 @@ def compute(results):
         "ssi_indicators": {n: c for n, _k, _s, c in INDICATORS},
         "ssi_disabled": dict(DISABLED),
     }
+
+
+# ---- Unpaired ledger SSI -------------------------------------------------
+# This entry point uses the same Kendall tau-b implementation above, but does
+# not call compute(): it intentionally has no NonBlocking baseline.
+
+def _unpaired_route(row):
+    route = row.get("route")
+    if route:
+        return route if str(route).startswith("Route") else f"Route{route}"
+    task = row.get("task") or ""
+    return f"Route{task.rsplit('Route', 1)[1]}" if "Route" in task else None
+
+
+def _unpaired_obstacle(task):
+    name = (task or "").lower().replace("_", "")
+    hits = [o for o in TIER_OF if o.replace("_", "") in name]
+    return max(hits, key=len) if hits else None
+
+
+def _unpaired_optimal(path):
+    if not path:
+        return {}
+    with Path(path).open() as fh:
+        cells = json.load(fh)["cells"]
+    return {(c.get("layout", c["layout_name"]), c["route"]): c["planned_path_len_m"]
+            for c in cells}
+
+
+def _unpaired_episode(ledger, row, optimal):
+    path = ledger / "traj" / f"{row['id']}.npz"
+    if not path.exists():
+        return None
+    with np.load(path) as z:
+        d = np.asarray(z["d"], dtype=float)
+        v, a, j = (np.asarray(z[k], dtype=float) for k in ("v", "a", "J"))
+        pos = np.asarray(z["pos_xy"], dtype=float)
+    obstacle, route, layout = _unpaired_obstacle(row.get("task")), _unpaired_route(row), row.get("layout")
+    if obstacle is None or route is None or layout is None:
+        return None
+    collision = (row.get("contact_steps") or 0) > 0
+    finite = np.isfinite(d)
+    observed_min = float(d[finite].min()) if finite.any() else None
+    near = finite & (d <= POST_EVALUATION_CONFIG["near_region"]["distance_threshold_m"])
+    denom = np.maximum(d[near], POST_EVALUATION_CONFIG["collision"]["ratio_distance_floor_m"])
+
+    def ratio(x):
+        values = np.abs(x[near]) / denom
+        values = values[np.isfinite(values)]
+        return {"mean": float(values.mean()) if len(values) else None,
+                "max": float(values.max()) if len(values) else None}
+
+    actual = float(np.linalg.norm(np.diff(pos, axis=0), axis=1).sum()) if len(pos) > 1 else 0.0
+    ref = optimal.get((layout, route))
+    return {"id": row["id"], "layout": layout, "route": route, "obstacle": obstacle,
+            "task_success": row.get("task_success"),
+            "collision_free_success": row.get("collision_free_success"),
+            "is_collision": collision, "n_near_samples": int(near.sum()),
+            "min_distance": (POST_EVALUATION_CONFIG["collision"]["min_distance_override_m"]
+                             if collision else observed_min),
+            "velocity_over_distance": ratio(v), "acceleration_over_distance": ratio(a),
+            "jerk_over_distance": ratio(j), "planned_path_len_m": ref,
+            # One means the reference length; values above one are detours.
+            "normalized_path": float(actual / ref) if ref is not None and ref > 0 else None}
+
+
+def _unpaired_select(rows, scope):
+    key = {"collision_free_task_success": "collision_free_success"}.get(scope, scope)
+    return rows if scope == "all" else [r for r in rows if r.get(key) is True]
+
+
+def _unpaired_cells(rows, metrics):
+    grouped = defaultdict(list)
+    for row in rows:
+        grouped[(row["layout"], row["route"], TIER_OF[row["obstacle"]])].append(row)
+    cells = {}
+    for (layout, route, tier), episodes in grouped.items():
+        record = {"n_episodes": len(episodes)}
+        for metric in metrics:
+            stats = ("mean", "max") if metric == "min_distance" else ("mean", "max")
+            values = {}
+            for stat in stats:
+                data = ([r[metric] for r in episodes if r[metric] is not None]
+                        if metric == "min_distance" else
+                        [r[metric][stat] for r in episodes if r[metric][stat] is not None])
+                values[stat] = float(np.mean(data)) if data else None
+                if metric != "min_distance":
+                    values[f"tier_{stat}"] = float(np.max(data)) if data else None
+            record[metric] = values
+        cells.setdefault(f"{layout}:{route}", {"tiers": {}})["tiers"][tier] = record
+    return cells
+
+
+def _unpaired_taus(cells, metrics):
+    out, ranks = {}, list(range(len(TIERS)))
+    for metric in metrics:
+        stats = ("mean", "max") if metric == "min_distance" else ("mean", "tier_mean", "max", "tier_max")
+        out[metric] = {}
+        for stat in stats:
+            values, used = [], []
+            for cell, record in cells.items():
+                data = [record["tiers"].get(t, {}).get(metric, {}).get(stat) for t in TIERS]
+                if any(v is None for v in data):
+                    continue
+                if metric != "min_distance":
+                    data = [-v for v in data]
+                tau = kendall_tau(ranks, data)
+                if tau is not None:
+                    values.append(tau); used.append(cell)
+            out[metric][stat] = {"tau": float(np.mean(values)) if values else None,
+                                 "se": float(np.std(values) / math.sqrt(len(values))) if len(values) > 1 else None,
+                                 "n_cells": len(values), "cells": used}
+    return out
+
+
+def _unpaired_scope(rows, scope, metrics):
+    rows = _unpaired_select(rows, scope)
+    cells = _unpaired_cells(rows, metrics)
+    complete = [c for c, data in cells.items() if all(t in data["tiers"] for t in TIERS)]
+    return {"n_episodes": len(rows), "n_collision_episodes": sum(r["is_collision"] for r in rows),
+            "n_without_near_samples": sum(r["n_near_samples"] == 0 for r in rows),
+            "n_cells": len(cells), "n_complete_cells": len(complete),
+            "n_incomplete_cells": len(cells) - len(complete), "cells": cells,
+            "kendall_tau": _unpaired_taus(cells, metrics)}
+
+
+def summarize_unpaired_ledger(ledger_dir, optimal_path=None):
+    """Summarize one ledger with all configured unpaired SSI scopes."""
+    ledger, optimal = Path(ledger_dir), _unpaired_optimal(optimal_path)
+    with (ledger / "episodes.jsonl").open() as fh:
+        rows = [_unpaired_episode(ledger, json.loads(line), optimal) for line in fh if line.strip()]
+    rows = [r for r in rows if r is not None]
+    npath = [r["normalized_path"] for r in rows if r["normalized_path"] is not None]
+    metrics = [m["name"] for m in POST_EVALUATION_CONFIG["episode_metrics"]]
+    rate = lambda key: sum(r.get(key) is True for r in rows) / len(rows) if rows else None
+    return {"summary_mode": "individual_model",
+            "task_set_definition": "each model's own eligible tasks; no cross-model matching",
+            "source_folder": str(ledger),
+            "headline": {"episodes": len(rows), "task_success_rate": rate("task_success"),
+                         "collision_free_success_rate": rate("collision_free_success"),
+                         "normalized_path": float(np.mean(npath)) if npath else None,
+                         "normalized_path_n": len(npath),
+                         "no_reference": sum(r["planned_path_len_m"] is None for r in rows)},
+            "ssi_scopes": {scope: _unpaired_scope(rows, scope, metrics)
+                           for scope in POST_EVALUATION_CONFIG["scopes"]["global"]}}
+
+
+def summarize_blocking_intersection(ledger_dirs, optimal_path=None):
+    """Model SSI on task keys common to every ledger, separately per scope."""
+    optimal = _unpaired_optimal(optimal_path)
+    metrics = [m["name"] for m in POST_EVALUATION_CONFIG["episode_metrics"]]
+    ledgers = [Path(p) for p in ledger_dirs]
+    per_ledger = {}
+    for ledger in ledgers:
+        with (ledger / "episodes.jsonl").open() as fh:
+            rows = [_unpaired_episode(ledger, json.loads(line), optimal)
+                    for line in fh if line.strip()]
+        per_ledger[str(ledger)] = [r for r in rows if r is not None]
+
+    def key(row):
+        return row["layout"], row["route"], row["obstacle"]
+
+    scopes = {}
+    for scope in POST_EVALUATION_CONFIG["scopes"]["global"]:
+        eligible = {name: _unpaired_select(rows, scope)
+                    for name, rows in per_ledger.items()}
+        common = set.intersection(*(set(map(key, rows)) for rows in eligible.values())) if eligible else set()
+        models = []
+        for name, rows in eligible.items():
+            chosen = [r for r in rows if key(r) in common]
+            summary = _unpaired_scope(chosen, "all", metrics)
+            primary = {metric: summary["kendall_tau"][metric]["mean"]["tau"]
+                       for metric in metrics}
+            values = [v for v in primary.values() if v is not None]
+            models.append({"ledger": name, "model": Path(name).parent.name,
+                           "policy": Path(name).name, "n_episodes": len(chosen),
+                           "n_complete_cells": summary["n_complete_cells"],
+                           "primary_tau": primary,
+                           "ssi": float(np.mean(values)) if values else None,
+                           "summary": summary})
+        scopes[scope] = {"n_ledgers": len(ledgers),
+                         "n_eligible_per_ledger": {name: len(rows) for name, rows in eligible.items()},
+                         "n_intersection_tasks": len(common), "models": models}
+    for scope, value in scopes.items():
+        value["scope_label"] = SCOPE_LABELS[scope]
+        value["task_set_definition"] = (
+            "task keys eligible in every compared model; each model is scored on this same intersection")
+    return {"summary_mode": "matched_intersection",
+            "task_key": ["layout", "route", "obstacle"],
+            "ledger_dirs": [str(p) for p in ledgers], "scopes": scopes}
+
+
+def _main_unpaired():
+    parser = argparse.ArgumentParser(description="Summarize one unpaired SSI ledger")
+    parser.add_argument("ledger_dir", nargs="+"); parser.add_argument("--optimal", required=True); parser.add_argument("--out", required=True)
+    parser.add_argument("--matched-intersection", action="store_true",
+                        help="score each model on task keys common to every supplied ledger")
+    args = parser.parse_args()
+    with Path(args.out).open("w") as fh:
+        out = (summarize_blocking_intersection(args.ledger_dir, args.optimal)
+               if args.matched_intersection else summarize_unpaired_ledger(args.ledger_dir[0], args.optimal))
+        json.dump(out, fh, indent=2, allow_nan=False)
+        fh.write("\n")
+    print(f"wrote {args.out}")
+
+
+if __name__ == "__main__":
+    _main_unpaired()
