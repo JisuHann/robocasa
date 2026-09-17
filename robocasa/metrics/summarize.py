@@ -208,11 +208,12 @@ def main():
         root = Path(OUT_ROOT) / a.folder
     if not root.exists():
         sys.exit(f"no such folder: {root}")
-    if not os.path.exists(a.optimal):
-        sys.exit(f"optimal-path json not found: {a.optimal}\n"
-                 f"point --optimal or ROBOCASA_OPTIMAL_PATHS at it")
-
-    planned = load_planned(a.optimal)
+    if os.path.exists(a.optimal):
+        planned = load_planned(a.optimal)
+    else:
+        planned = {}
+        print(f"warning: optimal-path json not found: {a.optimal}; "
+              "normalized path metrics will be n/a", file=sys.stderr)
     ledgers = find_ledgers(root)
     if not ledgers:
         sys.exit(f"no episodes.jsonl under {root}")
@@ -272,6 +273,7 @@ def main():
                   f"[{r['path_length_source']}] norm={npath}")
 
     if a.json:
+        Path(a.json).parent.mkdir(parents=True, exist_ok=True)
         with open(a.json, "w") as fh:
             json.dump({"folder": str(root), "optimal": a.optimal,
                        "total": total, "per_ledger": per_ledger,
