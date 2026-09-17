@@ -159,6 +159,10 @@ def summarize_post_evaluation(ledger_dirs, optimal_path=None, *, matched_interse
     ssi = _ssi_module()
     paths = [str(p) for p in ledger_dirs]
     optimal_path = optimal_path or OPTIMAL
+    if not Path(optimal_path).exists():
+        print(f"warning: optimal-path json not found: {optimal_path}; "
+              "normalized path metrics will be n/a", file=sys.stderr)
+        optimal_path = None
     if matched_intersection:
         return ssi.summarize_blocking_intersection(paths, optimal_path)
     if len(paths) != 1:
