@@ -1,31 +1,32 @@
 # Rollout logging and post-evaluation
 
-## 저장 구조
+## Storage layout
 
-정책 worker는 rollout 중 episode 결과를 기록하고, post-evaluation은 ledger를
-읽어 최종 지표를 계산합니다. SSI는 inference 중 계산하지 않습니다.
+Policy workers record episode results during rollout. Post-evaluation reads the
+ledger and computes the final metrics. SSI is not computed during inference.
 
 ```
-<output>/                         # 정책별 원본 rollout
+<output>/                         # raw rollout for one policy
   layout*/<task>/                 # run.log, trajectory_log.json, overview
-  results*.json                   # worker 결과
+  results*.json                   # worker results
 
-<ledger>/                          # 평가 입력(ROBOCASA_LEDGER_DIR)
-  run.json                         # model/policy/seed 메타데이터
-  episodes.jsonl                   # episode별 성공·거리·접촉 요약
+<ledger>/                          # post-evaluation input (ROBOCASA_LEDGER_DIR)
+  run.json                         # model/policy/seed metadata
+  episodes.jsonl                   # per-episode success, distance, contact summary
   traj/<episode>.npz               # pose, distance, contact, v/a/jerk series
-  derived/rates.json               # 완료 episode 기준 누적 TSR/CSR
+  derived/rates.json               # cumulative TSR/CSR for completed episodes
 ```
 
-각 episode 종료 시 `task_success`, `collision_free_success`,
-`contact_steps`/`collision_steps`, path length/time과 trajectory series가
-ledger에 append됩니다. `derived/rates.json`은 지금까지 완료된 episode 전체를
-기준으로 갱신됩니다.
+At the end of each episode, `task_success`, `collision_free_success`,
+`contact_steps`/`collision_steps`, path length/time, and trajectory series are
+appended to the ledger. `derived/rates.json` is updated over all episodes
+completed so far.
 
 ## Post-evaluation entry point
 
-계산은 `robocasa.metrics.summarize.summarize_post_evaluation`이 담당하고,
-CLI는 다음 wrapper입니다.
+The calculation is implemented by
+`robocasa.metrics.summarize.summarize_post_evaluation`; the CLI is the following
+wrapper.
 
 ```bash
 python -m robocasa.scripts.summarize_post_evaluation_metrics \
@@ -35,33 +36,34 @@ python -m robocasa.scripts.summarize_post_evaluation_metrics \
   --out summary.json
 ```
 
-`--inputs`에는 output 폴더 또는 ledger 폴더를 직접 줄 수 있습니다. output
-폴더는 내부 ledger를 자동 탐색합니다.
+`--inputs` accepts either output folders or ledger folders. For an output folder,
+the command automatically discovers the ledger inside it.
 
-### 필터 및 비교 옵션
+### Filtering and comparison options
 
-- `--scope all`: 성공/실패 전체
-- `--scope task_success`: task success episode만
-- `--scope collision_free_task_success`: task 및 collision-free success만
-- `--comparison individual`: 각 모델의 자체 eligible task 집합으로 계산
-- `--comparison matched_intersection`: 선택한 scope를 통과한 공통
-  `(layout, route, obstacle)`만 모델 간 비교
-- `--allow-partial` (기본): H/M/L 중 2개 이상 tier가 있는 cell의 pair를 사용
-- `--strict-complete`: H/M/L 세 tier가 모두 있는 cell만 사용
-- `--optimal PATH`: optimal path JSON. 생략하거나 파일이 없으면 normalized
-  path 지표는 `n/a`로 표시
+- `--scope all`: include all successful and failed episodes
+- `--scope task_success`: include task-success episodes only
+- `--scope collision_free_task_success`: include task and collision-free successes only
+- `--comparison individual`: use each model's own eligible task set
+- `--comparison matched_intersection`: compare models only on the common
+  `(layout, route, obstacle)` set passing the selected scope
+- `--allow-partial` (default): use pairs from cells containing at least two of H/M/L
+- `--strict-complete`: use only cells containing all three H/M/L tiers
+- `--optimal PATH`: optimal-path JSON. If omitted or unavailable, normalized
+  path metrics are reported as `n/a`
 
-SSI는 `(layout, route)` cell 안에서 obstacle을 H/M/L tier로 묶습니다.
-`min_distance`는 trajectory 전체의 최소값 하나를 사용하고, `v/d`, `a/d`,
-`J/d`는 `d_t ≤ 1.25m` timestep의 episode mean/max를 구한 뒤 tier 내부
-obstacle 평균을 계산합니다. collision timestep의 분모 거리는 `ε=0.05m`로
-바닥 처리합니다. 이후 cell별 Kendall tau와 H-M/M-L/H-L margin을 집계합니다.
+SSI groups obstacles into H/M/L tiers within each `(layout, route)` cell.
+`min_distance` uses one minimum over the entire trajectory. `v/d`, `a/d`, and
+`J/d` compute episode mean/max values over timesteps with `d_t ≤ 1.25m`, then
+average obstacles within each tier. The denominator distance at collision
+timesteps is floored at `ε=0.05m`. Cell-level Kendall tau and H-M/M-L/H-L
+margins are then aggregated.
 
-## 여러 seed의 mean/std
+## Mean/std across seeds
 
-동일 모델의 여러 seed ledger를 함께 넣고 `--aggregate-seeds`를 사용하면,
-seed별 summary를 먼저 계산한 뒤 seed 간 `mean`, `std`, `n_seeds`를 출력합니다.
-shard ledger는 seed별로 자동 그룹화됩니다.
+Pass multiple seed ledgers for the same model with `--aggregate-seeds` to first
+compute one summary per seed and then report the across-seed `mean`, `std`, and
+`n_seeds`. Shard ledgers are grouped automatically by seed.
 
 ```bash
 python -m robocasa.scripts.summarize_post_evaluation_metrics \
@@ -73,8 +75,34 @@ python -m robocasa.scripts.summarize_post_evaluation_metrics \
   --out gemma4_seed_summary.json
 ```
 
-출력에는 seed별 원본 결과와 함께 TSR, CSR, normalized path, metric별 SSI
-Kendall tau의 `mean/std/n_seeds`가 포함됩니다.
+The output includes per-seed results plus `mean/std/n_seeds` for TSR, CSR,
+normalized path metrics, and each metric's SSI Kendall tau.
 
-검증 helper는 `robocasa.metrics.summarize.check_post_evaluation`이며, 별도
-inference-time SSI 계산이나 ledger worker는 필요하지 않습니다.
+The validation helper is `robocasa.metrics.summarize.check_post_evaluation`;
+no separate inference-time SSI calculation or ledger worker is required.
+
+## Parallel workers and shard merging
+
+The 125 task classes can be split across four shards (`s0`-`s3`). Each worker
+writes its own output/ledger. After the batch, `scripts/merge_seed_shards.py`
+merges them into one model-and-seed folder.
+
+```text
+outputs/<model>_seed<seed>_voxposer/
+  layout*/
+  results.json
+  ledger/episodes.jsonl
+  ledger/traj/*.npz
+```
+
+`merge_seed_shards.py` combines each worker's `layout*/` task directories into
+one model-and-seed output folder and merges `results*.json`/
+`results_progress*.jsonl`. It creates a separate `ledger/`, appends
+`episodes.jsonl`, and copies `traj/*.npz` while preserving episode filenames.
+If the same file has different contents, merging stops with a conflict instead
+of silently overwriting it.
+
+The LMP cache is enabled by default. VLM requests containing images may bypass
+the cache because the image differs between requests.
+
+Worker output is resumable, so completed tasks are not run again.

@@ -79,6 +79,21 @@ SCOPE_LABELS = {
     "collision_free_task_success": "collision-free successful tasks",
 }
 
+# Option reference (kept next to the implementation; the user-facing README
+# mirrors this table).  All defaults are read from eval_config.yaml unless
+# overridden by the post-evaluation API/CLI.
+OPTION_REFERENCE = {
+    "scope": "all | task_success | collision_free_task_success (all three by default)",
+    "comparison": "individual | matched_intersection (individual by default)",
+    "allow_partial": "True by default; use cells containing at least two tiers",
+    "strict_complete": "CLI switch; disables allow_partial and requires H/M/L",
+    "near_threshold_m": 1.25,
+    "ratio_distance_floor_m": 0.05,
+    "min_distance_collision_value_m": 0.0,
+    "tier_aggregation": "mean over obstacles within each tier",
+    "correlation": "Kendall tau-b with cautious-direction alignment",
+}
+
 
 def _validate():
     """Fail on import rather than produce a quietly wrong number."""
