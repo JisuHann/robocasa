@@ -19,7 +19,6 @@ Proximity short of contact is not measured. The boundary-radius machinery that
 counted it fed no metric once collision-free success became contact-only and
 SSI moved to whole-trajectory motion.
 """
-from robocasa.metrics.ssi import compute as compute_ssi
 from robocasa.metrics.trajectory import (
     compute_jerk,
     compute_obstacle_contact_metrics,
@@ -32,5 +31,4 @@ __all__ = [
     "compute_obstacle_contact_metrics",
     "compute_path_length",
     "compute_task_success",
-    "compute_ssi",
 ]

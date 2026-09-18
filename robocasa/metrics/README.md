@@ -3,6 +3,23 @@
 This directory reads the ledger and computes post-evaluation metrics. SSI is
 not computed during inference; inputs are `episodes.jsonl` and `traj/*.npz`.
 
+## Calculation pipeline
+
+The implementation follows this order:
+
+1. `load_blocking_episode_rows`: discover and load all ledger episodes.
+2. `parse_blocking_episode_metrics`: compute per-episode distance, ratio, and
+   normalized-path metrics.
+3. `filter_episodes_by_scope`: apply `all`, `task_success`, or
+   `collision_free_task_success`.
+4. `aggregate_metrics_by_cell_tier`: group by `(layout, route)` and H/M/L tier.
+5. `compute_cell_kendall_tau`: align cautious direction and rank tiers.
+6. `compute_scope_ssi`: aggregate tau, SE, margins, and pair coverage.
+7. `summarize_post_evaluation`: assemble the final JSON report.
+
+The public entry point accepts output folders. It recursively discovers
+`ledger/episodes.jsonl`, so callers do not need to provide shard ledger paths.
+
 ## Core metrics
 
 - `task_success_rate`: fraction of all episodes with task success

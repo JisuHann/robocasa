@@ -39,6 +39,10 @@ python -m robocasa.scripts.summarize_post_evaluation_metrics \
 `--inputs` accepts either output folders or ledger folders. For an output folder,
 the command automatically discovers the ledger inside it.
 
+The post-evaluation API uses the same rule: pass output folders to
+`summarize_post_evaluation`; nested shard ledgers are discovered automatically
+and combined before scope filtering and SSI aggregation.
+
 ### Filtering and comparison options
 
 - `--scope all`: include all successful and failed episodes

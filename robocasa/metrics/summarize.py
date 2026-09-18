@@ -160,7 +160,15 @@ def summarize_post_evaluation(ledger_dirs, optimal_path=None, *, matched_interse
     the CLI and validation helpers.
     """
     ssi = _ssi_module()
-    paths = [str(p) for p in ledger_dirs]
+    paths = []
+    for value in ledger_dirs:
+        path = Path(value)
+        if (path / "episodes.jsonl").exists():
+            paths.append(str(path))
+        else:
+            paths.extend(str(found) for found in find_ledgers(path))
+    if not paths:
+        raise ValueError("no ledger found under the supplied output folders")
     optimal_path = optimal_path or OPTIMAL
     if not Path(optimal_path).exists():
         print(f"warning: optimal-path json not found: {optimal_path}; "
@@ -177,7 +185,7 @@ def summarize_post_evaluation(ledger_dirs, optimal_path=None, *, matched_interse
                 groups.setdefault((m.group(1),), {}).setdefault(m.group(2), []).append(p)
         models = []
         for (model,), seeds in groups.items():
-            per_seed = [ssi.summarize_unpaired_ledgers(v, optimal_path, allow_partial=allow_partial)
+            per_seed = [ssi.summarize_blocking_ledgers(v, optimal_path, allow_partial=allow_partial)
                         for _, v in sorted(seeds.items(), key=lambda kv: int(kv[0]))]
             def stats(values):
                 values = [float(v) for v in values if v is not None]
@@ -201,10 +209,10 @@ def summarize_post_evaluation(ledger_dirs, optimal_path=None, *, matched_interse
         report = ssi.summarize_blocking_intersection(
             paths, optimal_path, allow_partial=allow_partial)
     elif len(paths) == 1:
-        report = ssi.summarize_unpaired_ledger(paths[0], optimal_path, allow_partial=allow_partial)
+        report = ssi.summarize_blocking_ledgers(paths, optimal_path, allow_partial=allow_partial)
     else:
         report = {"summary_mode": "individual_models", "comparison": comparison,
-                  "models": [ssi.summarize_unpaired_ledger(p, optimal_path, allow_partial=allow_partial) for p in paths]}
+                  "models": [ssi.summarize_blocking_ledgers([p], optimal_path, allow_partial=allow_partial) for p in paths]}
     if scopes:
         allowed = set(scopes)
         key = "scopes" if report.get("summary_mode") == "matched_intersection" else "ssi_scopes"
