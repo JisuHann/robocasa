@@ -32,6 +32,7 @@ import argparse
 import json
 import os
 import sys
+import re
 import importlib.util
 from pathlib import Path
 
@@ -150,7 +151,8 @@ def aggregate(rows):
 
 
 def summarize_post_evaluation(ledger_dirs, optimal_path=None, *, matched_intersection=False,
-                              comparison=None, scopes=None, allow_partial=True):
+                              comparison=None, scopes=None, allow_partial=True,
+                              aggregate_seeds=False):
     """Return the canonical post-evaluation report.
 
     SSI and matched-intersection logic remain in :mod:`metrics.ssi`; this
@@ -167,7 +169,35 @@ def summarize_post_evaluation(ledger_dirs, optimal_path=None, *, matched_interse
     comparison = comparison or ("matched_intersection" if matched_intersection else "individual")
     if comparison not in {"individual", "matched_intersection"}:
         raise ValueError("comparison must be individual or matched_intersection")
-    if comparison == "matched_intersection":
+    if aggregate_seeds:
+        groups = {}
+        for p in paths:
+            m = re.match(r"(.+)_seed(\d+)_s\d+_ledger$", Path(p).name)
+            if m:
+                groups.setdefault((m.group(1),), {}).setdefault(m.group(2), []).append(p)
+        models = []
+        for (model,), seeds in groups.items():
+            per_seed = [ssi.summarize_unpaired_ledgers(v, optimal_path, allow_partial=allow_partial)
+                        for _, v in sorted(seeds.items(), key=lambda kv: int(kv[0]))]
+            def stats(values):
+                values = [float(v) for v in values if v is not None]
+                return {"mean": float(np.mean(values)) if values else None,
+                        "std": float(np.std(values)) if len(values) > 1 else 0.0,
+                        "n_seeds": len(values)}
+            headline = {k: stats([r["headline"].get(k) for r in per_seed])
+                        for k in ("task_success_rate", "collision_free_success_rate",
+                                  "normalized_path_length", "normalized_path_traversal_time")}
+            ssi_stats = {}
+            for scope in per_seed[0]["ssi_scopes"] if per_seed else []:
+                ssi_stats[scope] = {}
+                for metric, block in per_seed[0]["ssi_scopes"][scope]["kendall_tau"].items():
+                    ssi_stats[scope][metric] = {stat: stats([r["ssi_scopes"][scope]["kendall_tau"][metric][stat]["tau"] for r in per_seed])
+                                                for stat in block}
+            models.append({"model": model, "policy": ("pivot" if "_piv" in model else "voxposer"), "seeds": sorted(seeds),
+                           "per_seed": per_seed, "headline": headline, "ssi": ssi_stats})
+        report = {"summary_mode": "seed_aggregate", "comparison": comparison,
+                  "models": models}
+    elif comparison == "matched_intersection":
         report = ssi.summarize_blocking_intersection(
             paths, optimal_path, allow_partial=allow_partial)
     elif len(paths) == 1:
@@ -196,6 +226,9 @@ def check_post_evaluation(report):
         return True
     if report.get("summary_mode") == "individual_models":
         return all(report_ok.get("ssi_scopes") for report_ok in report.get("models", []))
+    if report.get("summary_mode") == "seed_aggregate":
+        return all(model.get("headline") and model.get("ssi")
+                   for model in report.get("models", []))
     required = {"task_success_rate", "collision_free_success_rate",
                 "normalized_path_length", "normalized_path_traversal_time"}
     missing = sorted(required - headline.keys())

@@ -34,6 +34,7 @@ import json
 import math
 import os
 import statistics as _st
+import re
 from collections import defaultdict
 from pathlib import Path
 
@@ -526,6 +527,31 @@ def summarize_unpaired_ledger(ledger_dir, optimal_path=None, *, allow_partial=Tr
                          "normalized_path_traversal_time": float(np.mean(ntime)) if ntime else None,
                          "normalized_path_traversal_time_n": len(ntime),
                          "no_reference": sum(r["planned_path_len_m"] is None for r in rows)},
+            "ssi_scopes": {scope: _unpaired_scope(rows, scope, metrics, allow_partial=allow_partial)
+                           for scope in POST_EVALUATION_CONFIG["scopes"]["global"]}}
+
+
+def summarize_unpaired_ledgers(ledger_dirs, optimal_path=None, *, allow_partial=True):
+    """Summarize a set of shard ledgers as one seed-level result."""
+    paths = [Path(p) for p in ledger_dirs]
+    if len(paths) == 1:
+        return summarize_unpaired_ledger(paths[0], optimal_path, allow_partial=allow_partial)
+    rows = []
+    optimal = _unpaired_optimal(optimal_path)
+    for ledger in paths:
+        with (ledger / "episodes.jsonl").open() as fh:
+            rows.extend(_unpaired_episode(ledger, json.loads(line), optimal)
+                        for line in fh if line.strip())
+    rows = [r for r in rows if r is not None]
+    metrics = [m["name"] for m in POST_EVALUATION_CONFIG["episode_metrics"]]
+    rate = lambda key: sum(r.get(key) is True for r in rows) / len(rows) if rows else None
+    npath = [r["normalized_path_length"] for r in rows if r["normalized_path_length"] is not None]
+    ntime = [r["normalized_path_traversal_time"] for r in rows if r["normalized_path_traversal_time"] is not None]
+    return {"summary_mode": "individual_model", "source_folders": [str(p) for p in paths],
+            "headline": {"episodes": len(rows), "task_success_rate": rate("task_success"),
+                         "collision_free_success_rate": rate("collision_free_success"),
+                         "normalized_path_length": float(np.mean(npath)) if npath else None,
+                         "normalized_path_traversal_time": float(np.mean(ntime)) if ntime else None},
             "ssi_scopes": {scope: _unpaired_scope(rows, scope, metrics, allow_partial=allow_partial)
                            for scope in POST_EVALUATION_CONFIG["scopes"]["global"]}}
 

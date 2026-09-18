@@ -20,6 +20,8 @@ def main():
                         help="SSI scopes to include (default: all scopes)")
     parser.add_argument("--comparison", choices=["individual", "matched_intersection"],
                         default="individual")
+    parser.add_argument("--aggregate-seeds", action="store_true",
+                        help="group *_seedN_*_ledger inputs and report mean/std across seeds")
     parser.add_argument("--allow-partial", dest="allow_partial", action="store_true",
                         default=True,
                         help="compute pairwise tau for cells with at least two tiers (default)")
@@ -47,7 +49,8 @@ def main():
         matched_intersection=args.matched_intersection,
         comparison=("matched_intersection" if args.matched_intersection else args.comparison),
         scopes=args.scope,
-        allow_partial=(args.allow_partial and not args.strict_complete))
+        allow_partial=(args.allow_partial and not args.strict_complete),
+        aggregate_seeds=args.aggregate_seeds)
     _MOD.check_post_evaluation(report)
     with Path(args.out).open("w") as handle:
         json.dump(report, handle, indent=2, allow_nan=False)
