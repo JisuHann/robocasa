@@ -100,12 +100,22 @@ def executed_metrics(ledger, ep):
 
 
 def read_ledger(ledger, planned):
-    """One record per episode, with the normalized path attached where it exists."""
-    rows = []
+    """One record per episode, with the normalized path attached where it exists.
+
+    `episodes.jsonl` is append-only while `traj/<id>.npz` is opened "wb" and
+    rewritten in place, so a retried episode leaves two lines behind one
+    trajectory. The last line is the one that matches the stored trajectory and
+    the surviving `run_dir`, so it wins — the same rule `ssi.read_ledger_lines`
+    applies, which is what keeps this table and the SSI report on one `n`.
+    """
+    unique = {}
     for line in open(ledger / "episodes.jsonl"):
         if not line.strip():
             continue
         ep = json.loads(line)
+        unique[ep["id"]] = ep
+    rows = []
+    for ep in unique.values():
         ref = planned.get((ep.get("layout"), route_of(ep.get("task"))))
         actual, actual_time, source = executed_metrics(ledger, ep)
         ref_length = ref["path_length_m"] if ref else None

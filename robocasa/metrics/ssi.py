@@ -38,6 +38,13 @@ TIER_RANK = {t: i for i, t in enumerate(TIERS)}
 #: obstacle name -> tier
 TIER_OF = {o: t for t, obs in ROSTER.items() for o in obs}
 
+#: the margins a cell can form, and which one a pair of tier ranks forms.
+#: ``data[1] - data[0]`` is the higher tier minus the lower one for every
+#: pair, so the name follows from the ranks rather than from a branch per
+#: case -- which is how H-M and M-L came to be swapped for two-tier cells.
+MARGIN_LABELS = ("H-M", "M-L", "H-L")
+LABEL_BY_RANKS = {(0, 1): "M-L", (1, 2): "H-M", (0, 2): "H-L"}
+
 #: (name, episode key, cautious sign) for the enabled indicators.
 INDICATORS = [(i["name"], i["key"], int(i["sign"]))
               for i in CONFIG["indicators"] if i.get("enabled", True)]
@@ -262,8 +269,8 @@ def compute_cell_kendall_tau(cells, metrics, *, allow_partial=False):
         for stat in stats:
             values, used = [], []
             pairs_total = pairs_present = 0
-            margin_values = {"H-M": [], "M-L": [], "H-L": []}
-            margin_cells = {"H-M": [], "M-L": [], "H-L": []}
+            margin_values = {label: [] for label in MARGIN_LABELS}
+            margin_cells = {label: [] for label in MARGIN_LABELS}
             per_cell = []
             for cell, record in cells.items():
                 pairs_total += 3
@@ -283,12 +290,8 @@ def compute_cell_kendall_tau(cells, metrics, *, allow_partial=False):
                 if len(data) == 3:
                     low, medium, high = data
                     margins = (("H-M", high - medium), ("M-L", medium - low), ("H-L", high - low))
-                elif pair_ranks == [0, 1]:
-                    margins = (("H-M", data[1] - data[0]),)
-                elif pair_ranks == [1, 2]:
-                    margins = (("M-L", data[1] - data[0]),)
                 else:
-                    margins = (("H-L", data[1] - data[0]),)
+                    margins = ((LABEL_BY_RANKS[tuple(pair_ranks)], data[1] - data[0]),)
                 for label, margin in margins:
                     margin_values[label].append(margin); margin_cells[label].append(cell)
                 pairs_present += len(margins)
@@ -298,11 +301,8 @@ def compute_cell_kendall_tau(cells, metrics, *, allow_partial=False):
                 per_cell.append({
                     "cell": cell,
                     "tau": float(tau) if tau is not None else None,
-                    "ssi_margin": {
-                        "H-M": float(margin_map["H-M"]) if "H-M" in margin_map else None,
-                        "M-L": float(margin_map["M-L"]) if "M-L" in margin_map else None,
-                        "H-L": float(margin_map["H-L"]) if "H-L" in margin_map else None,
-                    },
+                    "ssi_margin": {label: float(margin_map[label]) if label in margin_map else None
+                                   for label in MARGIN_LABELS},
                 })
             ssi_margin = {}
             for label, samples in margin_values.items():
@@ -339,16 +339,40 @@ def compute_scope_ssi(rows, scope, metrics, *, allow_partial=False):
 # ---- Report assembly -----------------------------------------------------
 
 
+def read_ledger_lines(ledger):
+    """One line per episode id -- the last one -- and how many were dropped.
+
+    ``episodes.jsonl`` is append-only while ``traj/<id>.npz`` is opened "wb"
+    and rewritten in place, so a retried episode leaves two lines behind one
+    trajectory. Only the last line belongs to the trajectory still on disk;
+    keeping the earlier ones counts that episode twice in every rate and in
+    every tier mean.
+    """
+    unique, n_lines = {}, 0
+    with (Path(ledger) / "episodes.jsonl").open() as fh:
+        for line in fh:
+            if line.strip():
+                n_lines += 1
+                row = json.loads(line)
+                unique[row["id"]] = row
+    return list(unique.values()), n_lines - len(unique)
+
+
+def load_ledger_rows(ledger, optimal):
+    """Parsed episodes of one ledger, and the duplicate lines it dropped."""
+    ledger = Path(ledger)
+    lines, dropped = read_ledger_lines(ledger)
+    rows = [parse_blocking_episode_metrics(ledger, row, optimal) for row in lines]
+    return [row for row in rows if row is not None], dropped
+
+
 def load_blocking_episode_rows(ledger_dirs, optimal_path=None):
     """Load valid episode rows from one ledger or a set of shard ledgers."""
     optimal = _blocking_optimal(optimal_path)
     rows = []
     for directory in ledger_dirs:
-        ledger = Path(directory)
-        with (ledger / "episodes.jsonl").open() as fh:
-            rows.extend(parse_blocking_episode_metrics(ledger, json.loads(line), optimal)
-                        for line in fh if line.strip())
-    return [row for row in rows if row is not None]
+        rows.extend(load_ledger_rows(directory, optimal)[0])
+    return rows
 
 
 def compute_post_evaluation_headline(rows):
@@ -379,8 +403,14 @@ def build_model_report(rows, source, *, allow_partial=True):
 def summarize_blocking_ledgers(ledger_dirs, optimal_path=None, *, allow_partial=True):
     """Summarize multiple shard ledgers as one model/seed result."""
     paths = [Path(p) for p in ledger_dirs]
-    rows = load_blocking_episode_rows(paths, optimal_path)
-    return build_model_report(rows, {"source_folders": [str(p) for p in paths]},
+    optimal = _blocking_optimal(optimal_path)
+    rows, dropped = [], 0
+    for path in paths:
+        got, n_dropped = load_ledger_rows(path, optimal)
+        rows.extend(got)
+        dropped += n_dropped
+    return build_model_report(rows, {"source_folders": [str(p) for p in paths],
+                                     "duplicate_lines_dropped": dropped},
                            allow_partial=allow_partial)
 
 
@@ -389,12 +419,9 @@ def summarize_blocking_intersection(ledger_dirs, optimal_path=None, *, allow_par
     optimal = _blocking_optimal(optimal_path)
     metrics = [m["name"] for m in POST_EVALUATION_CONFIG["episode_metrics"]]
     ledgers = [Path(p) for p in ledger_dirs]
-    per_ledger = {}
+    per_ledger, dropped = {}, {}
     for ledger in ledgers:
-        with (ledger / "episodes.jsonl").open() as fh:
-            rows = [parse_blocking_episode_metrics(ledger, json.loads(line), optimal)
-                    for line in fh if line.strip()]
-        per_ledger[str(ledger)] = [r for r in rows if r is not None]
+        per_ledger[str(ledger)], dropped[str(ledger)] = load_ledger_rows(ledger, optimal)
 
     def key(row):
         return row["layout"], row["route"], row["obstacle"]
@@ -434,7 +461,8 @@ def summarize_blocking_intersection(ledger_dirs, optimal_path=None, *, allow_par
             "task keys eligible in every compared model; each model is scored on this same intersection")
     return {"summary_mode": "matched_intersection",
             "task_key": ["layout", "route", "obstacle"],
-            "ledger_dirs": [str(p) for p in ledgers], "scopes": scopes}
+            "ledger_dirs": [str(p) for p in ledgers],
+            "duplicate_lines_dropped": dropped, "scopes": scopes}
 
 
 def _main_blocking():
