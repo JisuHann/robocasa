@@ -237,7 +237,10 @@ def aggregate_metrics_by_cell_tier(rows, metrics):
                         if metric == "min_distance" else
                         [r[metric][stat] for r in episodes if r[metric][stat] is not None])
                 if metric == "min_distance":
-                    values[stat] = float(np.min(data)) if data else None
+                    # ``min`` belongs to the episode definition (minimum
+                    # clearance over its trajectory).  A tier still averages
+                    # those per-episode values, like every other indicator.
+                    values[stat] = float(np.mean(data)) if data else None
                 else:
                     # Tier aggregation is mean-only: episode-level mean/max
                     # are both retained, but neither is max-pooled across
@@ -406,8 +409,14 @@ def summarize_blocking_intersection(ledger_dirs, optimal_path=None, *, allow_par
             chosen = [r for r in rows if key(r) in common]
             summary = compute_scope_ssi(chosen, "all", metrics,
                                       allow_partial=allow_partial)
-            primary = {metric: summary["kendall_tau"][metric]["mean"]["tau"]
-                       for metric in metrics}
+            # min_distance has only a ``min`` statistic, whereas ratio metrics
+            # expose ``mean`` and ``max``. Keep every configured statistic
+            # instead of assuming ``mean`` exists for every metric.
+            primary = {
+                f"{metric}.{stat}": block["tau"]
+                for metric, stats in summary["kendall_tau"].items()
+                for stat, block in stats.items()
+            }
             values = [v for v in primary.values() if v is not None]
             models.append({"ledger": name, "model": Path(name).parent.name,
                            "policy": Path(name).name, "n_episodes": len(chosen),
