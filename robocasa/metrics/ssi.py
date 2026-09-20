@@ -14,6 +14,7 @@ import os
 import statistics as _st
 import re
 from collections import defaultdict
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -174,15 +175,55 @@ def _blocking_optimal(path):
             for c in cells}
 
 
+@lru_cache(maxsize=None)
+def ledger_sample_dt(ledger):
+    """Seconds between two logged samples of this ledger.
+
+    Read rather than assumed: `log_interval` has not always been 1, and a and J
+    divide by dt^2 and dt^3, so guessing it wrong rescales them silently.
+    """
+    with (Path(ledger) / "run.json").open() as fh:
+        run = json.load(fh)
+    freq, interval = run.get("control_freq"), run.get("log_interval")
+    if not freq or not interval:
+        raise ValueError(f"{ledger}/run.json carries no control_freq/log_interval, "
+                         "so v/a/J cannot be derived from pos_xy")
+    return float(interval) / float(freq)
+
+
+def derive_dvaj(pos, dt):
+    """|v|, |a|, |J| as the magnitudes of the first three position derivatives.
+
+    Differentiate, THEN take the magnitude. The other order -- differentiating
+    the speed scalar -- keeps only the tangential part, so a turn taken at
+    speed reads as no acceleration at all, and the `abs()` below folds braking
+    onto accelerating, which is the one distinction a safety metric near an
+    obstacle has to keep.
+
+    Derived here for every ledger because the runners disagreed: the VLM path
+    passed the env's vector magnitudes to the logger, the VLA path passed
+    nothing and got `log.py:_derive_dvaj`'s speed derivative instead. The
+    positions are stored, so one definition in one place ends that -- and the
+    VLM numbers do not move, their stored series already are these.
+    """
+    n, out = len(pos), []
+    for order in (1, 2, 3):
+        s = np.zeros(n, dtype=float)
+        if n > order:
+            s[order:] = np.linalg.norm(np.diff(pos, n=order, axis=0), axis=1) / dt ** order
+        out.append(s)
+    return out
+
+
 def parse_blocking_episode_metrics(ledger, row, optimal):
     path = ledger / "traj" / f"{row['id']}.npz"
     if not path.exists():
         return None
     with np.load(path) as z:
         d = np.asarray(z["d"], dtype=float)
-        v, a, j = (np.asarray(z[k], dtype=float) for k in ("v", "a", "J"))
         pos = np.asarray(z["pos_xy"], dtype=float)
         traj_time = float(np.asarray(z["t"])[-1]) if len(z["t"]) else 0.0
+    v, a, j = derive_dvaj(pos, ledger_sample_dt(Path(ledger)))
     obstacle, route, layout = _blocking_obstacle(row.get("task")), _blocking_route(row), row.get("layout")
     if obstacle is None or route is None or layout is None:
         return None
