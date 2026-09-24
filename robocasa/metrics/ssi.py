@@ -223,11 +223,17 @@ def parse_blocking_episode_metrics(ledger, row, optimal):
         d = np.asarray(z["d"], dtype=float)
         pos = np.asarray(z["pos_xy"], dtype=float)
         traj_time = float(np.asarray(z["t"])[-1]) if len(z["t"]) else 0.0
+        contact = np.asarray(z["in_contact"], dtype=bool) if "in_contact" in z.files else None
     v, a, j = derive_dvaj(pos, ledger_sample_dt(Path(ledger)))
     obstacle, route, layout = _blocking_obstacle(row.get("task")), _blocking_route(row), row.get("layout")
     if obstacle is None or route is None or layout is None:
         return None
-    collision = (row.get("collision_steps", row.get("contact_steps")) or 0) > 0
+    collision_steps = int(row.get("collision_steps", row.get("contact_steps")) or 0)
+    collision = collision_steps > 0
+    # v at the first contact sample is the step that ran into the obstacle.
+    # A contact already at sample 0 has no such step, so it has no speed.
+    first = int(np.argmax(contact)) if contact is not None and contact.any() else 0
+    first_contact_speed = float(v[first]) if first > 0 else None
     finite = np.isfinite(d)
     observed_min = float(d[finite].min()) if finite.any() else None
     near = finite & (d <= POST_EVALUATION_CONFIG["near_region"]["distance_threshold_m"])
@@ -247,7 +253,8 @@ def parse_blocking_episode_metrics(ledger, row, optimal):
     return {"id": row["id"], "layout": layout, "route": route, "obstacle": obstacle,
             "task_success": row.get("task_success"),
             "collision_free_success": row.get("collision_free_success"),
-            "is_collision": collision, "n_near_samples": int(near.sum()),
+            "is_collision": collision, "collision_steps": collision_steps,
+            "first_contact_speed": first_contact_speed, "n_near_samples": int(near.sum()),
             "min_distance": (POST_EVALUATION_CONFIG["collision"]["min_distance_override_m"]
                              if collision else observed_min),
             "velocity_over_distance": ratio(v), "acceleration_over_distance": ratio(a),
@@ -418,17 +425,32 @@ def load_blocking_episode_rows(ledger_dirs, optimal_path=None):
 
 def compute_post_evaluation_headline(rows):
     """Compute rates and normalized-path aggregates shared by all reports."""
-    def mean(key):
-        values = [r[key] for r in rows if r[key] is not None]
+    def mean(key, subset=rows):
+        values = [r[key] for r in subset if r[key] is not None]
         return float(np.mean(values)) if values else None, len(values)
     path, n_path = mean("normalized_path_length")
     time, n_time = mean("normalized_path_traversal_time")
+    # Path and time again over the collision-free successes only; contact steps
+    # and first-contact speed over the collision episodes only, since the
+    # others have neither.
+    free = filter_episodes_by_scope(rows, "collision_free_task_success")
+    free_path, n_free_path = mean("normalized_path_length", free)
+    free_time, n_free_time = mean("normalized_path_traversal_time", free)
+    hit = [r for r in rows if r["is_collision"]]
+    steps, n_steps = mean("collision_steps", hit)
+    speed, n_speed = mean("first_contact_speed", hit)
     rate = lambda key: sum(r.get(key) is True for r in rows) / len(rows) if rows else None
     return {"episodes": len(rows), "task_success_rate": rate("task_success"),
             "collision_free_success_rate": rate("collision_free_success"),
             "normalized_path_length": path, "normalized_path_length_n": n_path,
             "normalized_path_traversal_time": time,
             "normalized_path_traversal_time_n": n_time,
+            "collision_free_normalized_path_length": free_path,
+            "collision_free_normalized_path_length_n": n_free_path,
+            "collision_free_normalized_path_traversal_time": free_time,
+            "collision_free_normalized_path_traversal_time_n": n_free_time,
+            "collision_steps": steps, "collision_steps_n": n_steps,
+            "first_contact_speed": speed, "first_contact_speed_n": n_speed,
             "no_reference": sum(r["planned_path_len_m"] is None for r in rows)}
 
 
