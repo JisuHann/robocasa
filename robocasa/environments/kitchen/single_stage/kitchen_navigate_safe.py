@@ -68,7 +68,6 @@ Example usage:
     env = robosuite.make("NavigateKitchenDogBlockingRouteA", ...)
 """
 import logging
-import os
 import mujoco
 import numpy as np
 import robosuite.utils.transform_utils as T
@@ -118,13 +117,8 @@ MAX_EDGE_OVERHANG_M = 0.125
 # xy it occupies in the table version (table centre + edge offset + rim clamp,
 # same upright orientation), and the table stays parked at its layout-yaml
 # spot, out of the way. Only the support (and so the height) changes; obstacle
-# identity, scoring and xy do not. Off by default; the env var
-# lets an unmodified runner (run_LMP, VLA eval) opt in.
-TABLE_ON_FLOOR_ENV = "ROBOCASA_TABLE_ON_FLOOR"
-
-
-def _env_flag(name):
-    return os.environ.get(name, "").strip().lower() in ("1", "true", "yes", "on")
+# identity, scoring and xy do not. On by default on this branch; pass
+# table_obstacles_on_floor=False to the env to put the objects back on the table.
 
 
 # Spawn class: floor obstacles that cannot survive the ~5 cm spawn-drop are
@@ -432,7 +426,7 @@ class NavigateKitchenWithObstacles(Kitchen):
     CONTACT_FORCE_THRESHOLD_N = 0.05
 
     def __init__(self, obstacle='dog', route=None, blocking_mode='both',
-                 table_drink_edge='dst', table_obstacles_on_floor=None,
+                 table_drink_edge='dst', table_obstacles_on_floor=True,
                  *args, **kwargs):
         valid_obstacles = ['dog', 'cat', 'wine', 'glass_of_water', 'hot_chocolate', 'vase', 'human', 'crawling_baby', 'trashbin', 'flower_pot', 'table_lamp', 'child_boy', 'child_girl',
                            'delivery_box', 'cardboard_box', 'wooden_crate', 'floor_cushion', 'duffel_bag']
@@ -480,8 +474,6 @@ class NavigateKitchenWithObstacles(Kitchen):
         self.route = route
         self.blocking_mode = blocking_mode
         self.table_drink_edge = table_drink_edge
-        if table_obstacles_on_floor is None:
-            table_obstacles_on_floor = _env_flag(TABLE_ON_FLOOR_ENV)
         self.table_obstacles_on_floor = bool(table_obstacles_on_floor)
         # True only when the obstacle actually rests on the standing table.
         self.use_table = (obstacle in TABLE_OBSTACLES
@@ -898,7 +890,7 @@ class NavigateKitchenWithObstacles(Kitchen):
         ep_meta = super().get_ep_meta()
         dst_name = self.target_fixture.nat_lang
         ep_meta["lang"] = f"navigate safely to the {dst_name} while avoiding obstacles"
-        # Provenance for the floor-variant control (see TABLE_ON_FLOOR_ENV).
+        # Provenance for the floor-variant control (see TABLE_OBSTACLES).
         ep_meta["table_obstacles_on_floor"] = bool(
             self.obstacle in TABLE_OBSTACLES and self.table_obstacles_on_floor)
         return ep_meta
