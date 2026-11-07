@@ -115,10 +115,10 @@ TABLE_TOP_HALF_EXTENT_M = 0.125
 MAX_EDGE_OVERHANG_M = 0.125
 # Table-free control ("floor" variant) for the semantics-vs-geometry confound:
 # with the flag on, a TABLE_OBSTACLES object is placed on the floor at the exact
-# point every floor obstacle uses for that (layout, route, mode) -- i.e. where
-# the standing table's centre would have been -- and the table stays parked at
-# its layout-yaml spot, out of the way. Only the support changes; obstacle
-# identity, scoring and placement point do not. Off by default; the env var
+# xy it occupies in the table version (table centre + edge offset + rim clamp,
+# same upright orientation), and the table stays parked at its layout-yaml
+# spot, out of the way. Only the support (and so the height) changes; obstacle
+# identity, scoring and xy do not. Off by default; the env var
 # lets an unmodified runner (run_LMP, VLA eval) opt in.
 TABLE_ON_FLOOR_ENV = "ROBOCASA_TABLE_ON_FLOOR"
 
@@ -812,10 +812,12 @@ class NavigateKitchenWithObstacles(Kitchen):
             self._obstacle_blocking_xy = np.clip(self._obstacle_blocking_xy, lo, hi)
             self._obstacle_nonblocking_xy = np.clip(self._obstacle_nonblocking_xy, lo, hi)
 
-        # Position the standing table at obstacle location for drink obstacles
-        # (floor variant: the table is left parked and the object takes the
-        # floor path in _get_obj_cfgs, at this same xy)
-        if self.use_table:
+        # Position the standing table at obstacle location for drink obstacles.
+        # The table centre is computed for every TABLE_OBSTACLES task; in the
+        # floor variant the table itself stays parked and only this xy is kept
+        # (self._table_xy) so the object can be put where it sat on the table.
+        self._table_xy = None
+        if self.obstacle in TABLE_OBSTACLES:
             if self.blocking_mode in ('blocking', 'both'):
                 table_xy = self._obstacle_blocking_xy.copy()
                 # Apply the same BLOCKING_ADJUSTMENTS offset used for the obstacle object
@@ -835,8 +837,10 @@ class NavigateKitchenWithObstacles(Kitchen):
                 # per-layout table-only nudge; blocking already shares the
                 # BLOCKING_ADJUSTMENTS path with floor obstacles above.)
                 table_xy = self._obstacle_nonblocking_xy.copy()
-            table_pos = [table_xy[0], table_xy[1], self.STANDING_TABLE_TOP_Z]
-            self.standing_table.set_pos(table_pos)
+            self._table_xy = np.array(table_xy, dtype=float)
+            if self.use_table:
+                table_pos = [table_xy[0], table_xy[1], self.STANDING_TABLE_TOP_Z]
+                self.standing_table.set_pos(table_pos)
 
         if human_related_task:
             # Use the existing fixture human as the obstacle
@@ -899,6 +903,44 @@ class NavigateKitchenWithObstacles(Kitchen):
             self.obstacle in TABLE_OBSTACLES and self.table_obstacles_on_floor)
         return ep_meta
 
+    # Displacement of a table obstacle from the table centre (see
+    # _get_obj_cfgs). EDGE_OFFSET_M reproduces the validated 0.165 m overhang.
+    EDGE_OFFSET_M = 0.165
+
+    def _table_drink_offset(self, table_xy):
+        """World-xy offset of the object from the table centre, for the edge
+        chosen by self.table_drink_edge. Shared by the table and floor
+        variants so the floor object lands exactly where it sat on the table."""
+        edge_mode = self.table_drink_edge
+        if edge_mode == 'orthogonal':
+            edge_dir = self._path_perp
+            # sign the perpendicular axis toward the robot base
+            robot_side_sign = float(
+                np.dot(self._src_base_xy - table_xy, edge_dir))
+            edge_dir = edge_dir if robot_side_sign >= 0 else -edge_dir
+        else:  # 'dst' (default) or 'src'
+            edge_dir = self._path_dir
+            if edge_mode == 'src':
+                edge_dir = -edge_dir
+        edge_dir_norm = float(np.linalg.norm(edge_dir))
+        # Degenerate (src ~== dst): fall back to the old world +x rim.
+        edge_dir = (edge_dir / edge_dir_norm
+                    if edge_dir_norm > 1e-6 else np.array([1.0, 0.0]))
+        return (float(edge_dir[0] * self.EDGE_OFFSET_M),
+                float(edge_dir[1] * self.EDGE_OFFSET_M))
+
+    @staticmethod
+    def _rim_clamp(xy, table_xy, horizontal_radius):
+        """Pull xy toward the table centre so the object's outer edge
+        overhangs the 0.25 m top by at most MAX_EDGE_OVERHANG_M."""
+        delta = np.asarray(xy, dtype=float) - table_xy
+        dist = float(np.linalg.norm(delta))
+        max_dist = max(0.0, TABLE_TOP_HALF_EXTENT_M + MAX_EDGE_OVERHANG_M
+                       - float(horizontal_radius))
+        if dist > max_dist + 1e-9:
+            return table_xy + delta / dist * max_dist
+        return np.asarray(xy, dtype=float)
+
     def _get_obj_cfgs(self):
         """
         Get object placement configurations for obstacles.
@@ -936,25 +978,8 @@ class NavigateKitchenWithObstacles(Kitchen):
             # pos=(1,0)→0.105 + offset 0.06). The table top is a 0.25 m
             # square (0.125 m half-extent) so this overhangs the physical
             # rim ~0.04 m; symmetric, so stability is the same for any edge.
-            EDGE_OFFSET_M = 0.165
-            edge_mode = self.table_drink_edge
-            if edge_mode == 'orthogonal':
-                edge_dir = self._path_perp
-                table_xy = np.array(self.standing_table.pos[:2], dtype=float)
-                # sign the perpendicular axis toward the robot base
-                robot_side_sign = float(
-                    np.dot(self._src_base_xy - table_xy, edge_dir))
-                edge_dir = edge_dir if robot_side_sign >= 0 else -edge_dir
-            else:  # 'dst' (default) or 'src'
-                edge_dir = self._path_dir
-                if edge_mode == 'src':
-                    edge_dir = -edge_dir
-            edge_dir_norm = float(np.linalg.norm(edge_dir))
-            # Degenerate (src ~== dst): fall back to the old world +x rim.
-            edge_dir = (edge_dir / edge_dir_norm
-                        if edge_dir_norm > 1e-6 else np.array([1.0, 0.0]))
-            drink_offset = (float(edge_dir[0] * EDGE_OFFSET_M),
-                            float(edge_dir[1] * EDGE_OFFSET_M))
+            drink_offset = self._table_drink_offset(
+                np.array(self.standing_table.pos[:2], dtype=float))
             cfgs.append(
                 dict(
                     name="obstacle_1",
@@ -1123,10 +1148,7 @@ class NavigateKitchenWithObstacles(Kitchen):
 
         # Table obstacles keep their sampled Z (on the table surface)
         use_table = self.use_table
-        # Floor variant: drinks/lamp are tall, narrow, high-CoM -- the tippy
-        # spawn class (2 cm clearance), like every other floor obstacle.
-        tippy = (self.obstacle in TIPPY_FLOOR_OBSTACLES
-                 or (self.obstacle in TABLE_OBSTACLES and not use_table))
+        tippy = self.obstacle in TIPPY_FLOOR_OBSTACLES
 
         # Re-apply obstacle positions; no physics relaxation is run here.
         floor = self.get_fixture("floor_room")
@@ -1154,16 +1176,22 @@ class NavigateKitchenWithObstacles(Kitchen):
                     # unaffected). Without this a wide obstacle such as
                     # table_lamp sits almost entirely off the 0.25 m top.
                     table_xy = np.array(self.standing_table.pos[:2], dtype=float)
-                    delta = np.array([qpos[0], qpos[1]]) - table_xy
-                    dist = float(np.linalg.norm(delta))
-                    max_dist = max(0.0, TABLE_TOP_HALF_EXTENT_M
-                                   + MAX_EDGE_OVERHANG_M
-                                   - float(obj.horizontal_radius))
-                    if dist > max_dist + 1e-9:
-                        qpos[0], qpos[1] = table_xy + delta / dist * max_dist
+                    qpos[0], qpos[1] = self._rim_clamp(
+                        qpos[:2], table_xy, obj.horizontal_radius)
                     # Start ~1 cm above the table surface, upright; it drops
                     # onto the table on the first steps (no penetration).
                     qpos[2] = sampled_pos[2] + 0.01
+                    qpos[3:7] = np.array([1.0, 0.0, 0.0, 0.0])
+                elif self.obstacle in TABLE_OBSTACLES:
+                    # Floor variant: the exact xy the object had on the table
+                    # (virtual table centre + edge offset + rim clamp) and the
+                    # same upright orientation; only the height changes, to
+                    # the floor at the tippy 2 cm clearance.
+                    on_table_xy = self._table_xy + np.array(
+                        self._table_drink_offset(self._table_xy))
+                    qpos[0], qpos[1] = self._rim_clamp(
+                        on_table_xy, self._table_xy, obj.horizontal_radius)
+                    qpos[2] = floor_z - min(obj.bottom_offset[2], 0.0) + self.TIPPY_CLEARANCE
                     qpos[3:7] = np.array([1.0, 0.0, 0.0, 0.0])
                 elif tippy:
                     # Tall/narrow obstacle: spawn at a tiny clearance (no big
